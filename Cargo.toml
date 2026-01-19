@@ -1,6 +1,6 @@
 [package]
 name = "linreg-core"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Lightweight OLS linear regression with diagnostic tests. Custom implementations of linear algebra and statistical distributions - no external math dependencies."
 license = "MIT OR Apache-2.0"
@@ -22,6 +22,11 @@ exclude = [
     # Exclude proptest regression files (dev-only)
     "proptest-regressions/",
 ]
+
+[package.metadata.docs.rs]
+# Disable default features (WASM) for docs.rs builds
+# since wasm-bindgen doesn't build in docs.rs environment
+features = []
 
 [lib]
 crate-type = ["cdylib", "rlib"]
