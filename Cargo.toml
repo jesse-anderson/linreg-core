@@ -13,6 +13,9 @@ keywords = ["statistics", "regression", "ols", "linear-regression", "diagnostics
 categories = ["science", "mathematics", "wasm"]
 exclude = [
     "tmpclaude*",
+    # Exclude dev-only files from published crate
+    ".github/",
+    ".gitignore",
     # Exclude Python venv from published crate (large, not needed)
     # Keep R/Python scripts for manual verification by contributors
     "verification/.venv/",
