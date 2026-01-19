@@ -1,0 +1,10 @@
+{
+  "test_name": ["Durbin-Watson Test (R - lmtest::dwtest)"],
+  "dataset": ["longley"],
+  "formula": ["GNP.deflator ~ GNP + Unemployed + Armed.Forces + Population + Year + Employed"],
+  "statistic": [1.8401312749874126],
+  "p_value": [0.081293322899225112],
+  "passed": [true],
+  "interpretation": ["No significant autocorrelation"],
+  "description": ["Tests for autocorrelation in residuals. Values near 2 indicate no autocorrelation, values near 0 suggest positive autocorrelation, and values near 4 suggest negative autocorrelation. Uses lmtest::dwtest."]
+}

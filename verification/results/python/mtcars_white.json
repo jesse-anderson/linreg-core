@@ -1,0 +1,11 @@
+{
+  "test_name": "White Test (Python - statsmodels)",
+  "dataset": "mtcars",
+  "formula": "mpg ~ cyl + disp + hp + drat + wt + qsec + vs + am + gear + carb",
+  "statistic": 32.0,
+  "p_value": 0.4167440299455431,
+  "passed": true,
+  "f_statistic": NaN,
+  "f_p_value": NaN,
+  "description": "Tests for heteroscedasticity using squares and cross-products of predictors. Uses statsmodels.stats.diagnostic.het_white."
+}

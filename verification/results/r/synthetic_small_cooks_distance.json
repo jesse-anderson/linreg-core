@@ -1,0 +1,17 @@
+{
+  "test_name": ["Cook's Distance (R - stats::cooks.distance)"],
+  "dataset": ["synthetic_small"],
+  "formula": ["x ~ y"],
+  "distances": [0.074342440808274443, 3.3591844448756483e-05, 0.028273995597382848, 0.0067636828950796571, 0.22250185302376191, 0.00022494330015348929, 0.062166746272925351, 0.016746448132573047, 0.1648101493118648, 0.075440785506337663, 0.14829314430563931, 0.048851084907747151, 0.62728906634434101, 0.024905442719689856, 0.021853103484628735],
+  "p": [2],
+  "mse": [0.066262961891451699],
+  "threshold_4_over_n": [0.26666666666666666],
+  "threshold_4_over_df": [0.30769230769230771],
+  "threshold_1": [1],
+  "influential_4_over_n": [13],
+  "influential_4_over_df": [13],
+  "influential_1": [],
+  "max_distance": [0.62728906634434101],
+  "max_index": [13],
+  "description": ["Measures influence of each observation on regression coefficients. D_i > 1 indicates high influence."]
+}

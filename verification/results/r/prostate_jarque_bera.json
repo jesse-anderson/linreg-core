@@ -1,0 +1,11 @@
+{
+  "test_name": ["Jarque-Bera Test (R - tseries::jarque.bera.test)"],
+  "dataset": ["prostate"],
+  "formula": ["lcavol ~ lweight + age + lbph + svi + lcp + gleason + pgg45 + lpsa"],
+  "statistic": [0.18374865829649184],
+  "p_value": [0.91221978177893737],
+  "passed": [true],
+  "skewness": [],
+  "kurtosis": [],
+  "description": ["Tests for normality of residuals by examining skewness and kurtosis. Uses tseries::jarque.bera.test."]
+}

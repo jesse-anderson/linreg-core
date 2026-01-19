@@ -1,0 +1,11 @@
+{
+  "test_name": ["Rainbow Test (R - lmtest::raintest)"],
+  "dataset": ["synthetic_outliers"],
+  "formula": ["x ~ y"],
+  "statistic": [15.239544596018085],
+  "p_value": [2.7870979382253187e-17],
+  "passed": [false],
+  "method": ["R"],
+  "fraction": [0.5],
+  "description": ["Tests for linearity by comparing fit on central subset vs full data. R variant uses lmtest::raintest algorithm with Type 7 quantile."]
+}

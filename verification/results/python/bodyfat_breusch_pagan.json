@@ -1,0 +1,11 @@
+{
+  "test_name": "Breusch-Pagan Test (Python - statsmodels)",
+  "dataset": "bodyfat",
+  "formula": "Density ~ BodyFat + Age + Weight + Height + Neck + Chest + Abdomen + Hip + Thigh + Knee + Ankle + Biceps + Forearm + Wrist",
+  "statistic": 20.71639294091003,
+  "p_value": 0.1091242084723717,
+  "passed": true,
+  "f_statistic": 1.5163155837194702,
+  "f_p_value": 0.1058272811939188,
+  "description": "Tests for heteroscedasticity by regressing squared residuals on predictors. Uses statsmodels.stats.diagnostic.het_breuschpagan."
+}

@@ -1,0 +1,11 @@
+{
+  "test_name": "Jarque-Bera Test (Python - statsmodels)",
+  "dataset": "mtcars",
+  "formula": "mpg ~ cyl + disp + hp + drat + wt + qsec + vs + am + gear + carb",
+  "statistic": 1.7466576018548334,
+  "p_value": 0.41755926155189893,
+  "passed": true,
+  "skewness": 0.5209598580326829,
+  "kurtosis": 2.5262949159388377,
+  "description": "Tests for normality of residuals by examining skewness and kurtosis. Uses statsmodels.stats.stattools.jarque_bera."
+}

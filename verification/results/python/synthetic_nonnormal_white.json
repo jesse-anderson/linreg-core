@@ -1,0 +1,11 @@
+{
+  "test_name": "White Test (Python - statsmodels)",
+  "dataset": "synthetic_nonnormal",
+  "formula": "x ~ y",
+  "statistic": 2.18904691346532,
+  "p_value": 0.33469906753787493,
+  "passed": true,
+  "f_statistic": 1.0854487350628204,
+  "f_p_value": 0.34181671975494476,
+  "description": "Tests for heteroscedasticity using squares and cross-products of predictors. Uses statsmodels.stats.diagnostic.het_white."
+}

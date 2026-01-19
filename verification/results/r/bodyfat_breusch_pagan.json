@@ -1,0 +1,9 @@
+{
+  "test_name": ["Breusch-Pagan Test (R - lmtest::bptest)"],
+  "dataset": ["bodyfat"],
+  "formula": ["Density ~ BodyFat + Age + Weight + Height + Neck + Chest + Abdomen + Hip + Thigh + Knee + Ankle + Biceps + Forearm + Wrist"],
+  "statistic": [20.716392940906502],
+  "p_value": [0.10912420847246762],
+  "passed": [true],
+  "description": ["Tests for heteroscedasticity by regressing squared residuals on predictors. R variant uses lmtest::bptest with studentize=TRUE."]
+}

@@ -1,0 +1,10 @@
+{
+  "test_name": "Durbin-Watson Test (Python - statsmodels)",
+  "dataset": "bodyfat",
+  "formula": "Density ~ BodyFat + Age + Weight + Height + Neck + Chest + Abdomen + Hip + Thigh + Knee + Ankle + Biceps + Forearm + Wrist",
+  "statistic": 2.015923975820922,
+  "p_value": null,
+  "passed": true,
+  "interpretation": "No positive autocorrelation",
+  "description": "Tests for autocorrelation in residuals. Values near 2 indicate no autocorrelation, values near 0 suggest positive autocorrelation, and values near 4 suggest negative autocorrelation. Uses statsmodels.stats.stattools.durbin_watson."
+}

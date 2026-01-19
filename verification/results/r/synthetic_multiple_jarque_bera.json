@@ -1,0 +1,11 @@
+{
+  "test_name": ["Jarque-Bera Test (R - tseries::jarque.bera.test)"],
+  "dataset": ["synthetic_multiple"],
+  "formula": ["x1 ~ x2 + x3 + y"],
+  "statistic": [1.3826582296045025],
+  "p_value": [0.50090985972063029],
+  "passed": [true],
+  "skewness": [],
+  "kurtosis": [],
+  "description": ["Tests for normality of residuals by examining skewness and kurtosis. Uses tseries::jarque.bera.test."]
+}

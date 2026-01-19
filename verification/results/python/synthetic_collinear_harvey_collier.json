@@ -1,0 +1,10 @@
+{
+  "test_name": "Harvey-Collier Test (Python - statsmodels)",
+  "dataset": "synthetic_collinear",
+  "formula": "x1 ~ x2 + x3 + y",
+  "statistic": 5.667410537841918,
+  "p_value": 1.5177467928946993e-07,
+  "passed": false,
+  "skipped": false,
+  "description": "Tests for functional form misspecification by examining whether recursive residuals exhibit a linear trend. Uses statsmodels.stats.diagnostic.linear_harvey_collier."
+}

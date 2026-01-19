@@ -1,0 +1,11 @@
+{
+  "test_name": "White Test (Python - statsmodels)",
+  "dataset": "synthetic_interaction",
+  "formula": "x1 ~ x2 + y",
+  "statistic": 38.19277486018997,
+  "p_value": 3.4512943071807527e-07,
+  "passed": false,
+  "f_statistic": 11.617155854309532,
+  "f_p_value": 9.44445855411642e-09,
+  "description": "Tests for heteroscedasticity using squares and cross-products of predictors. Uses statsmodels.stats.diagnostic.het_white."
+}

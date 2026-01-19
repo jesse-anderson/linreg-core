@@ -1,0 +1,11 @@
+{
+  "test_name": ["Jarque-Bera Test (R - tseries::jarque.bera.test)"],
+  "dataset": ["mtcars"],
+  "formula": ["mpg ~ cyl + disp + hp + drat + wt + qsec + vs + am + gear + carb"],
+  "statistic": [1.746657601854928],
+  "p_value": [0.41755926155187895],
+  "passed": [true],
+  "skewness": [],
+  "kurtosis": [],
+  "description": ["Tests for normality of residuals by examining skewness and kurtosis. Uses tseries::jarque.bera.test."]
+}

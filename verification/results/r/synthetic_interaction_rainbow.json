@@ -1,0 +1,11 @@
+{
+  "test_name": ["Rainbow Test (R - lmtest::raintest)"],
+  "dataset": ["synthetic_interaction"],
+  "formula": ["x1 ~ x2 + y"],
+  "statistic": [1.4011984821677717],
+  "p_value": [0.12296377859738385],
+  "passed": [true],
+  "method": ["R"],
+  "fraction": [0.5],
+  "description": ["Tests for linearity by comparing fit on central subset vs full data. R variant uses lmtest::raintest algorithm with Type 7 quantile."]
+}

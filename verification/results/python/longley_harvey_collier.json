@@ -1,0 +1,11 @@
+{
+  "test_name": "Harvey-Collier Test (Python - statsmodels)",
+  "dataset": "longley",
+  "formula": "GNP.deflator ~ GNP + Unemployed + Armed Forces + Population + Year + Employed",
+  "statistic": null,
+  "p_value": null,
+  "passed": null,
+  "skipped": true,
+  "reason": "Test returned NaN values - likely due to multicollinearity in the data",
+  "description": "Tests for functional form misspecification by examining whether recursive residuals exhibit a linear trend. Uses statsmodels.stats.diagnostic.linear_harvey_collier."
+}

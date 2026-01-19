@@ -1,0 +1,9 @@
+{
+  "test_name": ["White Test (R - skedastic::white)"],
+  "dataset": ["synthetic_outliers"],
+  "formula": ["x ~ y"],
+  "statistic": [83.692669974390128],
+  "p_value": [6.7045190203867101e-19],
+  "passed": [false],
+  "description": ["Tests for heteroscedasticity using squares and cross-products of predictors. R variant uses skedastic::white with original variables only."]
+}

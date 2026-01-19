@@ -1,0 +1,10 @@
+{
+  "test_name": ["Durbin-Watson Test (R - lmtest::dwtest)"],
+  "dataset": ["mtcars"],
+  "formula": ["mpg ~ cyl + disp + hp + drat + wt + qsec + vs + am + gear + carb"],
+  "statistic": [1.8608933684548066],
+  "p_value": [0.15740868054400137],
+  "passed": [true],
+  "interpretation": ["No significant autocorrelation"],
+  "description": ["Tests for autocorrelation in residuals. Values near 2 indicate no autocorrelation, values near 0 suggest positive autocorrelation, and values near 4 suggest negative autocorrelation. Uses lmtest::dwtest."]
+}

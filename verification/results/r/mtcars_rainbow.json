@@ -1,0 +1,11 @@
+{
+  "test_name": ["Rainbow Test (R - lmtest::raintest)"],
+  "dataset": ["mtcars"],
+  "formula": ["mpg ~ cyl + disp + hp + drat + wt + qsec + vs + am + gear + carb"],
+  "statistic": [3.8577111479531578],
+  "p_value": [0.071197120389536461],
+  "passed": [true],
+  "method": ["R"],
+  "fraction": [0.5],
+  "description": ["Tests for linearity by comparing fit on central subset vs full data. R variant uses lmtest::raintest algorithm with Type 7 quantile."]
+}

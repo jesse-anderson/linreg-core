@@ -1,0 +1,11 @@
+{
+  "test_name": "Harvey-Collier Test (Python - statsmodels)",
+  "dataset": "prostate",
+  "formula": "lcavol ~ lweight + age + lbph + svi + lcp + gleason + pgg45 + lpsa",
+  "statistic": null,
+  "p_value": null,
+  "passed": null,
+  "skipped": true,
+  "reason": "High multicollinearity detected - Harvey-Collier test requires full-rank design matrix. Consider using VIF to diagnose multicollinearity first.",
+  "description": "Tests for functional form misspecification by examining whether recursive residuals exhibit a linear trend. Uses statsmodels.stats.diagnostic.linear_harvey_collier."
+}

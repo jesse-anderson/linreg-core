@@ -1,0 +1,9 @@
+{
+  "test_name": ["Anderson-Darling Test (R - nortest::ad.test)"],
+  "dataset": ["prostate"],
+  "formula": ["lcavol ~ lweight + age + lbph + svi + lcp + gleason + pgg45 + lpsa"],
+  "statistic": [0.4063538438402361],
+  "p_value": [0.34422294958393879],
+  "passed": [true],
+  "description": ["Tests for normality of residuals. The Anderson-Darling test is particularly sensitive to deviations in the tails of the distribution. Uses nortest::ad.test."]
+}

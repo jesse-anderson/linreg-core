@@ -1,0 +1,9 @@
+{
+  "test_name": ["Anderson-Darling Test (R - nortest::ad.test)"],
+  "dataset": ["iris"],
+  "formula": ["Sepal.Length ~ Sepal.Width + Petal.Length + Petal.Width + Species"],
+  "statistic": [9.6712406473491797],
+  "p_value": [1.8369786114956032e-23],
+  "passed": [false],
+  "description": ["Tests for normality of residuals. The Anderson-Darling test is particularly sensitive to deviations in the tails of the distribution. Uses nortest::ad.test."]
+}

@@ -1,0 +1,9 @@
+{
+  "test_name": ["Breusch-Pagan Test (R - lmtest::bptest)"],
+  "dataset": ["longley"],
+  "formula": ["GNP.deflator ~ GNP + Unemployed + Armed.Forces + Population + Year + Employed"],
+  "statistic": [3.0280889762898395],
+  "p_value": [0.8053132008132633],
+  "passed": [true],
+  "description": ["Tests for heteroscedasticity by regressing squared residuals on predictors. R variant uses lmtest::bptest with studentize=TRUE."]
+}

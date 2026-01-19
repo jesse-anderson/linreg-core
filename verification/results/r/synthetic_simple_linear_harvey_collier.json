@@ -1,0 +1,9 @@
+{
+  "test_name": ["Harvey-Collier Test (R - lmtest::harvtest)"],
+  "dataset": ["synthetic_simple_linear"],
+  "formula": ["x ~ y"],
+  "statistic": [2.8045233115879076],
+  "p_value": [0.0060879288311466205],
+  "passed": [false],
+  "description": ["Tests for functional form misspecification by examining whether recursive residuals exhibit a linear trend. R variant uses lmtest::harvtest with order.by = fitted values."]
+}

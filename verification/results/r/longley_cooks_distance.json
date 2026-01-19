@@ -1,0 +1,17 @@
+{
+  "test_name": ["Cook's Distance (R - stats::cooks.distance)"],
+  "dataset": ["longley"],
+  "formula": ["GNP.deflator ~ GNP + Unemployed + Armed.Forces + Population + Year + Employed"],
+  "distances": [0.064864117906019647, 0.24984688176313136, 0.00095882051476587336, 0.23278249656211325, 0.1047580636380631, 0.010083981699700342, 0.12434139254039571, 0.003058976501752496, 0.078813417131201893, 0.068458899452323127, 0.058306546795730441, 0.13866534894593355, 0.015598501121312757, 0.0028808338244044117, 0.0083039973441726405, 0.34021656033922143],
+  "p": [7],
+  "mse": [1.4271113668655913],
+  "threshold_4_over_n": [0.25],
+  "threshold_4_over_df": [0.44444444444444442],
+  "threshold_1": [1],
+  "influential_4_over_n": [16],
+  "influential_4_over_df": [],
+  "influential_1": [],
+  "max_distance": [0.34021656033922143],
+  "max_index": [16],
+  "description": ["Measures influence of each observation on regression coefficients. D_i > 1 indicates high influence."]
+}

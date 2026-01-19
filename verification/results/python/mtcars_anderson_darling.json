@@ -1,0 +1,9 @@
+{
+  "test_name": "Anderson-Darling Test (Python - statsmodels.stats.diagnostic.normal_ad)",
+  "dataset": "mtcars",
+  "formula": "mpg ~ cyl + disp + hp + drat + wt + qsec + vs + am + gear + carb",
+  "statistic": 0.39168047953437934,
+  "p_value": 0.3591666256844508,
+  "passed": true,
+  "description": "Tests for normality of residuals. The Anderson-Darling test is particularly sensitive to deviations in the tails of the distribution. Uses statsmodels.stats.diagnostic.normal_ad."
+}

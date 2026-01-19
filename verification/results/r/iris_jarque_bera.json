@@ -1,0 +1,11 @@
+{
+  "test_name": ["Jarque-Bera Test (R - tseries::jarque.bera.test)"],
+  "dataset": ["iris"],
+  "formula": ["Sepal.Length ~ Sepal.Width + Petal.Length + Petal.Width + Species"],
+  "statistic": [58.356750305762226],
+  "p_value": [2.1282975382064251e-13],
+  "passed": [false],
+  "skewness": [],
+  "kurtosis": [],
+  "description": ["Tests for normality of residuals by examining skewness and kurtosis. Uses tseries::jarque.bera.test."]
+}

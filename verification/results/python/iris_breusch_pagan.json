@@ -1,0 +1,11 @@
+{
+  "test_name": "Breusch-Pagan Test (Python - statsmodels)",
+  "dataset": "iris",
+  "formula": "Sepal.Length ~ Sepal.Width + Petal.Length + Petal.Width + Species",
+  "statistic": 48.19485891576631,
+  "p_value": 8.595053822739484e-10,
+  "passed": false,
+  "f_statistic": 14.927186711054533,
+  "f_p_value": 7.878810701253613e-11,
+  "description": "Tests for heteroscedasticity by regressing squared residuals on predictors. Uses statsmodels.stats.diagnostic.het_breuschpagan."
+}

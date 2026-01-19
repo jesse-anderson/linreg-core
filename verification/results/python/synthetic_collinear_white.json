@@ -1,0 +1,11 @@
+{
+  "test_name": "White Test (Python - statsmodels)",
+  "dataset": "synthetic_collinear",
+  "formula": "x1 ~ x2 + x3 + y",
+  "statistic": 97.10443496690372,
+  "p_value": 6.052089299540106e-17,
+  "passed": false,
+  "f_statistic": 335.35573836885504,
+  "f_p_value": 3.378818895026143e-65,
+  "description": "Tests for heteroscedasticity using squares and cross-products of predictors. Uses statsmodels.stats.diagnostic.het_white."
+}

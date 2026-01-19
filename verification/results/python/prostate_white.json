@@ -1,0 +1,11 @@
+{
+  "test_name": "White Test (Python - statsmodels)",
+  "dataset": "prostate",
+  "formula": "lcavol ~ lweight + age + lbph + svi + lcp + gleason + pgg45 + lpsa",
+  "statistic": 44.56076820307925,
+  "p_value": 0.40591687584358593,
+  "passed": true,
+  "f_statistic": 1.0473787595770558,
+  "f_p_value": 0.43294545185214833,
+  "description": "Tests for heteroscedasticity using squares and cross-products of predictors. Uses statsmodels.stats.diagnostic.het_white."
+}

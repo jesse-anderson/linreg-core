@@ -1,0 +1,9 @@
+{
+  "test_name": ["Breusch-Pagan Test (R - lmtest::bptest)"],
+  "dataset": ["synthetic_multiple"],
+  "formula": ["x1 ~ x2 + x3 + y"],
+  "statistic": [1.2402237456852003],
+  "p_value": [0.74337403242706346],
+  "passed": [true],
+  "description": ["Tests for heteroscedasticity by regressing squared residuals on predictors. R variant uses lmtest::bptest with studentize=TRUE."]
+}

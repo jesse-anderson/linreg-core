@@ -1,0 +1,10 @@
+{
+  "test_name": ["Durbin-Watson Test (R - lmtest::dwtest)"],
+  "dataset": ["iris"],
+  "formula": ["Sepal.Length ~ Sepal.Width + Petal.Length + Petal.Width + Species"],
+  "statistic": [1.6126490155998709],
+  "p_value": [0.0009830011297310389],
+  "passed": [false],
+  "interpretation": ["No significant autocorrelation"],
+  "description": ["Tests for autocorrelation in residuals. Values near 2 indicate no autocorrelation, values near 0 suggest positive autocorrelation, and values near 4 suggest negative autocorrelation. Uses lmtest::dwtest."]
+}

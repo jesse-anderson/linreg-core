@@ -1,0 +1,11 @@
+{
+  "test_name": ["Rainbow Test (R - lmtest::raintest)"],
+  "dataset": ["bodyfat"],
+  "formula": ["Density ~ BodyFat + Age + Weight + Height + Neck + Chest + Abdomen + Hip + Thigh + Knee + Ankle + Biceps + Forearm + Wrist"],
+  "statistic": [0.34045337894451205],
+  "p_value": [0.99999999612685797],
+  "passed": [true],
+  "method": ["R"],
+  "fraction": [0.5],
+  "description": ["Tests for linearity by comparing fit on central subset vs full data. R variant uses lmtest::raintest algorithm with Type 7 quantile."]
+}

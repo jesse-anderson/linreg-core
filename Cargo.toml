@@ -1,0 +1,62 @@
+[package]
+name = "linreg-core"
+version = "0.1.0"
+edition = "2021"
+description = "Lightweight OLS linear regression with diagnostic tests. Custom implementations of linear algebra and statistical distributions - no external math dependencies."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jesse-anderson/linreg-core"
+homepage = "https://jesse-anderson.net"
+documentation = "https://docs.rs/linreg-core"
+readme = "README.md"
+authors = ["Jesse Anderson"]
+keywords = ["statistics", "regression", "ols", "linear-regression", "diagnostics"]
+categories = ["science", "mathematics", "wasm"]
+exclude = [
+    "tmpclaude*",
+    # Exclude Python venv from published crate (large, not needed)
+    # Keep R/Python scripts for manual verification by contributors
+    "verification/.venv/",
+    # Exclude proptest regression files (dev-only)
+    "proptest-regressions/",
+]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["wasm"]
+wasm = [
+    "dep:wasm-bindgen",
+    "dep:web-sys",
+    "dep:js-sys",
+    "dep:csv",
+    "getrandom/js",
+]
+# Enable validation tests against R/Python reference values
+# This includes test data JSON files in the published crate
+validation = []
+
+[dependencies]
+# Core dependencies (always available)
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# WASM-specific dependencies (optional)
+wasm-bindgen = { version = "0.2", optional = true }
+web-sys = { version = "0.3", optional = true, features = ["Window", "Location"] }
+js-sys = { version = "0.3", optional = true }
+csv = { version = "1.3", optional = true }
+
+# getrandom needs js feature for WASM
+getrandom = { version = "0.2", optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+proptest = "1.4"
+paste = "1.0"
+csv = "1.3"  # For validation tests
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

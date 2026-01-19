@@ -1,0 +1,11 @@
+{
+  "test_name": ["Rainbow Test (R - lmtest::raintest)"],
+  "dataset": ["synthetic_nonnormal"],
+  "formula": ["x ~ y"],
+  "statistic": [0.72265085380289029],
+  "p_value": [0.87110078963297399],
+  "passed": [true],
+  "method": ["R"],
+  "fraction": [0.5],
+  "description": ["Tests for linearity by comparing fit on central subset vs full data. R variant uses lmtest::raintest algorithm with Type 7 quantile."]
+}

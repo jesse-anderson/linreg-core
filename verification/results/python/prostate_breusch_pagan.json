@@ -1,0 +1,11 @@
+{
+  "test_name": "Breusch-Pagan Test (Python - statsmodels)",
+  "dataset": "prostate",
+  "formula": "lcavol ~ lweight + age + lbph + svi + lcp + gleason + pgg45 + lpsa",
+  "statistic": 17.21185080002322,
+  "p_value": 0.027977157531027055,
+  "passed": false,
+  "f_statistic": 2.3729132797118506,
+  "f_p_value": 0.023094097654150884,
+  "description": "Tests for heteroscedasticity by regressing squared residuals on predictors. Uses statsmodels.stats.diagnostic.het_breuschpagan."
+}

@@ -1,0 +1,9 @@
+{
+  "test_name": ["Anderson-Darling Test (R - nortest::ad.test)"],
+  "dataset": ["synthetic_nonnormal"],
+  "formula": ["x ~ y"],
+  "statistic": [4.6617737515710758],
+  "p_value": [1.2373388688820555e-11],
+  "passed": [false],
+  "description": ["Tests for normality of residuals. The Anderson-Darling test is particularly sensitive to deviations in the tails of the distribution. Uses nortest::ad.test."]
+}

@@ -1,0 +1,10 @@
+{
+  "test_name": "Rainbow Test (Python - statsmodels)",
+  "dataset": "synthetic_autocorrelated",
+  "formula": "x ~ y",
+  "statistic": 2.0885822754956456,
+  "p_value": 0.005735778542680641,
+  "passed": false,
+  "fraction": 0.5,
+  "description": "Tests for linearity by comparing fit on central subset vs full data. Uses statsmodels.stats.diagnostic.linear_rainbow."
+}

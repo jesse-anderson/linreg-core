@@ -1,0 +1,9 @@
+{
+  "test_name": ["White Test (R - skedastic::white)"],
+  "dataset": ["iris"],
+  "formula": ["Sepal.Length ~ Sepal.Width + Petal.Length + Petal.Width + Species"],
+  "statistic": [58.119549815399537],
+  "p_value": [1.0883721347818017e-09],
+  "passed": [false],
+  "description": ["Tests for heteroscedasticity using squares and cross-products of predictors. R variant uses skedastic::white with original variables only."]
+}

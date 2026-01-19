@@ -1,0 +1,11 @@
+{
+  "test_name": "Breusch-Pagan Test (Python - statsmodels)",
+  "dataset": "synthetic_nonnormal",
+  "formula": "x ~ y",
+  "statistic": 0.2853099601877407,
+  "p_value": 0.5932418143424361,
+  "passed": true,
+  "f_statistic": 0.28040378089963713,
+  "f_p_value": 0.5976342352243684,
+  "description": "Tests for heteroscedasticity by regressing squared residuals on predictors. Uses statsmodels.stats.diagnostic.het_breuschpagan."
+}

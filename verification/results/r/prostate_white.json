@@ -1,0 +1,9 @@
+{
+  "test_name": ["White Test (R - skedastic::white)"],
+  "dataset": ["prostate"],
+  "formula": ["lcavol ~ lweight + age + lbph + svi + lcp + gleason + pgg45 + lpsa"],
+  "statistic": [21.374150764371826],
+  "p_value": [0.1645728590647938],
+  "passed": [true],
+  "description": ["Tests for heteroscedasticity using squares and cross-products of predictors. R variant uses skedastic::white with original variables only."]
+}

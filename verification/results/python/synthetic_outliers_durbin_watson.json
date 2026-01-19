@@ -1,0 +1,10 @@
+{
+  "test_name": "Durbin-Watson Test (Python - statsmodels)",
+  "dataset": "synthetic_outliers",
+  "formula": "x ~ y",
+  "statistic": 0.3435834119068924,
+  "p_value": null,
+  "passed": false,
+  "interpretation": "Possible positive autocorrelation",
+  "description": "Tests for autocorrelation in residuals. Values near 2 indicate no autocorrelation, values near 0 suggest positive autocorrelation, and values near 4 suggest negative autocorrelation. Uses statsmodels.stats.stattools.durbin_watson."
+}

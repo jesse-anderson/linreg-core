@@ -1,0 +1,11 @@
+{
+  "test_name": "Breusch-Pagan Test (Python - statsmodels)",
+  "dataset": "mtcars",
+  "formula": "mpg ~ cyl + disp + hp + drat + wt + qsec + vs + am + gear + carb",
+  "statistic": 14.913588960622171,
+  "p_value": 0.13524415065665535,
+  "passed": true,
+  "f_statistic": 1.8329499825989772,
+  "f_p_value": 0.1163458435391345,
+  "description": "Tests for heteroscedasticity by regressing squared residuals on predictors. Uses statsmodels.stats.diagnostic.het_breuschpagan."
+}

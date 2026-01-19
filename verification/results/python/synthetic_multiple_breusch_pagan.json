@@ -1,0 +1,11 @@
+{
+  "test_name": "Breusch-Pagan Test (Python - statsmodels)",
+  "dataset": "synthetic_multiple",
+  "formula": "x1 ~ x2 + x3 + y",
+  "statistic": 1.240223745685165,
+  "p_value": 0.7433740324270719,
+  "passed": true,
+  "f_statistic": 0.40185550602835957,
+  "f_p_value": 0.7519813266369502,
+  "description": "Tests for heteroscedasticity by regressing squared residuals on predictors. Uses statsmodels.stats.diagnostic.het_breuschpagan."
+}

@@ -1,0 +1,10 @@
+{
+  "test_name": "Durbin-Watson Test (Python - statsmodels)",
+  "dataset": "prostate",
+  "formula": "lcavol ~ lweight + age + lbph + svi + lcp + gleason + pgg45 + lpsa",
+  "statistic": 2.307617894620899,
+  "p_value": null,
+  "passed": true,
+  "interpretation": "No positive autocorrelation",
+  "description": "Tests for autocorrelation in residuals. Values near 2 indicate no autocorrelation, values near 0 suggest positive autocorrelation, and values near 4 suggest negative autocorrelation. Uses statsmodels.stats.stattools.durbin_watson."
+}

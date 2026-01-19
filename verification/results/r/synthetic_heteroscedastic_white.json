@@ -1,0 +1,9 @@
+{
+  "test_name": ["White Test (R - skedastic::white)"],
+  "dataset": ["synthetic_heteroscedastic"],
+  "formula": ["x ~ y"],
+  "statistic": [5.4402835664644211],
+  "p_value": [0.065865415152891141],
+  "passed": [true],
+  "description": ["Tests for heteroscedasticity using squares and cross-products of predictors. R variant uses skedastic::white with original variables only."]
+}

@@ -1,0 +1,11 @@
+{
+  "test_name": "Jarque-Bera Test (Python - statsmodels)",
+  "dataset": "synthetic_multiple",
+  "formula": "x1 ~ x2 + x3 + y",
+  "statistic": 1.3826582296044347,
+  "p_value": 0.5009098597206472,
+  "passed": true,
+  "skewness": -0.060617892758307854,
+  "kurtosis": 2.4368482802874225,
+  "description": "Tests for normality of residuals by examining skewness and kurtosis. Uses statsmodels.stats.stattools.jarque_bera."
+}

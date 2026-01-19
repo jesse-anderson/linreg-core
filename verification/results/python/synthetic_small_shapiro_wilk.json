@@ -1,0 +1,8 @@
+{
+  "test_name": "Shapiro-Wilk Test for Normality",
+  "statistic": 0.9349628761282156,
+  "p_value": 0.32322597821303556,
+  "is_passed": true,
+  "interpretation": "p-value = 0.3232 is greater than 0.05. Cannot reject H0. No significant evidence that residuals deviate from normality.",
+  "guidance": "The normality assumption appears to be met. Shapiro-Wilk test does not detect significant deviation from normal distribution."
+}

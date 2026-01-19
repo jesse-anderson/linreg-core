@@ -1,0 +1,11 @@
+{
+  "test_name": "White Test (Python - statsmodels)",
+  "dataset": "synthetic_outliers",
+  "formula": "x ~ y",
+  "statistic": 83.69266997439017,
+  "p_value": 6.70451902038656e-19,
+  "passed": false,
+  "f_statistic": 248.91226751303395,
+  "f_p_value": 6.317841605211625e-39,
+  "description": "Tests for heteroscedasticity using squares and cross-products of predictors. Uses statsmodels.stats.diagnostic.het_white."
+}
