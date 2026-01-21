@@ -71,3 +71,6 @@ test_data_*.csv
 
 # Other
 generate_test_data.py
+
+#benchmarking
+criterion*/
