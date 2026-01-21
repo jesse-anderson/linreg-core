@@ -1,5 +1,6 @@
 # linreg-core
 
+[![CI](https://github.com/jesse-anderson/linreg-core/actions/workflows/ci.yml/badge.svg)](https://github.com/jesse-anderson/linreg-core/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](LICENSE-MIT)
 [![Crates.io](https://img.shields.io/crates/v/linreg-core?color=orange)](https://crates.io/crates/linreg-core)
 [![docs.rs](https://img.shields.io/badge/docs.rs-linreg__core-green)](https://docs.rs/linreg-core)
