@@ -24,6 +24,13 @@ exclude = [
     # Exclude benchmark results and Criterion output (dev-only)
     "benches/results/",
     "target/criterion/",
+    "AIC_BIC_TODO.md",
+    "COVERAGE_MATRIX.md",
+    "generate_test_data.py",
+    "core_bench_output.txt",
+    "blog-*.md",
+    # Exclude WASM example and pkg (demo only)
+    "WASM_Example/"
 ]
 
 [package.metadata.docs.rs]
