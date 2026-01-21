@@ -61,6 +61,9 @@ pub fn jarque_bera_test(
         return Err(Error::InsufficientData { required: p + 1, available: n });
     }
 
+    // Validate dimensions and finite values using shared helper
+    super::helpers::validate_regression_data(y, x_vars)?;
+
     // Create design matrix with intercept
     let mut x_data = vec![1.0; n * p];
     for row in 0..n {

@@ -41,6 +41,17 @@ const SINGULAR_TOLERANCE: f64 = 1e-10;
 ///
 /// Elements are stored in a single flat vector in row-major order:
 /// `data[row * cols + col]`
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::linalg::Matrix;
+/// let m = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+/// assert_eq!(m.rows, 2);
+/// assert_eq!(m.cols, 3);
+/// assert_eq!(m.get(0, 0), 1.0);
+/// assert_eq!(m.get(1, 2), 6.0);
+/// ```
 #[derive(Clone, Debug)]
 pub struct Matrix {
     /// Number of rows in the matrix
@@ -63,6 +74,17 @@ impl Matrix {
     /// * `rows` - Number of rows
     /// * `cols` - Number of columns
     /// * `data` - Flat vector of elements in row-major order
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use linreg_core::linalg::Matrix;
+    /// let m = Matrix::new(2, 2, vec![1.0, 2.0, 3.0, 4.0]);
+    /// assert_eq!(m.get(0, 0), 1.0);
+    /// assert_eq!(m.get(0, 1), 2.0);
+    /// assert_eq!(m.get(1, 0), 3.0);
+    /// assert_eq!(m.get(1, 1), 4.0);
+    /// ```
     pub fn new(rows: usize, cols: usize, data: Vec<f64>) -> Self {
         assert_eq!(data.len(), rows * cols, "Data length must match dimensions");
         Matrix { rows, cols, data }
@@ -74,6 +96,16 @@ impl Matrix {
     ///
     /// * `rows` - Number of rows
     /// * `cols` - Number of columns
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use linreg_core::linalg::Matrix;
+    /// let m = Matrix::zeros(3, 2);
+    /// assert_eq!(m.rows, 3);
+    /// assert_eq!(m.cols, 2);
+    /// assert_eq!(m.get(1, 1), 0.0);
+    /// ```
     pub fn zeros(rows: usize, cols: usize) -> Self {
         Matrix {
             rows,
@@ -120,7 +152,18 @@ impl Matrix {
 
     /// Returns the transpose of this matrix.
     ///
-    /// Swaps rows with columns: `result\[col\]\[row\] = self\[row\]\[col\]`.
+    /// Swaps rows with columns: `result[col][row] = self[row][col]`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use linreg_core::linalg::Matrix;
+    /// let m = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    /// let t = m.transpose();
+    /// assert_eq!(t.rows, 3);
+    /// assert_eq!(t.cols, 2);
+    /// assert_eq!(t.get(0, 1), 4.0);
+    /// ```
     pub fn transpose(&self) -> Matrix {
         let mut t_data = vec![0.0; self.rows * self.cols];
         for r in 0..self.rows {
@@ -136,6 +179,18 @@ impl Matrix {
     /// # Panics
     ///
     /// Panics if `self.cols != other.rows`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use linreg_core::linalg::Matrix;
+    /// let a = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    /// let b = Matrix::new(3, 2, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    /// let c = a.matmul(&b);
+    /// assert_eq!(c.rows, 2);
+    /// assert_eq!(c.cols, 2);
+    /// assert_eq!(c.get(0, 0), 22.0); // 1*1 + 2*3 + 3*5
+    /// ```
     pub fn matmul(&self, other: &Matrix) -> Matrix {
         assert_eq!(self.cols, other.rows, "Dimension mismatch for multiplication");
         let mut result = Matrix::zeros(self.rows, other.cols);
@@ -163,10 +218,22 @@ impl Matrix {
     /// # Arguments
     ///
     /// * `vec` - Vector to multiply by
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use linreg_core::linalg::Matrix;
+    /// let m = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    /// let v = vec![1.0, 2.0, 3.0];
+    /// let result = m.mul_vec(&v);
+    /// assert_eq!(result.len(), 2);
+    /// assert_eq!(result[0], 14.0); // 1*1 + 2*2 + 3*3
+    /// ```
+    #[allow(clippy::needless_range_loop)]
     pub fn mul_vec(&self, vec: &[f64]) -> Vec<f64> {
         assert_eq!(self.cols, vec.len(), "Dimension mismatch for matrix-vector multiplication");
         let mut result = vec![0.0; self.rows];
-        
+
         for r in 0..self.rows {
             let mut sum = 0.0;
             for c in 0..self.cols {
@@ -175,6 +242,107 @@ impl Matrix {
             result[r] = sum;
         }
         result
+    }
+
+    /// Computes the dot product of a column with a vector: `Σ(data[i * cols + col] * v[i])`.
+    ///
+    /// For a row-major matrix, this iterates through all rows at a fixed column.
+    ///
+    /// # Arguments
+    ///
+    /// * `col` - Column index
+    /// * `v` - Vector to dot with (must have length equal to rows)
+    ///
+    /// # Panics
+    ///
+    /// Panics if `col >= cols` or `v.len() != rows`.
+    #[allow(clippy::needless_range_loop)]
+    pub fn col_dot(&self, col: usize, v: &[f64]) -> f64 {
+        assert!(col < self.cols, "Column index out of bounds");
+        assert_eq!(self.rows, v.len(), "Vector length must match number of rows");
+
+        let mut sum = 0.0;
+        for row in 0..self.rows {
+            sum += self.get(row, col) * v[row];
+        }
+        sum
+    }
+
+    /// Performs the column-vector operation in place: `v += alpha * column_col`.
+    ///
+    /// This is the AXPY operation where the column is treated as a vector.
+    /// For row-major storage, we iterate through rows at a fixed column.
+    ///
+    /// # Arguments
+    ///
+    /// * `col` - Column index
+    /// * `alpha` - Scaling factor for the column
+    /// * `v` - Vector to modify in place (must have length equal to rows)
+    ///
+    /// # Panics
+    ///
+    /// Panics if `col >= cols` or `v.len() != rows`.
+    #[allow(clippy::needless_range_loop)]
+    pub fn col_axpy_inplace(&self, col: usize, alpha: f64, v: &mut [f64]) {
+        assert!(col < self.cols, "Column index out of bounds");
+        assert_eq!(self.rows, v.len(), "Vector length must match number of rows");
+
+        for row in 0..self.rows {
+            v[row] += alpha * self.get(row, col);
+        }
+    }
+
+    /// Computes the squared L2 norm of a column: `Σ(data[i * cols + col]²)`.
+    ///
+    /// # Arguments
+    ///
+    /// * `col` - Column index
+    ///
+    /// # Panics
+    ///
+    /// Panics if `col >= cols`.
+    #[allow(clippy::needless_range_loop)]
+    pub fn col_norm2(&self, col: usize) -> f64 {
+        assert!(col < self.cols, "Column index out of bounds");
+
+        let mut sum = 0.0;
+        for row in 0..self.rows {
+            let val = self.get(row, col);
+            sum += val * val;
+        }
+        sum
+    }
+
+    /// Adds a value to diagonal elements starting from a given index.
+    ///
+    /// This is useful for ridge regression where we add `lambda * I` to `X^T X`,
+    /// but the intercept column should not be penalized.
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - Value to add to diagonal elements
+    /// * `start_index` - Starting diagonal index (0 = first diagonal element)
+    ///
+    /// # Panics
+    ///
+    /// Panics if the matrix is not square.
+    ///
+    /// # Example
+    ///
+    /// For a 3×3 identity matrix with intercept in first column (unpenalized):
+    /// ```text
+    /// add_diagonal_in_place(lambda, 1) on:
+    /// [1.0, 0.0, 0.0]       [1.0,   0.0,   0.0  ]
+    /// [0.0, 1.0, 0.0]  ->   [0.0,  1.0+λ, 0.0  ]
+    /// [0.0, 0.0, 1.0]       [0.0,   0.0,  1.0+λ]
+    /// ```
+    pub fn add_diagonal_in_place(&mut self, alpha: f64, start_index: usize) {
+        assert_eq!(self.rows, self.cols, "Matrix must be square");
+        let n = self.rows;
+        for i in start_index..n {
+            let current = self.get(i, i);
+            self.set(i, i, current + alpha);
+        }
     }
 }
 
@@ -197,6 +365,7 @@ impl Matrix {
     /// A tuple `(Q, R)` where:
     /// - `Q` is an orthogonal matrix (QᵀQ = I) of size m×m
     /// - `R` is an upper triangular matrix of size m×n
+    #[allow(clippy::needless_range_loop)]
     pub fn qr(&self) -> (Matrix, Matrix) {
         let m = self.rows;
         let n = self.cols;
@@ -272,6 +441,17 @@ impl Matrix {
     /// # Arguments
     ///
     /// * `size` - Number of rows and columns (square matrix)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use linreg_core::linalg::Matrix;
+    /// let i = Matrix::identity(3);
+    /// assert_eq!(i.get(0, 0), 1.0);
+    /// assert_eq!(i.get(1, 1), 1.0);
+    /// assert_eq!(i.get(2, 2), 1.0);
+    /// assert_eq!(i.get(0, 1), 0.0);
+    /// ```
     pub fn identity(size: usize) -> Self {
         let mut data = vec![0.0; size * size];
         for i in 0..size {
@@ -521,6 +701,15 @@ impl Matrix {
 ///
 /// Returns 0.0 for empty slices.
 ///
+/// # Examples
+///
+/// ```
+/// use linreg_core::linalg::vec_mean;
+///
+/// assert_eq!(vec_mean(&[1.0, 2.0, 3.0, 4.0, 5.0]), 3.0);
+/// assert_eq!(vec_mean(&[]), 0.0);
+/// ```
+///
 /// # Arguments
 ///
 /// * `v` - Slice of values
@@ -531,6 +720,17 @@ pub fn vec_mean(v: &[f64]) -> f64 {
 
 /// Computes element-wise subtraction of two slices: `a - b`.
 ///
+/// # Examples
+///
+/// ```
+/// use linreg_core::linalg::vec_sub;
+///
+/// let a = vec![5.0, 4.0, 3.0];
+/// let b = vec![1.0, 1.0, 1.0];
+/// let result = vec_sub(&a, &b);
+/// assert_eq!(result, vec![4.0, 3.0, 2.0]);
+/// ```
+///
 /// # Arguments
 ///
 /// * `a` - Minuend slice
@@ -540,10 +740,21 @@ pub fn vec_mean(v: &[f64]) -> f64 {
 ///
 /// Panics if slices have different lengths.
 pub fn vec_sub(a: &[f64], b: &[f64]) -> Vec<f64> {
+    assert_eq!(a.len(), b.len(), "vec_sub: slice lengths must match");
     a.iter().zip(b.iter()).map(|(x, y)| x - y).collect()
 }
 
 /// Computes the dot product of two slices: `Σ(a[i] * b[i])`.
+///
+/// # Examples
+///
+/// ```
+/// use linreg_core::linalg::vec_dot;
+///
+/// let a = vec![1.0, 2.0, 3.0];
+/// let b = vec![4.0, 5.0, 6.0];
+/// assert_eq!(vec_dot(&a, &b), 32.0);  // 1*4 + 2*5 + 3*6
+/// ```
 ///
 /// # Arguments
 ///
@@ -554,7 +765,116 @@ pub fn vec_sub(a: &[f64], b: &[f64]) -> Vec<f64> {
 ///
 /// Panics if slices have different lengths.
 pub fn vec_dot(a: &[f64], b: &[f64]) -> f64 {
+    assert_eq!(a.len(), b.len(), "vec_dot: slice lengths must match");
     a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
+}
+
+/// Computes element-wise addition of two slices: `a + b`.
+///
+/// # Examples
+///
+/// ```
+/// use linreg_core::linalg::vec_add;
+///
+/// let a = vec![1.0, 2.0, 3.0];
+/// let b = vec![4.0, 5.0, 6.0];
+/// assert_eq!(vec_add(&a, &b), vec![5.0, 7.0, 9.0]);
+/// ```
+///
+/// # Arguments
+///
+/// * `a` - First slice
+/// * `b` - Second slice
+///
+/// # Panics
+///
+/// Panics if slices have different lengths.
+pub fn vec_add(a: &[f64], b: &[f64]) -> Vec<f64> {
+    assert_eq!(a.len(), b.len(), "vec_add: slice lengths must match");
+    a.iter().zip(b.iter()).map(|(x, y)| x + y).collect()
+}
+
+/// Computes a scaled vector addition in place: `dst += alpha * src`.
+///
+/// This is the classic BLAS AXPY operation.
+///
+/// # Arguments
+///
+/// * `dst` - Destination slice (modified in place)
+/// * `alpha` - Scaling factor for src
+/// * `src` - Source slice
+///
+/// # Panics
+///
+/// Panics if slices have different lengths.
+pub fn vec_axpy_inplace(dst: &mut [f64], alpha: f64, src: &[f64]) {
+    assert_eq!(dst.len(), src.len(), "vec_axpy_inplace: slice lengths must match");
+    for (d, &s) in dst.iter_mut().zip(src.iter()) {
+        *d += alpha * s;
+    }
+}
+
+/// Scales a vector in place: `v *= alpha`.
+///
+/// # Arguments
+///
+/// * `v` - Vector to scale (modified in place)
+/// * `alpha` - Scaling factor
+pub fn vec_scale_inplace(v: &mut [f64], alpha: f64) {
+    for val in v.iter_mut() {
+        *val *= alpha;
+    }
+}
+
+/// Returns a scaled copy of a vector: `v * alpha`.
+///
+/// # Examples
+///
+/// ```
+/// use linreg_core::linalg::vec_scale;
+///
+/// let v = vec![1.0, 2.0, 3.0];
+/// let scaled = vec_scale(&v, 2.5);
+/// assert_eq!(scaled, vec![2.5, 5.0, 7.5]);
+/// // Original is unchanged
+/// assert_eq!(v, vec![1.0, 2.0, 3.0]);
+/// ```
+///
+/// # Arguments
+///
+/// * `v` - Vector to scale
+/// * `alpha` - Scaling factor
+pub fn vec_scale(v: &[f64], alpha: f64) -> Vec<f64> {
+    v.iter().map(|&x| x * alpha).collect()
+}
+
+/// Computes the L2 norm (Euclidean norm) of a vector: `sqrt(Σ(v[i]²))`.
+///
+/// # Examples
+///
+/// ```
+/// use linreg_core::linalg::vec_l2_norm;
+///
+/// // Pythagorean triple: 3-4-5
+/// assert_eq!(vec_l2_norm(&[3.0, 4.0]), 5.0);
+/// // Unit vector
+/// assert_eq!(vec_l2_norm(&[1.0, 0.0, 0.0]), 1.0);
+/// ```
+///
+/// # Arguments
+///
+/// * `v` - Vector slice
+pub fn vec_l2_norm(v: &[f64]) -> f64 {
+    v.iter().map(|&x| x * x).sum::<f64>().sqrt()
+}
+
+/// Computes the maximum absolute value in a vector.
+///
+/// # Arguments
+///
+/// * `v` - Vector slice
+pub fn vec_max_abs(v: &[f64]) -> f64 {
+    v.iter().map(|&x| x.abs()).fold(0.0_f64, f64::max)
 }
 
 // ============================================================================

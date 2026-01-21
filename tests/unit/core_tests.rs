@@ -542,16 +542,18 @@ fn test_empty_y_returns_error() {
 }
 
 #[test]
-#[should_panic(expected = "index out of bounds")]
 fn test_mismatched_lengths_return_error() {
     let y = vec![1.0, 2.0, 3.0];
     let x = vec![1.0, 2.0]; // Different length
     let names = vec!["Intercept".to_string(), "X".to_string()];
 
-    let _result = ols_regression(&y, &[x], &names);
+    let result = ols_regression(&y, &[x], &names);
 
-    // This panics due to index out of bounds when building the design matrix
-    // TODO: Add input validation to catch mismatched lengths early
+    // Should return DimensionMismatch error (not panic)
+    match result {
+        Err(Error::DimensionMismatch { .. }) => {},
+        _ => panic!("Expected DimensionMismatch error for mismatched lengths"),
+    }
 }
 
 #[test]

@@ -57,3 +57,17 @@ ENV/
 
 # Test regression files (keep the directory structure, ignore contents)
 proptest-regressions/*
+
+# Development documentation
+TODO.md
+*.md.bak
+blog-post*.md
+HANDOFF_TEST_COVERAGE_AUDIT.md
+COVERAGE_MATRIX.md
+AIC_BIC_TODO.md
+
+# Large test data files
+test_data_*.csv
+
+# Other
+generate_test_data.py

@@ -124,6 +124,9 @@ pub fn anderson_darling_test(
         return Err(Error::InsufficientData { required: 8, available: n });
     }
 
+    // Validate dimensions and finite values using shared helper
+    super::helpers::validate_regression_data(y, x_vars)?;
+
     // Create design matrix with intercept
     let mut x_data = vec![1.0; n * p];
     for row in 0..n {
@@ -227,9 +230,53 @@ pub fn anderson_darling_test(
     })
 }
 
-/// Apply Anderson-Darling test directly to a sample of values.
+/// Applies the Anderson-Darling test directly to a sample of values.
 ///
-/// This is the core implementation that operates on any sample of data.
+/// This is the core implementation of the Anderson-Darling test that operates on any
+/// sample of data, without first computing regression residuals. Use this when you
+/// already have a sample you want to test for normality.
+///
+/// The Anderson-Darling test is particularly sensitive to deviations in the tails of
+/// the distribution, making it more powerful than the Kolmogorov-Smirnov test for
+/// detecting tail behavior.
+///
+/// For testing regression residuals, use [`anderson_darling_test`] instead.
+///
+/// # Arguments
+///
+/// * `sample` - Data values to test for normality
+///
+/// # Returns
+///
+/// A [`DiagnosticTestResult`] containing:
+/// - `statistic`: The A² statistic (larger values indicate greater deviation from normality)
+/// - `p_value`: Upper-tail p-value for the test
+/// - `passed`: Whether the null hypothesis cannot be rejected (p > 0.05)
+/// - `interpretation`: Human-readable explanation of the result
+/// - `guidance`: Recommendations based on the test result
+///
+/// # Errors
+///
+/// * [`Error::InsufficientData`] - if n < 8 (minimum for valid A² computation)
+/// * [`Error::InvalidInput`] - if sample has zero variance (all values identical)
+///
+/// # Example
+///
+/// ```rust
+/// use linreg_core::diagnostics::anderson_darling_test_raw;
+///
+/// let sample = vec![0.1, -0.5, 0.3, 1.2, -0.8, 0.4, -0.2, 0.9, 0.0, 0.5];
+/// let result = anderson_darling_test_raw(&sample)?;
+/// println!("A² = {}, p-value = {}", result.statistic, result.p_value);
+/// # Ok::<(), linreg_core::Error>(())
+/// ```
+///
+/// # Notes
+///
+/// - The A² statistic measures the weighted squared distance between the empirical
+///   and theoretical normal distribution functions
+/// - Returns the raw A² statistic (not the modified A*²) to match R's `nortest::ad.test`
+/// - Uses Marsaglia & Marsaglia (2004) approximation for p-value computation
 pub fn anderson_darling_test_raw(sample: &[f64]) -> Result<DiagnosticTestResult> {
     let n = sample.len();
 
@@ -237,7 +284,16 @@ pub fn anderson_darling_test_raw(sample: &[f64]) -> Result<DiagnosticTestResult>
         return Err(Error::InsufficientData { required: 8, available: n });
     }
 
-    // Sort the sample (use unwrap_or to handle NaN safely)
+    // Validate sample contains no NaN or infinite values
+    for (i, &val) in sample.iter().enumerate() {
+        if !val.is_finite() {
+            return Err(Error::InvalidInput(format!(
+                "Sample contains non-finite value at index {}: {}", i, val
+            )));
+        }
+    }
+
+    // Sort the sample
     let mut sorted = sample.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 

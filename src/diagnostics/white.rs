@@ -54,6 +54,9 @@ pub fn white_test(
         return Err(Error::InsufficientData { required: p + 1, available: n });
     }
 
+    // Validate dimensions and finite values using shared helper
+    super::helpers::validate_regression_data(y, x_vars)?;
+
     let alpha = 0.05;
 
     // Fit main OLS and compute residuals using LINPACK QR

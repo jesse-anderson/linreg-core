@@ -138,6 +138,40 @@ X1,X2,Y
                     </p>
                 </div>
 
+                <!-- Regression Method Selection -->
+                <div id="regressionMethodPanel" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                    <div class="selector-group">
+                        <label>Regression Method</label>
+                        <select id="regressionMethodSelect" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
+                            <option value="ols">OLS (Ordinary Least Squares)</option>
+                            <option value="ridge">Ridge (L2 Regularized)</option>
+                            <option value="lasso">Lasso (L1 Regularized)</option>
+                        </select>
+                    </div>
+
+                    <!-- Ridge/Lasso Parameters -->
+                    <div id="regularizedParams" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px;">
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label for="lambdaSlider">Lambda (λ): <span id="lambdaValue">1.0</span></label>
+                            <input type="range" id="lambdaSlider" min="0.01" max="10" step="0.01" value="1.0" style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                                <span>0.01 (weak)</span>
+                                <span>10 (strong)</span>
+                            </div>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="standardizeCheck" checked>
+                                <span>Standardize predictors (recommended)</span>
+                            </label>
+                        </div>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
+                            <strong>Ridge</strong> shrinks coefficients toward zero (handles multicollinearity).<br>
+                            <strong>Lasso</strong> can set coefficients to exactly zero (variable selection).
+                        </p>
+                    </div>
+                </div>
+
                 <button class="tool-btn primary" id="runRegressionBtn" style="width: 100%; margin-top: 16px; padding: 12px; font-size: 0.9375rem; display: none;" aria-label="Run linear regression analysis">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; vertical-align: text-bottom;">
                         <polygon points="5 3 19 12 5 21 5 3"/>
@@ -181,6 +215,14 @@ X1,X2,Y
                     <div class="stat-card">
                         <div class="value" id="adjRSquared">-</div>
                         <div class="label">Adj R²</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="rmse">-</div>
+                        <div class="label">RMSE</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="mae">-</div>
+                        <div class="label">MAE</div>
                     </div>
                     <div class="stat-card">
                         <div class="value" id="fStat">-</div>

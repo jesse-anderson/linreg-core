@@ -7,6 +7,14 @@
 use std::fmt;
 
 /// Error types for linear regression operations
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::Error;
+/// let err = Error::InvalidInput("negative value".to_string());
+/// assert!(err.to_string().contains("Invalid input"));
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
     /// Matrix is singular (perfect multicollinearity).
@@ -31,6 +39,18 @@ pub enum Error {
     /// Indicates that an input parameter has an invalid value (e.g., negative
     /// variance, empty data arrays, incompatible dimensions).
     InvalidInput(String),
+
+    /// Dimension mismatch in matrix/vector operations.
+    ///
+    /// This occurs when the dimensions of matrices or vectors are incompatible
+    /// for the requested operation.
+    DimensionMismatch(String),
+
+    /// Computation failed due to numerical issues.
+    ///
+    /// This occurs when a numerical computation fails due to issues like
+    /// singularity, non-convergence, or overflow/underflow.
+    ComputationFailed(String),
 
     /// Parse error for JSON/CSV data.
     ///
@@ -62,6 +82,12 @@ impl fmt::Display for Error {
             Error::InvalidInput(msg) => {
                 write!(f, "Invalid input: {}", msg)
             }
+            Error::DimensionMismatch(msg) => {
+                write!(f, "Dimension mismatch: {}", msg)
+            }
+            Error::ComputationFailed(msg) => {
+                write!(f, "Computation failed: {}", msg)
+            }
             Error::ParseError(msg) => {
                 write!(f, "Parse error: {}", msg)
             }
@@ -77,6 +103,17 @@ impl std::error::Error for Error {}
 /// Result type for linear regression operations.
 ///
 /// Alias for `std::result::Result<T, Error>`.
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::{Error, Result};
+/// # fn falls_back() -> Result<f64> {
+/// #     Ok(42.0)
+/// # }
+/// let result: Result<f64> = falls_back();
+/// assert_eq!(result.unwrap(), 42.0);
+/// ```
 pub type Result<T> = std::result::Result<T, Error>;
 
 // ============================================================================

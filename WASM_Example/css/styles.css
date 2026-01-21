@@ -244,6 +244,12 @@ input::placeholder, textarea::placeholder {
     color: var(--text-muted);
 }
 
+/* Option elements need explicit background for dropdown legibility */
+select option {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
 /* Labels */
 label {
     display: block;

@@ -1,60 +1,176 @@
-//! Linear Regression Library with WASM bindings.
+//! # linreg-core
 //!
-//! This library provides Ordinary Least Squares (OLS) regression and
-//! statistical diagnostic tests. When the `wasm` feature is enabled,
-//! it exposes JavaScript bindings for use in web browsers.
+//! A lightweight, self-contained linear regression library in pure Rust.
 //!
-//! # Features
+//! **No external math dependencies.** All linear algebra (matrices, QR decomposition)
+//! and statistical functions (distributions, hypothesis tests) are implemented from
+//! scratch. Compiles to WebAssembly for browser use or runs as a native Rust crate.
 //!
-//! - OLS regression with QR decomposition for numerical stability
-//! - Comprehensive diagnostic tests (Rainbow, Harvey-Collier, Breusch-Pagan, White, Jarque-Bera, Durbin-Watson, Shapiro-Wilk, Anderson-Darling)
-//! - Variance Inflation Factor (VIF) analysis
-//! - Custom implementations of all linear algebra and statistical functions
+//! ## What This Does
 //!
-//! # Module Structure
+//! - **OLS Regression** — Ordinary Least Squares with numerically stable QR decomposition
+//! - **Regularized Regression** — Ridge, Lasso, and Elastic Net via coordinate descent
+//! - **Diagnostic Tests** — 8+ statistical tests for validating regression assumptions
+//! - **WASM Support** — Same API works in browsers via WebAssembly
 //!
-//! - [`core`] - OLS regression implementation
-//! - [`diagnostics`] - Statistical diagnostic tests
-//! - [`distributions`] - Statistical distributions (t, F, chi-squared, normal)
-//! - [`linalg`] - Matrix operations and QR decomposition
-//! - [`error`] - Error types
+//! ## Quick Start
 //!
-//! # WASM API
+//! ### Native Rust
 //!
-//! When the `wasm` feature is enabled, the library exposes JavaScript bindings that
-//! accept and return JSON strings for easy integration. By default, all domains are
-//! allowed. To restrict usage to specific domains, set the `LINREG_DOMAIN_RESTRICT`
-//! environment variable at build time:
+//! Add to `Cargo.toml` (no WASM overhead):
 //!
-//! ```bash
-//! LINREG_DOMAIN_RESTRICT=example.com,mysite.com wasm-pack build
+//! ```toml
+//! [dependencies]
+//! linreg-core = { version = "0.2", default-features = false }
 //! ```
 //!
-//! # Example (Native Rust)
-//!
-//! ```
+//! ```rust
 //! use linreg_core::core::ols_regression;
-//! use linreg_core::Error;
 //!
-//! let y = vec![2.5, 3.7, 4.2, 5.1, 6.3, 7.0];
-//! let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-//! let x2 = vec![2.0, 4.0, 5.0, 4.0, 3.0, 2.0];
-//! let names = vec![
-//!     "Intercept".to_string(),
-//!     "Temperature".to_string(),
-//!     "Pressure".to_string(),
-//! ];
+//! let y = vec![2.5, 3.7, 4.2, 5.1, 6.3];
+//! let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+//! let x2 = vec![2.0, 4.0, 5.0, 4.0, 3.0];
+//! let names = vec!["Intercept".into(), "Temp".into(), "Pressure".into()];
 //!
 //! let result = ols_regression(&y, &[x1, x2], &names)?;
 //! println!("R²: {}", result.r_squared);
-//! # Ok::<(), Error>(())
+//! println!("F-statistic: {}", result.f_statistic);
+//! # Ok::<(), linreg_core::Error>(())
 //! ```
+//!
+//! ### WebAssembly (JavaScript)
+//!
+//! ```toml
+//! [dependencies]
+//! linreg-core = "0.2"
+//! ```
+//!
+//! Build with `wasm-pack build --target web`, then use in JavaScript:
+//!
+//! ```text
+//! import init, { ols_regression } from './linreg_core.js';
+//! await init();
+//!
+//! const result = JSON.parse(ols_regression(
+//!     JSON.stringify([2.5, 3.7, 4.2, 5.1, 6.3]),
+//!     JSON.stringify([[1,2,3,4,5], [2,4,5,4,3]]),
+//!     JSON.stringify(["Intercept", "X1", "X2"])
+//! ));
+//! console.log("R²:", result.r_squared);
+//! ```
+//!
+//! ## Regularized Regression
+//!
+//! ```no_run
+//! use linreg_core::regularized::{ridge, lasso};
+//! use linreg_core::linalg::Matrix;
+//!
+//! let x = Matrix::new(100, 3, vec![0.0; 300]);
+//! let y = vec![0.0; 100];
+//!
+//! // Ridge regression (L2 penalty - shrinks coefficients, handles multicollinearity)
+//! let ridge_result = ridge::ridge_fit(&x, &y, &ridge::RidgeFitOptions {
+//!     lambda: 1.0,
+//!     intercept: true,
+//!     standardize: true,
+//! })?;
+//!
+//! // Lasso regression (L1 penalty - does variable selection by zeroing coefficients)
+//! let lasso_result = lasso::lasso_fit(&x, &y, &lasso::LassoFitOptions {
+//!     lambda: 0.1,
+//!     intercept: true,
+//!     standardize: true,
+//!     ..Default::default()
+//! })?;
+//! # Ok::<(), linreg_core::Error>(())
+//! ```
+//!
+//! ## Diagnostic Tests
+//!
+//! After fitting a model, validate its assumptions:
+//!
+//! | Test | Tests For | Use When |
+//! |------|-----------|----------|
+//! | [`rainbow_test`] | Linearity | Checking if relationships are linear |
+//! | [`harvey_collier_test`] | Functional form | Suspecting model misspecification |
+//! | [`breusch_pagan_test`] | Heteroscedasticity | Variance changes with predictors |
+//! | [`white_test`] | Heteroscedasticity | More general than Breusch-Pagan |
+//! | [`shapiro_wilk_test`] | Normality | Small to moderate samples (n ≤ 5000) |
+//! | [`jarque_bera_test`] | Normality | Large samples, skewness/kurtosis |
+//! | [`anderson_darling_test`] | Normality | Tail-sensitive, any sample size |
+//! | [`durbin_watson_test`] | Autocorrelation | Time series or ordered data |
+//! | [`cooks_distance_test`] | Influential points | Identifying high-impact observations |
+//!
+//! ```rust
+//! use linreg_core::diagnostics::{rainbow_test, breusch_pagan_test, RainbowMethod};
+//!
+//! # let y = vec![2.5, 3.7, 4.2, 5.1, 6.3];
+//! # let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+//! # let x2 = vec![2.0, 4.0, 5.0, 4.0, 3.0];
+//! // Rainbow test for linearity
+//! let rainbow = rainbow_test(&y, &[x1.clone(), x2.clone()], 0.5, RainbowMethod::R)?;
+//! if rainbow.r_result.as_ref().map_or(false, |r| r.p_value < 0.05) {
+//!     println!("Warning: relationship may be non-linear");
+//! }
+//!
+//! // Breusch-Pagan test for heteroscedasticity
+//! let bp = breusch_pagan_test(&y, &[x1, x2])?;
+//! if bp.p_value < 0.05 {
+//!     println!("Warning: residuals have non-constant variance");
+//! }
+//! # Ok::<(), linreg_core::Error>(())
+//! ```
+//!
+//! ## Feature Flags
+//!
+//! | Flag | Default | Description |
+//! |------|---------|-------------|
+//! | `wasm` | Yes | Enables WASM bindings and browser support |
+//! | `validation` | No | Includes test data for validation tests |
+//!
+//! For native-only builds (smaller binary, no WASM deps):
+//!
+//! ```toml
+//! linreg-core = { version = "0.2", default-features = false }
+//! ```
+//!
+//! ## Why This Library?
+//!
+//! - **Zero dependencies** — No `nalgebra`, no `statrs`, no `ndarray`. Pure Rust.
+//! - **Validated** — Outputs match R's `lm()` and Python's `statsmodels`
+//! - **WASM-ready** — Same code runs natively and in browsers
+//! - **Small** — Core is ~2000 lines, compiles quickly
+//! - **Permissive license** — MIT OR Apache-2.0
+//!
+//! ## Module Structure
+//!
+//! - [`core`] — OLS regression, coefficients, residuals, VIF
+//! - [`regularized`] — Ridge, Lasso, Elastic Net, regularization paths
+//! - [`diagnostics`] — All diagnostic tests (linearity, heteroscedasticity, normality, autocorrelation)
+//! - [`distributions`] — Statistical distributions (t, F, χ², normal, beta, gamma)
+//! - [`linalg`] — Matrix operations, QR decomposition, linear system solver
+//! - [`error`] — Error types and Result alias
+//!
+//! ## Links
+//!
+//! - [Repository](https://github.com/jesse-anderson/linreg-core)
+//! - [Documentation](https://docs.rs/linreg-core)
+//! - [Examples](https://github.com/jesse-anderson/linreg-core/tree/main/examples)
+//!
+//! ## Disclaimer
+//!
+//! This library is under active development and has not reached 1.0 stability.
+//! While outputs are validated against R and Python implementations, **do not
+//! use this library for critical applications** (medical, financial, safety-critical
+//! systems) without independent verification. See the LICENSE for full terms.
+//! The software is provided "as is" without warranty of any kind.
 
 // Import core modules (always available)
 pub mod core;
 pub mod diagnostics;
 pub mod distributions;
 pub mod linalg;
+pub mod regularized;
 pub mod error;
 
 // Unit tests are now in tests/unit/ directory
@@ -268,8 +384,6 @@ pub fn ols_regression(
 // Diagnostic Tests WASM Wrappers
 // ============================================================================
 
-#[cfg(feature = "wasm")]
-#[wasm_bindgen]
 /// Performs the Rainbow test for linearity via WASM.
 ///
 /// The Rainbow test checks whether the relationship between predictors and response
@@ -289,6 +403,8 @@ pub fn ols_regression(
 /// # Errors
 ///
 /// Returns a JSON error object if parsing fails or domain check fails.
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
 pub fn rainbow_test(
     y_json: &str,
     x_vars_json: &str,
@@ -323,8 +439,6 @@ pub fn rainbow_test(
     }
 }
 
-#[cfg(feature = "wasm")]
-#[wasm_bindgen]
 /// Performs the Harvey-Collier test for linearity via WASM.
 ///
 /// The Harvey-Collier test checks whether the residuals exhibit a linear trend,
@@ -343,6 +457,8 @@ pub fn rainbow_test(
 /// # Errors
 ///
 /// Returns a JSON error object if parsing fails or domain check fails.
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
 pub fn harvey_collier_test(
     y_json: &str,
     x_vars_json: &str,
@@ -606,8 +722,6 @@ pub fn jarque_bera_test(
 // Durbin-Watson Test (WASM wrapper)
 // ============================================================================
 
-#[cfg(feature = "wasm")]
-#[wasm_bindgen]
 /// Performs the Durbin-Watson test for autocorrelation via WASM.
 ///
 /// The Durbin-Watson test checks for autocorrelation in the residuals.
@@ -626,6 +740,8 @@ pub fn jarque_bera_test(
 /// # Errors
 ///
 /// Returns a JSON error object if parsing fails or domain check fails.
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
 pub fn durbin_watson_test(
     y_json: &str,
     x_vars_json: &str,
@@ -657,7 +773,7 @@ pub fn durbin_watson_test(
 
 /// Performs the Shapiro-Wilk test for normality via WASM.
 ///
-/// The Shapiro-Wilk test is a powerful tests for normality,
+/// The Shapiro-Wilk test is a powerful test for normality,
 /// especially for small to moderate sample sizes (3 ≤ n ≤ 5000). It tests
 /// the null hypothesis that the residuals are normally distributed.
 ///
@@ -701,8 +817,6 @@ pub fn shapiro_wilk_test(
     }
 }
 
-#[cfg(feature = "wasm")]
-#[wasm_bindgen]
 /// Performs the Anderson-Darling test for normality via WASM.
 ///
 /// The Anderson-Darling test checks whether the residuals are normally distributed
@@ -722,6 +836,8 @@ pub fn shapiro_wilk_test(
 /// # Errors
 ///
 /// Returns a JSON error object if parsing fails or domain check fails.
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
 pub fn anderson_darling_test(
     y_json: &str,
     x_vars_json: &str,
@@ -751,8 +867,6 @@ pub fn anderson_darling_test(
 // Cook's Distance (WASM wrapper)
 // ============================================================================
 
-#[cfg(feature = "wasm")]
-#[wasm_bindgen]
 /// Computes Cook's distance for identifying influential observations via WASM.
 ///
 /// Cook's distance measures how much each observation influences the regression
@@ -775,6 +889,8 @@ pub fn anderson_darling_test(
 /// # Errors
 ///
 /// Returns a JSON error object if parsing fails or domain check fails.
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
 pub fn cooks_distance_test(
     y_json: &str,
     x_vars_json: &str,
@@ -798,6 +914,340 @@ pub fn cooks_distance_test(
             .unwrap_or_else(|_| error_json("Failed to serialize Cook's distance result")),
         Err(e) => error_json(&e.to_string()),
     }
+}
+
+// ============================================================================
+// Regularized Regression WASM Wrappers
+// ============================================================================
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+/// Performs Ridge regression via WASM.
+///
+/// Ridge regression adds an L2 penalty to the coefficients, which helps with
+/// multicollinearity and overfitting. The intercept is never penalized.
+///
+/// # Arguments
+///
+/// * `y_json` - JSON array of response variable values
+/// * `x_vars_json` - JSON array of predictor arrays
+/// * `variable_names` - JSON array of variable names
+/// * `lambda` - Regularization strength (>= 0, typical range 0.01 to 100)
+/// * `standardize` - Whether to standardize predictors (recommended: true)
+///
+/// # Returns
+///
+/// JSON string containing:
+/// - `lambda` - Lambda value used
+/// - `intercept` - Intercept coefficient
+/// - `coefficients` - Slope coefficients
+/// - `fitted_values` - Predictions on training data
+/// - `residuals` - Residuals (y - fitted_values)
+/// - `df` - Effective degrees of freedom
+///
+/// # Errors
+///
+/// Returns a JSON error object if parsing fails, lambda is negative,
+/// or domain check fails.
+pub fn ridge_regression(
+    y_json: &str,
+    x_vars_json: &str,
+    _variable_names: &str,
+    lambda: f64,
+    standardize: bool,
+) -> String {
+    if let Err(e) = check_domain() {
+        return error_to_json(&e);
+    }
+
+    // Parse JSON input
+    let y: Vec<f64> = match serde_json::from_str(y_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse y: {}", e)),
+    };
+
+    let x_vars: Vec<Vec<f64>> = match serde_json::from_str(x_vars_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse x_vars: {}", e)),
+    };
+
+    // Build design matrix with intercept column
+    let n = y.len();
+    let p = x_vars.len();
+
+    if n <= p + 1 {
+        return error_json(&format!(
+            "Insufficient data: need at least {} observations for {} predictors",
+            p + 2,
+            p
+        ));
+    }
+
+    let mut x_data = vec![1.0; n * (p + 1)]; // Intercept column
+    for (j, x_var) in x_vars.iter().enumerate() {
+        if x_var.len() != n {
+            return error_json(&format!(
+                "x_vars[{}] has {} elements, expected {}",
+                j,
+                x_var.len(),
+                n
+            ));
+        }
+        for (i, &val) in x_var.iter().enumerate() {
+            x_data[i * (p + 1) + j + 1] = val;
+        }
+    }
+
+    let x = linalg::Matrix::new(n, p + 1, x_data);
+
+    // Configure ridge options
+    let options = regularized::ridge::RidgeFitOptions {
+        lambda,
+        intercept: true,
+        standardize,
+    };
+
+    match regularized::ridge::ridge_fit(&x, &y, &options) {
+        Ok(output) => serde_json::to_string(&output)
+            .unwrap_or_else(|_| error_json("Failed to serialize ridge regression result")),
+        Err(e) => error_json(&e.to_string()),
+    }
+}
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+/// Performs Lasso regression via WASM.
+///
+/// Lasso regression adds an L1 penalty to the coefficients, which performs
+/// automatic variable selection by shrinking some coefficients to exactly zero.
+/// The intercept is never penalized.
+///
+/// # Arguments
+///
+/// * `y_json` - JSON array of response variable values
+/// * `x_vars_json` - JSON array of predictor arrays
+/// * `variable_names` - JSON array of variable names
+/// * `lambda` - Regularization strength (>= 0, typical range 0.01 to 10)
+/// * `standardize` - Whether to standardize predictors (recommended: true)
+///
+/// # Returns
+///
+/// JSON string containing:
+/// - `lambda` - Lambda value used
+/// - `intercept` - Intercept coefficient
+/// - `coefficients` - Slope coefficients (some may be exactly zero)
+/// - `fitted_values` - Predictions on training data
+/// - `residuals` - Residuals (y - fitted_values)
+/// - `n_nonzero` - Number of non-zero coefficients (excluding intercept)
+/// - `iterations` - Number of coordinate descent iterations
+/// - `converged` - Whether the algorithm converged
+///
+/// # Errors
+///
+/// Returns a JSON error object if parsing fails, lambda is negative,
+/// or domain check fails.
+pub fn lasso_regression(
+    y_json: &str,
+    x_vars_json: &str,
+    _variable_names: &str,
+    lambda: f64,
+    standardize: bool,
+) -> String {
+    if let Err(e) = check_domain() {
+        return error_to_json(&e);
+    }
+
+    // Parse JSON input
+    let y: Vec<f64> = match serde_json::from_str(y_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse y: {}", e)),
+    };
+
+    let x_vars: Vec<Vec<f64>> = match serde_json::from_str(x_vars_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse x_vars: {}", e)),
+    };
+
+    // Build design matrix with intercept column
+    let n = y.len();
+    let p = x_vars.len();
+
+    if n <= p + 1 {
+        return error_json(&format!(
+            "Insufficient data: need at least {} observations for {} predictors",
+            p + 2,
+            p
+        ));
+    }
+
+    let mut x_data = vec![1.0; n * (p + 1)]; // Intercept column
+    for (j, x_var) in x_vars.iter().enumerate() {
+        if x_var.len() != n {
+            return error_json(&format!(
+                "x_vars[{}] has {} elements, expected {}",
+                j,
+                x_var.len(),
+                n
+            ));
+        }
+        for (i, &val) in x_var.iter().enumerate() {
+            x_data[i * (p + 1) + j + 1] = val;
+        }
+    }
+
+    let x = linalg::Matrix::new(n, p + 1, x_data);
+
+    // Configure lasso options
+    let options = regularized::lasso::LassoFitOptions {
+        lambda,
+        intercept: true,
+        standardize,
+        ..Default::default()
+    };
+
+    match regularized::lasso::lasso_fit(&x, &y, &options) {
+        Ok(output) => serde_json::to_string(&output)
+            .unwrap_or_else(|_| error_json("Failed to serialize lasso regression result")),
+        Err(e) => error_json(&e.to_string()),
+    }
+}
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+/// Generates a lambda path for regularized regression via WASM.
+///
+/// Creates a logarithmically-spaced sequence of lambda values from lambda_max
+/// (where all penalized coefficients are zero) down to lambda_min. This is
+/// useful for fitting regularization paths and selecting optimal lambda via
+/// cross-validation.
+///
+/// # Arguments
+///
+/// * `y_json` - JSON array of response variable values
+/// * `x_vars_json` - JSON array of predictor arrays
+/// * `n_lambda` - Number of lambda values to generate (default: 100)
+/// * `lambda_min_ratio` - Ratio for smallest lambda (default: 0.0001 if n >= p, else 0.01)
+///
+/// # Returns
+///
+/// JSON string containing:
+/// - `lambda_path` - Array of lambda values in decreasing order
+/// - `lambda_max` - Maximum lambda value
+/// - `lambda_min` - Minimum lambda value
+/// - `n_lambda` - Number of lambda values
+///
+/// # Errors
+///
+/// Returns a JSON error object if parsing fails or domain check fails.
+pub fn make_lambda_path(
+    y_json: &str,
+    x_vars_json: &str,
+    n_lambda: usize,
+    lambda_min_ratio: f64,
+) -> String {
+    if let Err(e) = check_domain() {
+        return error_to_json(&e);
+    }
+
+    // Parse JSON input
+    let y: Vec<f64> = match serde_json::from_str(y_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse y: {}", e)),
+    };
+
+    let x_vars: Vec<Vec<f64>> = match serde_json::from_str(x_vars_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse x_vars: {}", e)),
+    };
+
+    // Build design matrix with intercept column
+    let n = y.len();
+    let p = x_vars.len();
+
+    let mut x_data = vec![1.0; n * (p + 1)]; // Intercept column
+    for (j, x_var) in x_vars.iter().enumerate() {
+        if x_var.len() != n {
+            return error_json(&format!(
+                "x_vars[{}] has {} elements, expected {}",
+                j,
+                x_var.len(),
+                n
+            ));
+        }
+        for (i, &val) in x_var.iter().enumerate() {
+            x_data[i * (p + 1) + j + 1] = val;
+        }
+    }
+
+    let x = linalg::Matrix::new(n, p + 1, x_data);
+
+    // Standardize X for lambda path computation
+    let x_mean: Vec<f64> = (0..x.cols)
+        .map(|j| {
+            if j == 0 {
+                1.0 // Intercept column
+            } else {
+                (0..n).map(|i| x.get(i, j)).sum::<f64>() / n as f64
+            }
+        })
+        .collect();
+
+    let x_std: Vec<f64> = (0..x.cols)
+        .map(|j| {
+            if j == 0 {
+                0.0 // Intercept column - no centering
+            } else {
+                let mean = x_mean[j];
+                let variance = (0..n).map(|i| (x.get(i, j) - mean).powi(2)).sum::<f64>() / (n - 1) as f64;
+                variance.sqrt()
+            }
+        })
+        .collect();
+
+    // Build standardized X matrix
+    let mut x_std_data = vec![1.0; n * (p + 1)];
+    for j in 0..x.cols {
+        for i in 0..n {
+            if j == 0 {
+                x_std_data[i * (p + 1)] = 1.0; // Intercept
+            } else {
+                let std = x_std[j];
+                if std > 1e-10 {
+                    x_std_data[i * (p + 1) + j] = (x.get(i, j) - x_mean[j]) / std;
+                } else {
+                    x_std_data[i * (p + 1) + j] = 0.0;
+                }
+            }
+        }
+    }
+    let x_std = linalg::Matrix::new(n, p + 1, x_std_data);
+
+    // Center y
+    let y_mean: f64 = y.iter().sum::<f64>() / n as f64;
+    let y_centered: Vec<f64> = y.iter().map(|&yi| yi - y_mean).collect();
+
+    // Configure lambda path options
+    let options = regularized::path::LambdaPathOptions {
+        nlambda: n_lambda.max(1),
+        lambda_min_ratio: if lambda_min_ratio > 0.0 { Some(lambda_min_ratio) } else { None },
+        alpha: 1.0, // Lasso
+        ..Default::default()
+    };
+
+    let lambda_path = regularized::path::make_lambda_path(&x_std, &y_centered, &options, None, Some(0));
+
+    let lambda_max = lambda_path.first().copied().unwrap_or(0.0);
+    let lambda_min = lambda_path.last().copied().unwrap_or(0.0);
+
+    // Return as JSON
+    let result = serde_json::json!({
+        "lambda_path": lambda_path,
+        "lambda_max": lambda_max,
+        "lambda_min": lambda_min,
+        "n_lambda": lambda_path.len()
+    });
+
+    result.to_string()
 }
 
 // ============================================================================

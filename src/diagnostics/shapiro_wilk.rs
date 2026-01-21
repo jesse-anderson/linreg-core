@@ -39,11 +39,55 @@ pub fn shapiro_wilk_test(
         ));
     }
 
+    // Validate dimensions and finite values using shared helper
+    super::helpers::validate_regression_data(y, x_vars)?;
+
     let residuals = compute_residuals(y, x_vars)?;
     shapiro_wilk_test_raw(&residuals)
 }
 
-/// Apply Shapiro-Wilk test directly to a sample of values.
+/// Applies the Shapiro-Wilk test directly to a sample of values.
+///
+/// This is the core implementation of the Shapiro-Wilk test that operates on any
+/// sample of data, without first computing regression residuals. Use this when you
+/// already have a sample you want to test for normality.
+///
+/// For testing regression residuals, use [`shapiro_wilk_test`] instead.
+///
+/// # Arguments
+///
+/// * `sample` - Data values to test for normality
+///
+/// # Returns
+///
+/// A [`DiagnosticTestResult`] containing:
+/// - `statistic`: The W statistic (0 ≤ W ≤ 1, closer to 1 indicates normality)
+/// - `p_value`: Two-tailed p-value for the test
+/// - `passed`: Whether the null hypothesis cannot be rejected (p > 0.05)
+/// - `interpretation`: Human-readable explanation of the result
+/// - `guidance`: Recommendations based on the test result
+///
+/// # Errors
+///
+/// * [`Error::InsufficientData`] - if n < 3 (minimum for Shapiro-Wilk) or n > 5000
+/// * [`Error::InvalidInput`] - if sample has zero variance (all values identical)
+///
+/// # Example
+///
+/// ```rust
+/// use linreg_core::diagnostics::shapiro_wilk_test_raw;
+///
+/// let sample = vec![0.1, -0.5, 0.3, 1.2, -0.8, 0.4, -0.2, 0.9];
+/// let result = shapiro_wilk_test_raw(&sample)?;
+/// println!("W = {}, p-value = {}", result.statistic, result.p_value);
+/// # Ok::<(), linreg_core::Error>(())
+/// ```
+///
+/// # Notes
+///
+/// - W = 1 indicates perfect normality; W < 1 indicates deviation from normality
+/// - Uses Royston's algorithm (AS R94, 1995) for p-value computation
+/// - Limited to n ≤ 5000 (same as R's `shapiro.test()`)
 pub fn shapiro_wilk_test_raw(sample: &[f64]) -> Result<DiagnosticTestResult> {
     let n = sample.len();
 
@@ -57,7 +101,16 @@ pub fn shapiro_wilk_test_raw(sample: &[f64]) -> Result<DiagnosticTestResult> {
         ));
     }
 
-    // Sort the sample (use unwrap_or to handle NaN safely)
+    // Validate sample contains no NaN or infinite values
+    for (i, &val) in sample.iter().enumerate() {
+        if !val.is_finite() {
+            return Err(Error::InvalidInput(format!(
+                "Sample contains non-finite value at index {}: {}", i, val
+            )));
+        }
+    }
+
+    // Sort the sample
     let mut sorted = sample.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
@@ -182,6 +235,7 @@ fn solve_spd(a: &[f64], b: &[f64], n: usize) -> Result<Vec<f64>> {
 ///
 /// This is the algorithm used by R's shapiro.test() function.
 /// Based on Applied Statistics algorithms AS181, R94.
+#[allow(clippy::needless_range_loop)]
 fn royston_swilk(x: &[f64]) -> Result<(f64, f64)> {
     let n = x.len();
     let nn2 = n / 2;
@@ -259,8 +313,9 @@ fn royston_swilk(x: &[f64]) -> Result<(f64, f64)> {
 
 /// Compute Shapiro-Wilk coefficients using Royston (1995) algorithm.
 ///
-/// Writes coefficients into a[1..=nn2] (1-based indexing to match R).
-/// The array a must have size nn2 + 1 (with a[0] unused).
+/// Writes coefficients into a\[1..=nn2\] (1-based indexing to match R).
+/// The array a must have size nn2 + 1 (with a\[0\] unused).
+#[allow(clippy::needless_range_loop)]
 fn compute_swilk_coefficients_into(a: &mut [f64], n: usize) -> Result<()> {
     let nn2 = n / 2;
 
@@ -313,7 +368,7 @@ fn compute_swilk_coefficients_into(a: &mut [f64], n: usize) -> Result<()> {
 
 /// Evaluates a polynomial at x.
 ///
-/// Polynomial coefficients are in cc[0..nord], with cc[0] being the constant term.
+/// Polynomial coefficients are in cc\[0..nord\], with cc\[0\] being the constant term.
 fn poly(cc: &[f64], x: f64) -> f64 {
     let nord = cc.len();
     let mut ret_val = cc[0];
@@ -328,6 +383,7 @@ fn poly(cc: &[f64], x: f64) -> f64 {
 }
 
 /// Standard normal quantile function (inverse CDF) using Acklam's algorithm.
+#[allow(clippy::excessive_precision)]
 fn normal_quantile(p: f64) -> Result<f64> {
     if p <= 0.0 { return Ok(f64::NEG_INFINITY); }
     if p >= 1.0 { return Ok(f64::INFINITY); }

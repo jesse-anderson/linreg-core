@@ -30,10 +30,16 @@ args <- commandArgs(trailingOnly = TRUE)
 default_csv_dir <- "verification/datasets/csv"
 default_output_dir <- "verification/results/r"
 default_script_dir <- "verification/scripts/r/diagnostics"
+default_regularized_dir <- "verification/scripts/r/regularized"
+default_core_dir <- "verification/scripts/r/core"
+default_lambda_count <- 20
 
 csv_dir <- ifelse(length(args) >= 1, args[1], default_csv_dir)
 output_dir <- ifelse(length(args) >= 2, args[2], default_output_dir)
 script_dir <- ifelse(length(args) >= 3, args[3], default_script_dir)
+regularized_dir <- ifelse(length(args) >= 4, args[4], default_regularized_dir)
+lambda_count <- ifelse(length(args) >= 5, args[5], default_lambda_count)
+core_dir <- ifelse(length(args) >= 6, args[6], default_core_dir)
 
 # Validate CSV directory
 if (!dir.exists(csv_dir)) {
@@ -49,15 +55,18 @@ if (length(csv_files) == 0) {
 
 # Diagnostic scripts to run
 diagnostic_scripts <- list(
-  list(name = "Rainbow", script = "test_rainbow.R", args = ""),
-  list(name = "Harvey-Collier", script = "test_harvey_collier.R", args = ""),
-  list(name = "Breusch-Pagan", script = "test_breusch_pagan.R", args = ""),
-  list(name = "White", script = "test_white.R", args = ""),
-  list(name = "Jarque-Bera", script = "test_jarque_bera.R", args = ""),
-  list(name = "Durbin-Watson", script = "test_durbin_watson.R", args = ""),
-  list(name = "Shapiro-Wilk", script = "test_shapiro_wilk.R", args = ""),
-  list(name = "Anderson-Darling", script = "test_anderson_darling.R", args = ""),
-  list(name = "Cooks-Distance", script = "test_cooks_distance.R", args = "")
+  list(name = "OLS", script = "test_ols_by_dataset.R", dir = core_dir, suffix = "ols", args = ""),
+  list(name = "Rainbow", script = "test_rainbow.R", dir = script_dir, suffix = "rainbow", args = ""),
+  list(name = "Harvey-Collier", script = "test_harvey_collier.R", dir = script_dir, suffix = "harvey_collier", args = ""),
+  list(name = "Breusch-Pagan", script = "test_breusch_pagan.R", dir = script_dir, suffix = "breusch_pagan", args = ""),
+  list(name = "White", script = "test_white.R", dir = script_dir, suffix = "white", args = ""),
+  list(name = "Jarque-Bera", script = "test_jarque_bera.R", dir = script_dir, suffix = "jarque_bera", args = ""),
+  list(name = "Durbin-Watson", script = "test_durbin_watson.R", dir = script_dir, suffix = "durbin_watson", args = ""),
+  list(name = "Shapiro-Wilk", script = "test_shapiro_wilk.R", dir = script_dir, suffix = "shapiro_wilk", args = ""),
+  list(name = "Anderson-Darling", script = "test_anderson_darling.R", dir = script_dir, suffix = "anderson_darling", args = ""),
+  list(name = "Cooks-Distance", script = "test_cooks_distance.R", dir = script_dir, suffix = "cooks_distance", args = ""),
+  list(name = "Ridge", script = "test_ridge.R", dir = regularized_dir, suffix = "ridge", args = lambda_count),
+  list(name = "Lasso", script = "test_lasso.R", dir = regularized_dir, suffix = "lasso", args = lambda_count)
 )
 
 # Counter for results
@@ -76,6 +85,8 @@ cat("========================================================\n")
 cat("CSV Directory:", csv_dir, "\n")
 cat("Output Directory:", output_dir, "\n")
 cat("Script Directory:", script_dir, "\n")
+cat("Regularized Directory:", regularized_dir, "\n")
+cat("Core Directory:", core_dir, "\n")
 cat("Datasets:", length(csv_files), "\n")
 cat("Diagnostic Tests:", length(diagnostic_scripts), "\n")
 cat("Total Tests to Run:", total_tests, "\n")
@@ -90,7 +101,7 @@ for (csv_file in csv_files) {
   # Loop through each diagnostic test
   for (diag in diagnostic_scripts) {
     test_name <- diag$name
-    script_path <- file.path(script_dir, diag$script)
+    script_path <- file.path(diag$dir, diag$script)
 
     # Check if script exists
     if (!file.exists(script_path)) {
@@ -103,7 +114,8 @@ for (csv_file in csv_files) {
       "Rscript",
       shQuote(script_path),
       shQuote(csv_file),
-      shQuote(output_dir)
+      shQuote(output_dir),
+      diag$args
     )
 
     # Run test
@@ -114,8 +126,7 @@ for (csv_file in csv_files) {
     })
 
     # Check if test ran successfully
-    expected_output <- file.path(output_dir, paste0(dataset_name, "_",
-                                              tolower(gsub("[- ]", "_", test_name)), ".json"))
+    expected_output <- file.path(output_dir, paste0(dataset_name, "_", diag$suffix, ".json"))
 
     if (file.exists(expected_output)) {
       cat("  [PASS]", test_name, "\n")

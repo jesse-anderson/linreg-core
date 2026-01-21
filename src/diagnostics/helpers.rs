@@ -1,12 +1,98 @@
 // ============================================================================
 // Diagnostic Test Helper Functions
 // ============================================================================
-//
-// Shared helper functions used across multiple diagnostic tests.
+
+//! Shared helper functions for diagnostic tests.
+//!
+//! This module provides utility functions used across multiple diagnostic tests,
+//! including:
+//!
+//! - Data validation (dimension and finite value checks)
+//! - P-value computation for common statistical distributions
+//! - OLS fitting with numerical stability safeguards
+//! - Residual sum of squares calculation
+//!
+//! # OLS Fitting Strategy
+//!
+//! The [`fit_ols`] function uses a robust two-stage approach:
+//! 1. First attempts standard QR decomposition OLS
+//! 2. Falls back to ridge regression (λ = 0.0001) if numerical issues occur
+//!
+//! This ensures diagnostic tests work correctly even with multicollinear data.
 
 use crate::error::{Error, Result};
 use crate::linalg::{Matrix, vec_sub};
 use crate::distributions::{student_t_cdf, fisher_snedecor_cdf, chi_squared_survival};
+
+/// Validates regression input data for dimensions and finite values.
+///
+/// This is a high-performance validation function that checks:
+/// 1. All predictor variables have the same length as the response
+/// 2. Response variable contains no NaN or infinite values
+/// 3. All predictor variables contain no NaN or infinite values
+///
+/// Uses explicit loops for maximum performance (no closure overhead).
+///
+/// # Arguments
+///
+/// * `y` - Response variable (n observations)
+/// * `x_vars` - Predictor variables (each expected to have length n)
+///
+/// # Returns
+///
+/// `Ok(())` if all validations pass, otherwise an error indicating the specific issue.
+///
+/// # Errors
+///
+/// * [`Error::DimensionMismatch`] - if any x_var has different length than y
+/// * [`Error::InvalidInput`] - if y or x_vars contain NaN or infinite values
+///
+/// # Examples
+///
+/// ```ignore
+/// use linreg_core::diagnostics::helpers::validate_regression_data;
+///
+/// let y = vec![1.0, 2.0, 3.0];
+/// let x1 = vec![1.0, 2.0, 3.0];
+/// let x2 = vec![2.0, 4.0, 6.0];
+///
+/// validate_regression_data(&y, &[x1, x2])?;
+/// # Ok::<(), linreg_core::Error>(())
+/// ```
+pub fn validate_regression_data(y: &[f64], x_vars: &[Vec<f64>]) -> Result<()> {
+    let n = y.len();
+
+    // Validate all x_vars have the same length as y
+    for (i, x_var) in x_vars.iter().enumerate() {
+        if x_var.len() != n {
+            return Err(Error::DimensionMismatch(
+                format!("X{} has {} observations but y has {}", i + 1, x_var.len(), n)
+            ));
+        }
+    }
+
+    // Validate y contains no NaN or infinite values
+    for (i, &yi) in y.iter().enumerate() {
+        if !yi.is_finite() {
+            return Err(Error::InvalidInput(format!(
+                "y contains non-finite value at index {}: {}", i, yi
+            )));
+        }
+    }
+
+    // Validate x_vars contain no NaN or infinite values
+    for (var_idx, x_var) in x_vars.iter().enumerate() {
+        for (i, &xi) in x_var.iter().enumerate() {
+            if !xi.is_finite() {
+                return Err(Error::InvalidInput(format!(
+                    "X{} contains non-finite value at index {}: {}", var_idx + 1, i, xi
+                )));
+            }
+        }
+    }
+
+    Ok(())
+}
 
 /// Computes a two-tailed p-value from a t-statistic.
 ///

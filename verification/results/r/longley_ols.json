@@ -1,0 +1,55 @@
+{
+  "test": "ols",
+  "method": "lm",
+  "dataset": "longley",
+  "formula": "GNP.deflator ~ GNP + Unemployed + Armed.Forces + Population + Year + Employed",
+  "n": 16,
+  "k": 6,
+  "df_residual": 9,
+  "variable_names": ["Intercept", "GNP", "Unemployed", "Armed.Forces", "Population", "Year", "Employed"],
+  "coefficients": [2946.8564, 0.2635, 0.0365, 0.0112, -1.737, -1.4188, 0.2313],
+  "std_errors": [5647.9766, 0.1082, 0.0302, 0.0155, 0.6738, 2.9446, 1.3039],
+  "t_stats": [0.5218, 2.4367, 1.2062, 0.7222, -2.5779, -0.4818, 0.1774],
+  "p_values": [0.6144, 0.0376, 0.2585, 0.4885, 0.0298, 0.6414, 0.8631],
+  "r_squared": 0.9926,
+  "adj_r_squared": 0.9877,
+  "f_statistic": 202.5094,
+  "f_p_value": 4.4258e-09,
+  "mse": 1.4271,
+  "std_error": 1.1946,
+  "conf_int_lower": [-9829.7543, 0.0189, -0.0319, -0.0238, -3.2613, -8.08, -2.7184],
+  "conf_int_upper": [15723.467, 0.5082, 0.1049, 0.0461, -0.2128, 5.2424, 3.181],
+  "residuals": [-0.6008, 1.5503, 0.1032, -1.2306, -0.3355, 0.2693, 0.8777, 0.1222, -2.0086, -0.486, 1.0663, 1.2275, -0.3836, 0.271, 0.1979, -0.6403],
+  "vif": {
+    "GNP": {
+      "variable": "GNP",
+      "vif": 1214.5721,
+      "rsquared": 0.9992
+    },
+    "Unemployed": {
+      "variable": "Unemployed",
+      "vif": 83.9586,
+      "rsquared": 0.9881
+    },
+    "Armed.Forces": {
+      "variable": "Armed.Forces",
+      "vif": 12.1564,
+      "rsquared": 0.9177
+    },
+    "Population": {
+      "variable": "Population",
+      "vif": 230.9122,
+      "rsquared": 0.9957
+    },
+    "Year": {
+      "variable": "Year",
+      "vif": 2065.7339,
+      "rsquared": 0.9995
+    },
+    "Employed": {
+      "variable": "Employed",
+      "vif": 220.4197,
+      "rsquared": 0.9955
+    }
+  }
+}

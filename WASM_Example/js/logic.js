@@ -1,5 +1,8 @@
 import init, {
     ols_regression,
+    ridge_regression,
+    lasso_regression,
+    make_lambda_path,
     rainbow_test,
     white_test,
     harvey_collier_test,
@@ -145,6 +148,23 @@ window.WasmRegression = {
         const namesJson = JSON.stringify(names);
         return ols_regression(yJson, xJson, namesJson);
     },
+    ridge: (y, xVars, names, lambda, standardize = true) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const namesJson = JSON.stringify(names);
+        return ridge_regression(yJson, xJson, namesJson, lambda, standardize);
+    },
+    lasso: (y, xVars, names, lambda, standardize = true) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const namesJson = JSON.stringify(names);
+        return lasso_regression(yJson, xJson, namesJson, lambda, standardize);
+    },
+    lambdaPath: (y, xVars, nLambda = 100, lambdaMinRatio = 0.0001) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        return make_lambda_path(yJson, xJson, nLambda, lambdaMinRatio);
+    },
     parseCsv: (content) => parse_csv(content),
     // Diagnostic tests - each callable independently
     rainbowTest: (y, xVars, fraction = 0.5, method = 'r') => {
@@ -281,9 +301,10 @@ const Stats = {
 
 };
 
-// ============================================ 
+// ============================================
 // REGRESSION CALCULATIONS (Using Rust WASM for R-accurate results)
-// ============================================ 
+// ============================================
+
 async function calculateRegression(yVar, xVars) {
     const n = STATE.rawData.length;
     const k = xVars.length;
@@ -346,6 +367,8 @@ async function calculateRegression(yVar, xVars) {
         rSquared: result.r_squared,
         adjRSquared: result.adj_r_squared,
         mse: result.mse,
+        rmse: result.rmse,
+        mae: result.mae,
         stdError: result.std_error,
         fStat: result.f_statistic,
         fPValue: result.f_p_value,
@@ -359,6 +382,122 @@ async function calculateRegression(yVar, xVars) {
         df: result.df,
         variableNames: result.variable_names
     };
+}
+
+async function calculateRidgeRegression(yVar, xVars, lambda = 1.0, standardize = true) {
+    const n = STATE.rawData.length;
+    const k = xVars.length;
+
+    if (n <= k + 1) {
+        throw new Error(`Need at least ${k + 2} data points for ${k} predictor(s). You have ${n}.`);
+    }
+
+    if (!window.WasmRegression || !window.WasmRegression.isReady()) {
+        throw new Error('WASM module is not ready yet. Please wait a moment and try again.');
+    }
+
+    const yData = STATE.rawData.map(row => row[yVar]);
+    const xData = xVars.map(v => STATE.rawData.map(row => row[v]));
+    const names = ['Intercept', ...xVars];
+
+    const resultJson = window.WasmRegression.ridge(yData, xData, names, lambda, standardize);
+    const result = JSON.parse(resultJson);
+
+    if (result.error) {
+        throw new Error(result.error);
+    }
+
+    // Statistics are now computed in Rust WASM
+    // Standardized residuals (not computed in Rust for ridge)
+    const standardizedResiduals = result.residuals.map(r => r / result.rmse);
+
+    return {
+        coefficients: [result.intercept, ...result.coefficients],
+        lambda: result.lambda,
+        rSquared: result.r_squared,
+        adjRSquared: result.adj_r_squared,
+        mse: result.mse,
+        stdError: result.rmse,  // rmse from Rust
+        rmse: result.rmse,
+        mae: result.mae,
+        predictions: result.fitted_values,
+        residuals: result.residuals,
+        standardizedResiduals: standardizedResiduals,
+        df: result.df,
+        n: n,
+        k: k,
+        variableNames: names,
+        method: 'ridge'
+    };
+}
+
+async function calculateLassoRegression(yVar, xVars, lambda = 1.0, standardize = true) {
+    const n = STATE.rawData.length;
+    const k = xVars.length;
+
+    if (n <= k + 1) {
+        throw new Error(`Need at least ${k + 2} data points for ${k} predictor(s). You have ${n}.`);
+    }
+
+    if (!window.WasmRegression || !window.WasmRegression.isReady()) {
+        throw new Error('WASM module is not ready yet. Please wait a moment and try again.');
+    }
+
+    const yData = STATE.rawData.map(row => row[yVar]);
+    const xData = xVars.map(v => STATE.rawData.map(row => row[v]));
+    const names = ['Intercept', ...xVars];
+
+    const resultJson = window.WasmRegression.lasso(yData, xData, names, lambda, standardize);
+    const result = JSON.parse(resultJson);
+
+    if (result.error) {
+        throw new Error(result.error);
+    }
+
+    // Statistics are now computed in Rust WASM
+    // Standardized residuals (not computed in Rust for lasso)
+    const standardizedResiduals = result.residuals.map(r => r / result.rmse);
+
+    return {
+        coefficients: [result.intercept, ...result.coefficients],
+        lambda: result.lambda,
+        rSquared: result.r_squared,
+        adjRSquared: result.adj_r_squared,
+        mse: result.mse,
+        stdError: result.rmse,  // rmse from Rust
+        rmse: result.rmse,
+        mae: result.mae,
+        predictions: result.fitted_values,
+        residuals: result.residuals,
+        standardizedResiduals: standardizedResiduals,
+        nNonzero: result.n_nonzero,
+        iterations: result.iterations,
+        converged: result.converged,
+        n: n,
+        k: k,
+        variableNames: names,
+        method: 'lasso'
+    };
+}
+
+async function generateLambdaPath(yVar, xVars, nLambda = 100, lambdaMinRatio = 0.0001) {
+    const n = STATE.rawData.length;
+
+    if (!window.WasmRegression || !window.WasmRegression.isReady()) {
+        throw new Error('WASM module is not ready yet. Please wait a moment and try again.');
+    }
+
+    const yData = STATE.rawData.map(row => row[yVar]);
+    const xData = xVars.map(v => STATE.rawData.map(row => row[v]));
+
+    const resultJson = window.WasmRegression.lambdaPath(yData, xData, nLambda, lambdaMinRatio);
+    const result = JSON.parse(resultJson);
+
+    if (result.error) {
+        throw new Error(result.error);
+    }
+
+    return result;
 }
 
 // ============================================
@@ -948,9 +1087,14 @@ function updateColumnSelectors() {
 
     container.innerHTML = html;
 
-    // Show the Run Regression button
+    // Show the Run Regression button and regression method panel
     const runBtn = document.getElementById('runRegressionBtn');
     runBtn.style.display = 'block';
+
+    const methodPanel = document.getElementById('regressionMethodPanel');
+    if (methodPanel) {
+        methodPanel.style.display = 'block';
+    }
 
     // Add event listeners
     document.getElementById('yVarSelect').addEventListener('change', (e) => {
@@ -980,22 +1124,45 @@ function updateXVariables() {
 }
 
 function updateResultsDisplay(results) {
+    const isRegularized = results.method === 'ridge' || results.method === 'lasso';
+
     // Update statistics cards (handle NaN for edge cases)
     document.getElementById('rSquared').textContent =
         isNaN(results.rSquared) ? 'N/A (no Y variance)' : results.rSquared.toFixed(4);
+
     document.getElementById('adjRSquared').textContent =
         isNaN(results.adjRSquared) ? 'N/A' : results.adjRSquared.toFixed(4);
-    document.getElementById('fStat').textContent = results.fStat.toFixed(4);
-    document.getElementById('pValue').textContent = formatPValue(results.fPValue);
+
+    // RMSE and MAE (available for all methods)
+    document.getElementById('rmse').textContent =
+        isNaN(results.rmse) ? 'N/A' : results.rmse.toFixed(4);
+    document.getElementById('mae').textContent =
+        isNaN(results.mae) ? 'N/A' : results.mae.toFixed(4);
+
+    // F-Stat and p-value (OLS only)
+    if (isRegularized) {
+        document.getElementById('fStat').textContent = 'N/A';
+        document.getElementById('pValue').textContent = 'N/A';
+    } else {
+        document.getElementById('fStat').textContent = results.fStat.toFixed(4);
+        document.getElementById('pValue').textContent = formatPValue(results.fPValue);
+    }
 
     // Update equation
     updateEquation(results);
 
-    // Update VIF display
-    updateVIFDisplay(results);
+    // Update VIF display (only for OLS)
+    if (isRegularized) {
+        const vifSection = document.getElementById('vifSection');
+        const vifNote = document.getElementById('vifNote');
+        if (vifSection) vifSection.style.display = 'none';
+        if (vifNote) vifNote.style.display = 'none';
+    } else {
+        updateVIFDisplay(results);
+    }
 
     // Update coefficients table
-    updateCoefficientsTable(results);
+    updateCoefficientsTable(results, isRegularized);
 
     // Update residuals table
     updateResidualsTable(results);
@@ -1331,8 +1498,9 @@ function updateDiagnosticsDisplay(diagnostics) {
 function updateEquation(results) {
     const names = results.variableNames;
     const coeffs = results.coefficients;
-    const pValues = results.pValues;
+    const pValues = results.pValues; // Only for OLS
     const isSimple = results.k === 1;
+    const isRegularized = results.method === 'ridge' || results.method === 'lasso';
 
     // Build symbolic form (e.g., y = mx + b)
     let symbolic = '';
@@ -1356,13 +1524,15 @@ function updateEquation(results) {
         const name = escapeHtml(names[i]);
         const sign = coef >= 0 ? (i === 0 ? '' : ' + ') : ' - ';
         const absCoef = Math.abs(coef).toFixed(4);
-        const pv = pValues[i];
 
-        // Add significance indicator
+        // Add significance indicator (only for OLS)
         let sig = '';
-        if (pv < 0.001) sig = '***';
-        else if (pv < 0.01) sig = '**';
-        else if (pv < 0.05) sig = '*';
+        if (!isRegularized && pValues) {
+            const pv = pValues[i];
+            if (pv < 0.001) sig = '***';
+            else if (pv < 0.01) sig = '**';
+            else if (pv < 0.05) sig = '*';
+        }
 
         if (i === 0) {
             // Intercept (b)
@@ -1379,19 +1549,37 @@ function updateEquation(results) {
     params += '<div style="font-size: 0.6875rem; color: var(--text-muted); margin-bottom: 8px;">Parameters:</div>';
 
     coeffs.forEach((coef, i) => {
-        const pv = pValues[i];
+        // Add significance indicator (only for OLS)
         let sig = '';
-        if (pv < 0.001) sig = '***';
-        else if (pv < 0.01) sig = '**';
-        else if (pv < 0.05) sig = '*';
+        if (!isRegularized && pValues) {
+            const pv = pValues[i];
+            if (pv < 0.001) sig = '***';
+            else if (pv < 0.01) sig = '**';
+            else if (pv < 0.05) sig = '*';
+        }
+
+        // For lasso, indicate zero coefficients
+        const isZero = Math.abs(coef) < 1e-10;
+        const zeroIndicator = isZero ? ' <span style="color: var(--text-muted);">(zero)</span>' : '';
 
         if (i === 0) {
             params += `<div><span style="color: var(--text-muted);">b</span> (intercept) = <strong>${coef.toFixed(4)}</strong>${sig}</div>`;
         } else {
             const label = isSimple ? 'm' : `m<sub>${i}</sub>`;
-            params += `<div><span style="color: var(--text-muted);">${label}</span> (${escapeHtml(names[i])}) = <strong>${coef.toFixed(4)}</strong>${sig}</div>`;
+            params += `<div><span style="color: var(--text-muted);">${label}</span> (${escapeHtml(names[i])}) = <strong>${coef.toFixed(4)}</strong>${sig}${zeroIndicator}</div>`;
         }
     });
+
+    // Add lambda info for regularized regression
+    if (isRegularized && results.lambda !== undefined) {
+        params += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-color);">`;
+        params += `<span style="color: var(--text-muted);">Lambda (λ)</span> = <strong>${results.lambda.toFixed(4)}</strong>`;
+        if (results.method === 'lasso' && results.nNonzero !== undefined) {
+            params += `<br><span style="color: var(--text-muted);">Non-zero coeffs</span> = <strong>${results.nNonzero}</strong>`;
+        }
+        params += `</div>`;
+    }
+
     params += '</div>';
 
     // Combine all parts
@@ -1408,10 +1596,34 @@ function updateEquation(results) {
     `;
 }
 
-function updateCoefficientsTable(results) {
+function updateCoefficientsTable(results, isRegularized = false) {
     const tbody = document.getElementById('coefficientsBody');
+    const table = document.getElementById('coefficientsTable');
     const names = results.variableNames;
     const coeffs = results.coefficients;
+
+    // For regularized regression, use a simpler table
+    if (isRegularized) {
+        let html = '';
+        names.forEach((name, i) => {
+            const signClass = coeffs[i] >= 0 ? 'positive' : 'negative';
+            const isZero = Math.abs(coeffs[i]) < 1e-10;
+            html += `<tr>
+                <td>${escapeHtml(name)}</td>
+                <td class="${signClass}">${coeffs[i].toFixed(4)}${isZero ? ' (zero)' : ''}</td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+
+        // Update table header for regularized regression
+        const thead = table.querySelector('thead tr');
+        if (thead) {
+            thead.innerHTML = '<th>Variable</th><th>Coefficient</th>';
+        }
+        return;
+    }
+
+    // OLS regression - full table
     const stdErrs = results.stdErrors;
     const tStats = results.tStats;
     const pValues = results.pValues;
@@ -1432,6 +1644,12 @@ function updateCoefficientsTable(results) {
     });
 
     tbody.innerHTML = html;
+
+    // Reset table header for OLS
+    const thead = table.querySelector('thead tr');
+    if (thead) {
+        thead.innerHTML = '<th>Variable</th><th>Coefficient</th><th>Std Error</th><th>t-stat</th><th>p-value</th><th>95% CI Lower</th><th>95% CI Upper</th>';
+    }
 }
 
 function updateResidualsTable(results) {
@@ -2114,6 +2332,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // Example dropdown change - update description
     document.getElementById('exampleSelect').addEventListener('change', updateExampleDescription);
 
+    // Regression method selection
+    document.getElementById('regressionMethodSelect')?.addEventListener('change', (e) => {
+        const method = e.target.value;
+        const regularizedParams = document.getElementById('regularizedParams');
+        if (regularizedParams) {
+            regularizedParams.style.display = (method === 'ridge' || method === 'lasso') ? 'block' : 'none';
+        }
+    });
+
+    // Lambda slider - update display value
+    document.getElementById('lambdaSlider')?.addEventListener('input', (e) => {
+        const lambdaValue = document.getElementById('lambdaValue');
+        if (lambdaValue) {
+            lambdaValue.textContent = parseFloat(e.target.value).toFixed(2);
+        }
+    });
+
     // Run regression button
     document.getElementById('runRegressionBtn').addEventListener('click', async () => {
         if (STATE.xVariables.length === 0) {
@@ -2138,25 +2373,53 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerHTML = '<span class="loading-spinner"></span> Running (WASM)...';
 
         try {
-            STATE.regressionResults = await calculateRegression(STATE.yVariable, STATE.xVariables);
+            // Get regression method
+            const method = document.getElementById('regressionMethodSelect')?.value || 'ols';
+            const lambda = parseFloat(document.getElementById('lambdaSlider')?.value || 1.0);
+            const standardize = document.getElementById('standardizeCheck')?.checked !== false;
 
-            // Prepare data for diagnostics
+            // Run appropriate regression
+            if (method === 'ridge') {
+                STATE.regressionResults = await calculateRidgeRegression(STATE.yVariable, STATE.xVariables, lambda, standardize);
+                showToast('Ridge regression complete (Rust WASM engine)', 'success');
+            } else if (method === 'lasso') {
+                STATE.regressionResults = await calculateLassoRegression(STATE.yVariable, STATE.xVariables, lambda, standardize);
+                showToast('Lasso regression complete (Rust WASM engine)', 'success');
+            } else {
+                STATE.regressionResults = await calculateRegression(STATE.yVariable, STATE.xVariables);
+                showToast('Regression analysis complete (Rust WASM engine)', 'success');
+            }
+
+            // Prepare data for diagnostics (only for OLS)
             const yData = STATE.rawData.map(row => row[STATE.yVariable]);
             const xData = STATE.xVariables.map(v => STATE.rawData.map(row => row[v]));
 
-            // Run diagnostic tests
-            STATE.diagnostics = await runDiagnostics(yData, xData);
+            // Run diagnostic tests (only for OLS)
+            if (method === 'ols') {
+                STATE.diagnostics = await runDiagnostics(yData, xData);
+            } else {
+                STATE.diagnostics = null;
+            }
 
             updateResultsDisplay(STATE.regressionResults);
-            updateDiagnosticsDisplay(STATE.diagnostics);
-            showToast('Regression analysis complete (Rust WASM engine)', 'success');
+            if (STATE.diagnostics) {
+                updateDiagnosticsDisplay(STATE.diagnostics);
+            } else {
+                document.getElementById('diagnosticsResults').innerHTML = `
+                    <div class="diagnostics-empty">
+                        <p style="color: var(--text-muted); font-size: 0.875rem;">
+                            Diagnostic tests are only available for OLS regression.
+                        </p>
+                    </div>
+                `;
+            }
         } catch (error) {
             // Provide user-friendly error messages
             let errorMessage = error.message;
 
             // Translate common WASM errors to user-friendly messages
             if (error.message.includes('SingularMatrix') || error.message.includes('singular')) {
-                errorMessage = 'Matrix is singular (perfect multicollinearity). Remove redundant variables that are linear combinations of others. Try using fewer predictor variables.';
+                errorMessage = 'Matrix is singular (perfect multicollinearity). Remove redundant variables that are linear combinations of others. Try using fewer predictor variables or Ridge regression.';
             } else if (error.message.includes('InsufficientData')) {
                 errorMessage = 'Not enough data points for this model. Add more observations or remove predictor variables.';
             } else if (error.message.includes('Domain check')) {

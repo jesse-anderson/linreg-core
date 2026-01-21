@@ -46,6 +46,26 @@ const MIN_LEVERAGE_DENOM: f64 = 1e-10;
 ///
 /// VIF measures how much the variance of an estimated regression coefficient
 /// increases due to multicollinearity among the predictors.
+///
+/// # Fields
+///
+/// * `variable` - Name of the predictor variable
+/// * `vif` - Variance Inflation Factor (VIF > 10 indicates high multicollinearity)
+/// * `rsquared` - R-squared from regressing this predictor on all others
+/// * `interpretation` - Human-readable interpretation of the VIF value
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::core::VifResult;
+/// let vif = VifResult {
+///     variable: "X1".to_string(),
+///     vif: 2.5,
+///     rsquared: 0.6,
+///     interpretation: "Low multicollinearity".to_string(),
+/// };
+/// assert_eq!(vif.variable, "X1");
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct VifResult {
     /// Name of the predictor variable
@@ -62,6 +82,19 @@ pub struct VifResult {
 ///
 /// Contains all coefficients, statistics, diagnostics, and residuals from
 /// an Ordinary Least Squares regression.
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::core::ols_regression;
+/// let y = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+/// let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+/// let names = vec!["Intercept".to_string(), "X1".to_string()];
+///
+/// let result = ols_regression(&y, &[x1], &names).unwrap();
+/// assert!(result.r_squared > 0.0);
+/// assert_eq!(result.coefficients.len(), 2); // intercept + 1 predictor
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct RegressionOutput {
     /// Regression coefficients (including intercept)
@@ -86,6 +119,10 @@ pub struct RegressionOutput {
     pub f_p_value: f64,
     /// Mean squared error of residuals
     pub mse: f64,
+    /// Root mean squared error (prediction error in original units)
+    pub rmse: f64,
+    /// Mean absolute error of residuals
+    pub mae: f64,
     /// Standard error of the regression (residual standard deviation)
     pub std_error: f64,
     /// Raw residuals (observed - predicted)
@@ -123,6 +160,14 @@ pub struct RegressionOutput {
 ///
 /// * `t` - The t-statistic value
 /// * `df` - Degrees of freedom
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::core::two_tailed_p_value;
+/// let p = two_tailed_p_value(2.0, 20.0);
+/// assert!(p > 0.0 && p < 0.1);
+/// ```
 pub fn two_tailed_p_value(t: f64, df: f64) -> f64 {
     if t.abs() > 100.0 {
         return 0.0;
@@ -141,6 +186,14 @@ pub fn two_tailed_p_value(t: f64, df: f64) -> f64 {
 ///
 /// * `df` - Degrees of freedom
 /// * `alpha` - Significance level (typically 0.05 for 95% confidence)
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::core::t_critical_quantile;
+/// let t_crit = t_critical_quantile(20.0, 0.05);
+/// assert!(t_crit > 2.0); // approximately 2.086 for df=20, alpha=0.05
+/// ```
 pub fn t_critical_quantile(df: f64, alpha: f64) -> f64 {
     let p = 1.0 - alpha / 2.0;
     student_t_inverse_cdf(p, df)
@@ -156,6 +209,14 @@ pub fn t_critical_quantile(df: f64, alpha: f64) -> f64 {
 /// * `f_stat` - The F-statistic value
 /// * `df1` - Numerator degrees of freedom
 /// * `df2` - Denominator degrees of freedom
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::core::f_p_value;
+/// let p = f_p_value(5.0, 2.0, 20.0);
+/// assert!(p > 0.0 && p < 0.05);
+/// ```
 pub fn f_p_value(f_stat: f64, df1: f64, df2: f64) -> f64 {
     if f_stat <= 0.0 {
         return 1.0;
@@ -173,6 +234,7 @@ pub fn f_p_value(f_stat: f64, df1: f64, df2: f64) -> f64 {
 ///
 /// * `x` - Design matrix (including intercept column)
 /// * `xtx_inv` - Inverse of X'X matrix
+#[allow(clippy::needless_range_loop)]
 pub fn compute_leverage(x: &Matrix, xtx_inv: &Matrix) -> Vec<f64> {
     let n = x.rows;
     let mut leverage = vec![0.0; n];
@@ -221,6 +283,19 @@ pub fn compute_leverage(x: &Matrix, xtx_inv: &Matrix) -> Vec<f64> {
 /// # Returns
 ///
 /// Vector of VIF results for each predictor (excluding intercept).
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::core::calculate_vif;
+/// let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+/// let x2 = vec![2.0, 4.0, 6.0, 8.0, 10.0];
+/// let names = vec!["Intercept".to_string(), "X1".to_string(), "X2".to_string()];
+///
+/// let vif_results = calculate_vif(&[x1, x2], &names, 5);
+/// assert_eq!(vif_results.len(), 2);
+/// // Perfectly collinear variables will have VIF = infinity
+/// ```
 pub fn calculate_vif(x_vars: &[Vec<f64>], names: &[String], n: usize) -> Vec<VifResult> {
     let k = x_vars.len();
     if k <= 1 {
@@ -356,6 +431,7 @@ pub fn calculate_vif(x_vars: &[Vec<f64>], names: &[String], n: usize) -> Vec<Vif
 /// println!("R-squared: {}", result.r_squared);
 /// # Ok::<(), Error>(())
 /// ```
+#[allow(clippy::needless_range_loop)]
 pub fn ols_regression(
     y: &[f64],
     x_vars: &[Vec<f64>],
@@ -369,6 +445,9 @@ pub fn ols_regression(
     if n <= k + 1 {
         return Err(Error::InsufficientData { required: k + 2, available: n });
     }
+
+    // Validate dimensions and finite values using shared helper
+    crate::diagnostics::validate_regression_data(y, x_vars)?;
 
     // Prepare variable names
     let mut names = variable_names.to_vec();
@@ -489,6 +568,10 @@ pub fn ols_regression(
     let f_statistic = (ss_regression / k as f64) / mse;
     let f_p_value = f_p_value(f_statistic, k as f64, df as f64);
 
+    // RMSE and MAE
+    let rmse = std_error;
+    let mae: f64 = residuals_vec.iter().map(|&r| r.abs()).sum::<f64>() / n as f64;
+
     // VIF
     let vif = calculate_vif(x_vars, &names, n);
 
@@ -504,6 +587,8 @@ pub fn ols_regression(
         f_statistic,
         f_p_value,
         mse,
+        rmse,
+        mae,
         std_error,
         residuals: residuals_vec,
         standardized_residuals,

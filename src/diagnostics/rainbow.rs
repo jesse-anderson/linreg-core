@@ -22,7 +22,7 @@ use super::helpers::{fit_ols, compute_rss, f_p_value};
 /// R's lmtest::raintest subset selection using Type 7 quantile
 ///
 /// R uses 1-based indexing and Type 7 quantile (linear interpolation):
-/// - Q(p) = x[j] + gamma * (x[j+1] - x[j])
+/// - Q(p) = x\[j\] + gamma * (x\[j+1\] - x\[j\])
 /// - where j = floor(p * (n-1) + 1), gamma = p * (n-1) + 1 - j
 /// - For sequence 1:n, this simplifies to: Q(p) = j + gamma
 fn raintest_subset_r(n: usize, fraction: f64, center: f64) -> (usize, usize) {
@@ -186,6 +186,9 @@ pub fn rainbow_test(
         return Err(Error::InsufficientData { required: p + 2, available: n });
     }
 
+    // Validate dimensions and finite values using shared helper
+    super::helpers::validate_regression_data(y, x_vars)?;
+
     let fraction = if fraction <= 0.0 || fraction > 1.0 { 0.5 } else { fraction };
     let center = 0.5;  // Default center value
 
@@ -256,7 +259,7 @@ pub fn rainbow_test(
     // Build interpretation based on primary result (R if available, else Python)
     let primary_result = r_result.as_ref().or(python_result.as_ref());
 
-    let (interpretation, guidance) = if let Some(ref result) = primary_result {
+    let (interpretation, guidance) = if let Some(result) = primary_result {
         let alpha = 0.05;
         if result.passed {
             (

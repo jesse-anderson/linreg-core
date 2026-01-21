@@ -36,6 +36,7 @@ use super::helpers::{fit_ols, two_tailed_p_value};
 /// # Errors
 ///
 /// Returns [`Error::InsufficientData`] if n ≤ k + 2.
+#[allow(clippy::needless_range_loop)]
 pub fn harvey_collier_test(
     y: &[f64],
     x_vars: &[Vec<f64>],
@@ -51,6 +52,9 @@ pub fn harvey_collier_test(
     if n <= p + 1 {
         return Err(Error::InsufficientData { required: p + 2, available: n });
     }
+
+    // Validate dimensions and finite values using shared helper
+    super::helpers::validate_regression_data(y, x_vars)?;
 
     // Create design matrix (with intercept)
     let mut x_data = vec![0.0; n * p];

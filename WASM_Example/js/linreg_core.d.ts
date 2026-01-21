@@ -198,6 +198,69 @@ export function harvey_collier_test(y_json: string, x_vars_json: string): string
 export function jarque_bera_test(y_json: string, x_vars_json: string): string;
 
 /**
+ * Performs Lasso regression via WASM.
+ *
+ * Lasso regression adds an L1 penalty to the coefficients, which performs
+ * automatic variable selection by shrinking some coefficients to exactly zero.
+ * The intercept is never penalized.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `variable_names` - JSON array of variable names
+ * * `lambda` - Regularization strength (>= 0, typical range 0.01 to 10)
+ * * `standardize` - Whether to standardize predictors (recommended: true)
+ *
+ * # Returns
+ *
+ * JSON string containing:
+ * - `lambda` - Lambda value used
+ * - `intercept` - Intercept coefficient
+ * - `coefficients` - Slope coefficients (some may be exactly zero)
+ * - `fitted_values` - Predictions on training data
+ * - `residuals` - Residuals (y - fitted_values)
+ * - `n_nonzero` - Number of non-zero coefficients (excluding intercept)
+ * - `iterations` - Number of coordinate descent iterations
+ * - `converged` - Whether the algorithm converged
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, lambda is negative,
+ * or domain check fails.
+ */
+export function lasso_regression(y_json: string, x_vars_json: string, _variable_names: string, lambda: number, standardize: boolean): string;
+
+/**
+ * Generates a lambda path for regularized regression via WASM.
+ *
+ * Creates a logarithmically-spaced sequence of lambda values from lambda_max
+ * (where all penalized coefficients are zero) down to lambda_min. This is
+ * useful for fitting regularization paths and selecting optimal lambda via
+ * cross-validation.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `n_lambda` - Number of lambda values to generate (default: 100)
+ * * `lambda_min_ratio` - Ratio for smallest lambda (default: 0.0001 if n >= p, else 0.01)
+ *
+ * # Returns
+ *
+ * JSON string containing:
+ * - `lambda_path` - Array of lambda values in decreasing order
+ * - `lambda_max` - Maximum lambda value
+ * - `lambda_min` - Minimum lambda value
+ * - `n_lambda` - Number of lambda values
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails or domain check fails.
+ */
+export function make_lambda_path(y_json: string, x_vars_json: string, n_lambda: number, lambda_min_ratio: number): string;
+
+/**
  * Performs OLS regression via WASM.
  *
  * All parameters and return values are JSON-encoded strings for JavaScript
@@ -320,9 +383,40 @@ export function r_white_test(y_json: string, x_vars_json: string): string;
 export function rainbow_test(y_json: string, x_vars_json: string, fraction: number, method: string): string;
 
 /**
+ * Performs Ridge regression via WASM.
+ *
+ * Ridge regression adds an L2 penalty to the coefficients, which helps with
+ * multicollinearity and overfitting. The intercept is never penalized.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `variable_names` - JSON array of variable names
+ * * `lambda` - Regularization strength (>= 0, typical range 0.01 to 100)
+ * * `standardize` - Whether to standardize predictors (recommended: true)
+ *
+ * # Returns
+ *
+ * JSON string containing:
+ * - `lambda` - Lambda value used
+ * - `intercept` - Intercept coefficient
+ * - `coefficients` - Slope coefficients
+ * - `fitted_values` - Predictions on training data
+ * - `residuals` - Residuals (y - fitted_values)
+ * - `df` - Effective degrees of freedom
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, lambda is negative,
+ * or domain check fails.
+ */
+export function ridge_regression(y_json: string, x_vars_json: string, _variable_names: string, lambda: number, standardize: boolean): string;
+
+/**
  * Performs the Shapiro-Wilk test for normality via WASM.
  *
- * The Shapiro-Wilk test is a powerful tests for normality,
+ * The Shapiro-Wilk test is a powerful test for normality,
  * especially for small to moderate sample sizes (3 ≤ n ≤ 5000). It tests
  * the null hypothesis that the residuals are normally distributed.
  *
@@ -432,11 +526,14 @@ export interface InitOutput {
   readonly get_version: () => [number, number];
   readonly harvey_collier_test: (a: number, b: number, c: number, d: number) => [number, number];
   readonly jarque_bera_test: (a: number, b: number, c: number, d: number) => [number, number];
+  readonly lasso_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
+  readonly make_lambda_path: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
   readonly ols_regression: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
   readonly parse_csv: (a: number, b: number) => [number, number];
   readonly python_white_test: (a: number, b: number, c: number, d: number) => [number, number];
   readonly r_white_test: (a: number, b: number, c: number, d: number) => [number, number];
   readonly rainbow_test: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+  readonly ridge_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
   readonly shapiro_wilk_test: (a: number, b: number, c: number, d: number) => [number, number];
   readonly test: () => [number, number];
   readonly test_ci: (a: number, b: number, c: number, d: number) => [number, number];
@@ -444,8 +541,8 @@ export interface InitOutput {
   readonly test_r_accuracy: () => [number, number];
   readonly test_t_critical: (a: number, b: number) => [number, number];
   readonly white_test: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
-  readonly get_t_critical: (a: number, b: number) => number;
   readonly get_t_cdf: (a: number, b: number) => number;
+  readonly get_t_critical: (a: number, b: number) => number;
   readonly get_normal_inverse: (a: number) => number;
   readonly __wbindgen_externrefs: WebAssembly.Table;
   readonly __wbindgen_free: (a: number, b: number, c: number) => void;

@@ -4,8 +4,8 @@
   "collaborators": [
     "Jesse Anderson"
   ],
-  "description": "Lightweight OLS linear regression with diagnostic tests. Custom implementations of linear algebra and statistical distributions - no external math dependencies.",
-  "version": "0.1.0",
+  "description": "Lightweight linear regression (OLS, Ridge, Lasso) with diagnostic tests. Pure Rust - no external math dependencies.",
+  "version": "0.2.0",
   "license": "MIT OR Apache-2.0",
   "repository": {
     "type": "git",
@@ -14,7 +14,9 @@
   "files": [
     "linreg_core_bg.wasm",
     "linreg_core.js",
-    "linreg_core.d.ts"
+    "linreg_core.d.ts",
+    "LICENSE-APACHE",
+    "LICENSE-MIT"
   ],
   "main": "linreg_core.js",
   "homepage": "https://jesse-anderson.net",
@@ -23,10 +25,10 @@
     "./snippets/*"
   ],
   "keywords": [
-    "statistics",
     "regression",
-    "ols",
+    "statistics",
     "linear-regression",
-    "diagnostics"
+    "ridge",
+    "lasso"
   ]
 }

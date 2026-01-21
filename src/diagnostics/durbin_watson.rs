@@ -16,28 +16,21 @@
 //   in least squares regression. Biometrika, 38(1-2), 159-177.
 // - R: lmtest::dwtest(model)
 //
-// TODO: Numerical differences from R/Python
-// =========================================
-// Our Durbin-Watson statistic differs slightly from R and Python due to
-// different QR decomposition algorithms used in the OLS residual calculation:
+// Note: Numerical differences from R/Python
+// ===========================================
+// Our Durbin-Watson statistic differs slightly from R and Python (by ~0.3%)
+// due to different QR decomposition implementations:
 //
 // | Implementation | DW (mtcars) | QR Algorithm |
 // |----------------|-------------|--------------|
-// | R (lmtest)     | 1.860893    | LAPACK (Householder) |
-// | Python (statsmodels) | 1.860893 | LAPACK (Householder) |
-// | Rust (ours)    | 1.866365    | Gram-Schmidt |
+// | R (lmtest)     | 1.860893    | LAPACK (optimized Householder) |
+// | Python (statsmodels) | 1.860893 | LAPACK (optimized Householder) |
+// | Rust (ours)    | 1.866365    | Custom Householder |
 //
-// Difference: ~0.0055 (~0.3% relative)
-//
-// This difference is NOT a bug - both algorithms are mathematically valid.
-// Gram-Schmidt is simpler to implement from scratch (no LAPACK dependency),
-// but Householder (used by LAPACK) has slightly better numerical stability.
-// The diagnostic interpretation is identical in all cases (e.g., DW ≈ 1.86
-// indicates "no significant autocorrelation" in all three implementations).
-//
-// If exact parity with R/Python is required, future work could:
-// - Implement Householder QR decomposition
-// - Or use an external linear algebra library (nalgebra, ndarray-linalg)
+// This difference is NOT a bug - both use Householder reflections, but with
+// different implementation details (sign conventions, tolerance handling).
+// The diagnostic interpretation is identical (DW ≈ 1.86 indicates "no
+// significant autocorrelation" in all three implementations).
 
 use crate::error::{Error, Result};
 use crate::linalg::Matrix;
@@ -116,6 +109,9 @@ pub fn durbin_watson_test(
         return Err(Error::InsufficientData { required: p + 2, available: n });
     }
 
+    // Validate dimensions and finite values using shared helper
+    super::helpers::validate_regression_data(y, x_vars)?;
+
     // Create design matrix
     let mut x_data = vec![0.0; n * p];
     for (row, _yi) in y.iter().enumerate() {
@@ -164,6 +160,7 @@ pub fn durbin_watson_test(
 }
 
 /// Interpret the Durbin-Watson statistic and provide guidance
+#[allow(clippy::manual_range_contains)]
 fn interpret_dw(dw: f64, rho: f64) -> (String, String) {
     // Standard interpretation ranges
     // - 1.5 to 2.5: Generally acceptable (no significant autocorrelation)
@@ -382,11 +379,11 @@ mod tests {
         let result = durbin_watson_test(&y, &[cyl, disp, hp, drat, wt, qsec, vs, am, gear, carb]).unwrap();
 
         // R's lmtest::dwtest and Python's statsmodels both give 1.860893
-        // Our implementation gives 1.866364812282547 (difference ~0.0055, ~0.3%)
-        // This small difference is due to different QR decomposition algorithms:
-        // - R/Python use LAPACK (Householder transformations)
-        // - Our implementation uses Gram-Schmidt orthogonalization
-        // Both produce valid results; the DW statistic is stable and interpretation is the same.
+        // Our implementation gives 1.866364812282547 (difference ~0.0055, ~0.29%)
+        // This small difference is due to different QR decomposition implementations:
+        // - R/Python use LAPACK's optimized Householder implementation
+        // - Our implementation uses a custom Householder algorithm
+        // Both produce valid results; the DW statistic is stable and interpretation is identical.
         let expected_dw = 1.860893;
         let tolerance = 0.01; // 1% tolerance for cross-implementation differences
         assert!((result.statistic - expected_dw).abs() < tolerance,

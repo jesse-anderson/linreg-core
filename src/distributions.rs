@@ -1,5 +1,8 @@
-//! Custom implementation of statistical distributions to replace statrs dependency.
-//! Includes Log Gamma, Incomplete Beta, Incomplete Gamma, Student's T, F-distribution, Chi-Squared, and Normal distribution functions.
+//! Custom statistical special functions and distribution utilities (CDF/SF/quantiles),
+//! primarily to avoid pulling in `statrs` for regression diagnostics.
+//!
+//! Includes: ln-gamma, regularized incomplete beta/gamma, Student-t CDF + inverse CDF,
+//! F CDF, chi-squared survival, and normal CDF/SF + inverse CDF (including a Cephes-style path).
 
 use std::f64::consts::PI;
 
@@ -10,7 +13,10 @@ use std::f64::consts::PI;
 // Fundamental operations for gamma and beta functions, which form the
 // building blocks for statistical distributions.
 
-/// Computes the natural logarithm of the gamma function.
+/// Computes ln|Γ(z)| (the natural log of the absolute value of the gamma function).
+///
+/// For z > 0 this equals ln Γ(z). For z <= 0 (non-integers), uses the reflection
+/// formula to keep the result real-valued. Poles at z = 0, -1, -2, ... return +∞.
 ///
 /// Uses the Lanczos approximation for numerical stability.
 /// Handles negative inputs via the reflection formula.
@@ -22,13 +28,30 @@ use std::f64::consts::PI;
 /// # References
 ///
 /// Numerical Recipes
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::distributions::ln_gamma;
+/// let log_gamma = ln_gamma(5.0);
+/// assert!((log_gamma - 3.1780538303479458).abs() < 1e-10);
+/// ```
 pub fn ln_gamma(z: f64) -> f64 {
     if z <= 0.0 {
-        // Reflection formula: Gamma(1-z) * Gamma(z) = pi / sin(pi*z)
-        let val = (PI * z).sin();
-        if val == 0.0 { return f64::INFINITY; } // Singularity
-        return (PI / val).ln() - ln_gamma(1.0 - z);
+        // Reflection formula:
+        //   Γ(z)Γ(1-z) = π / sin(πz)
+        //
+        // For a real-valued log across negative non-integers, compute ln|Γ(z)|:
+        //   ln|Γ(z)| = ln(π) - ln|sin(πz)| - lnΓ(1-z)
+        //
+        // Poles remain at z = 0, -1, -2, ...
+        let s = (PI * z).sin();
+        if s.abs() < 1e-300 {
+            return f64::INFINITY; // pole / singularity
+        }
+        return PI.ln() - s.abs().ln() - ln_gamma(1.0 - z);
     }
+
 
     let c = [
         76.18009172947146,
@@ -60,8 +83,21 @@ pub fn ln_gamma(z: f64) -> f64 {
 /// * `x` - Point at which to evaluate (0 ≤ x ≤ 1)
 /// * `a` - First shape parameter (a > 0)
 /// * `b` - Second shape parameter (b > 0)
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::distributions::inc_beta;
+/// let b = inc_beta(0.5, 2.0, 3.0);
+/// assert!(b > 0.0 && b < 1.0);
+/// ```
+#[allow(clippy::manual_range_contains)]
 pub fn inc_beta(x: f64, a: f64, b: f64) -> f64 {
     if x < 0.0 || x > 1.0 {
+        return f64::NAN;
+    }
+    // Domain guard: regularized incomplete beta requires a > 0 and b > 0.
+    if a <= 0.0 || b <= 0.0 {
         return f64::NAN;
     }
     if x == 0.0 { return 0.0; }
@@ -75,11 +111,14 @@ pub fn inc_beta(x: f64, a: f64, b: f64) -> f64 {
     let lbeta = ln_gamma(a) + ln_gamma(b) - ln_gamma(a + b);
     let front = (x.ln() * a + (1.0 - x).ln() * b - lbeta).exp();
 
-    // Lentz's method for continued fraction
-    // Target: 1 / (1 + d1/(1 + d2/...))
-    // We evaluate 1 + d1/(1 + d2/...) and invert result
+    // Lentz's method (modified) for a continued-fraction factor used by the
+    // regularized incomplete beta. We accumulate a multiplicative sequence of
+    // Lentz "delta" updates into `f`, then combine with the standard front-factor.
+    //
+    // NOTE: The return form here uses `front / (a * f)` which corresponds to the
+    // particular continued-fraction normalization implied by the `aa`/`bb` terms below.
     
-    let max_iter = 200;
+    let max_iter = 300;
     let epsilon = 1e-14;
     let tiny = 1e-30;
 
@@ -110,10 +149,12 @@ pub fn inc_beta(x: f64, a: f64, b: f64) -> f64 {
 }
 
 fn evaluate_fraction_step(val: f64, d: &mut f64, c: &mut f64, tiny: f64) -> f64 {
+    if d.abs() < tiny { *d = tiny; }
     *d = 1.0 + val * *d;
     if d.abs() < tiny { *d = tiny; }
     *d = 1.0 / *d;
     
+    if c.abs() < tiny { *c = tiny; }
     *c = 1.0 + val / *c;
     if c.abs() < tiny { *c = tiny; }
     
@@ -142,8 +183,8 @@ fn inc_gamma_series(a: f64, x: f64) -> f64 {
     let mut ap = a;
     let mut sum = 1.0 / a;
     let mut del = sum;
-    let max_iter = 100;
-    let epsilon = 3.0e-7;
+    let max_iter = 300;
+    let epsilon = 1e-14;
 
     for _ in 0..max_iter {
         ap += 1.0;
@@ -170,8 +211,8 @@ fn inc_gamma_cf(a: f64, x: f64) -> f64 {
     let gln = ln_gamma(a);
     let tiny = 1e-30;
     
-    let max_iter = 100;
-    let epsilon = 3.0e-7;
+    let max_iter = 300;
+    let epsilon = 1e-14;
     
     let mut b = x + 1.0 - a;
     let mut c = 1.0 / tiny;
@@ -225,14 +266,29 @@ pub fn inc_gamma(a: f64, x: f64) -> f64 {
 ///
 /// * `a` - Shape parameter
 /// * `x` - Upper limit of integration
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::distributions::inc_gamma_upper;
+/// let q = inc_gamma_upper(2.0, 3.0);
+/// assert!(q > 0.0 && q < 1.0);
+/// ```
 pub fn inc_gamma_upper(a: f64, x: f64) -> f64 {
-    if x < 0.0 || a <= 0.0 { return 1.0; }
+    if !a.is_finite() || !x.is_finite() || a <= 0.0 || x < 0.0 {
+        return f64::NAN;
+    }
+    if x == 0.0 {
+        return 1.0;
+    }
+
     if x < a + 1.0 {
         1.0 - inc_gamma_series(a, x)
     } else {
         inc_gamma_cf(a, x)
     }
 }
+
 
 // ============================================================================
 // Statistical Distributions
@@ -249,7 +305,18 @@ pub fn inc_gamma_upper(a: f64, x: f64) -> f64 {
 ///
 /// * `t` - t-statistic value
 /// * `df` - Degrees of freedom
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::distributions::student_t_cdf;
+/// let p = student_t_cdf(1.96, 20.0);
+/// assert!(p > 0.95); // approximately 0.968
+/// ```
 pub fn student_t_cdf(t: f64, df: f64) -> f64 {
+    if !df.is_finite() || df <= 0.0 || !t.is_finite() {
+        return f64::NAN;
+    }
     let x = df / (df + t * t);
     let p = 0.5 * inc_beta(x, 0.5 * df, 0.5);
     
@@ -269,7 +336,18 @@ pub fn student_t_cdf(t: f64, df: f64) -> f64 {
 /// * `f` - F-statistic value
 /// * `d1` - Numerator degrees of freedom
 /// * `d2` - Denominator degrees of freedom
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::distributions::fisher_snedecor_cdf;
+/// let p = fisher_snedecor_cdf(3.0, 5.0, 10.0);
+/// assert!(p > 0.0 && p < 1.0);
+/// ```
 pub fn fisher_snedecor_cdf(f: f64, d1: f64, d2: f64) -> f64 {
+    if !f.is_finite() || !d1.is_finite() || !d2.is_finite() || d1 <= 0.0 || d2 <= 0.0 {
+        return f64::NAN;
+    }
     if f <= 0.0 { return 0.0; }
     let x = (d1 * f) / (d1 * f + d2);
     inc_beta(x, 0.5 * d1, 0.5 * d2)
@@ -284,7 +362,18 @@ pub fn fisher_snedecor_cdf(f: f64, d1: f64, d2: f64) -> f64 {
 ///
 /// * `x` - Chi-squared statistic value
 /// * `k` - Degrees of freedom
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::distributions::chi_squared_survival;
+/// let p = chi_squared_survival(5.0, 2.0);
+/// assert!(p > 0.0 && p < 1.0);
+/// ```
 pub fn chi_squared_survival(x: f64, k: f64) -> f64 {
+    if !x.is_finite() || !k.is_finite() || k <= 0.0 {
+        return f64::NAN;
+    }
     if x <= 0.0 { return 1.0; }
     inc_gamma_upper(k / 2.0, x / 2.0)
 }
@@ -295,6 +384,8 @@ pub fn chi_squared_survival(x: f64, k: f64) -> f64 {
 /// function approximation (Abramowitz and Stegun 7.1.26).
 ///
 /// The relationship is: Φ(z) = 0.5 * (1 + erf(z/√2))
+/// Note: This is a fast approximation and is not explicitly clamped to [0, 1].
+/// For high-precision tails or strict bounds, prefer `normal_cdf_cephes`.
 ///
 /// # Arguments
 ///
@@ -303,6 +394,14 @@ pub fn chi_squared_survival(x: f64, k: f64) -> f64 {
 /// # Returns
 ///
 /// The probability that a standard normal random variable is less than or equal to z.
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::distributions::normal_cdf;
+/// let p = normal_cdf(1.96);
+/// assert!((p - 0.975).abs() < 0.001);
+/// ```
 pub fn normal_cdf(z: f64) -> f64 {
     // Abramowitz and Stegun approximation 7.1.26 for erf(x)
     const A1: f64 = 0.254829592;
@@ -323,14 +422,14 @@ pub fn normal_cdf(z: f64) -> f64 {
     0.5 + 0.5 * sign * y
 }
 
-/// Computes the standard normal cumulative distribution function using Cephes algorithm.
+/// Computes the standard normal cumulative distribution function using a Cephes-style algorithm.
 ///
-/// Returns P(Z ≤ z) for a standard normal distribution using the
-/// Cephes algorithm (high-precision rational approximation matching R's pnorm).
+/// Returns P(Z ≤ z) for a standard normal distribution using a high-precision
+/// rational-approximation approach derived from Cephes `ndtr`.
 ///
-/// This implementation ports the ndtr function from the Cephes math library,
-/// which is the same algorithm used by R for pnorm. The relationship is:
-/// Φ(z) = 0.5 * (1 + erf(z/√2)) = 0.5 * erfc(-z/√2)
+/// Note: R's `pnorm` uses its own long-standing rational approximations (see R's `pnorm.c`);
+/// this function is not claiming to be the *same* algorithm, but it is intended to match
+/// reference implementations to near machine precision.
 ///
 /// # Arguments
 ///
@@ -349,29 +448,86 @@ pub fn normal_cdf(z: f64) -> f64 {
 ///
 /// Cephes Math Library (cprob/ndtr.c) by Stephen L. Moshier
 /// R's pnorm function (uses same underlying algorithm)
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::distributions::normal_cdf_cephes;
+/// let p = normal_cdf_cephes(1.96);
+/// assert!((p - 0.975).abs() < 0.001);
+/// ```
+#[allow(clippy::manual_clamp)]
 pub fn normal_cdf_cephes(z: f64) -> f64 {
     use std::f64::consts::FRAC_1_SQRT_2;
-    // Cephes constants - SQRTH = sqrt(0.5) = 1/sqrt(2)
-    const SQRTH: f64 = FRAC_1_SQRT_2;
+    const SQRTH: f64 = FRAC_1_SQRT_2; // 1/sqrt(2)
+
+    if !z.is_finite() {
+        return if z.is_nan() {
+            f64::NAN
+        } else if z.is_sign_negative() {
+            0.0
+        } else {
+            1.0
+        };
+    }
 
     let x = z * SQRTH;
-    let z_abs = x.abs();
+    let ax = x.abs();
 
-    if z_abs < 1.0 {
-        // For |x| < 1, use erf approximation directly
+    // Small |x|: erf is accurate and cheap
+    let p = if ax < 1.0 {
         0.5 + 0.5 * cephes_erf(x)
     } else {
-        // For |x| >= 1, use erfc with exp(-x²/2) via expx2 to avoid error amplification
-        let mut y = 0.5 * cephes_erfce(z_abs);
-        // Multiply by exp(-a²/2) where a = z (original input)
-        let exp_factor = cephes_expx2(z, -1);
-        y *= exp_factor.sqrt();
-        if x > 0.0 {
-            y = 1.0 - y;
-        }
-        y
-    }
+        // Tail: Phi(z) = 1 - 0.5*erfc(z/sqrt(2)) for z>=0
+        // and Phi(z) = 0.5*erfc(|z|/sqrt(2)) for z<0.
+        //
+        // Using erfce: erfc(t) = exp(-t^2) * erfce(t)
+        // Here t = |z|/sqrt(2) = ax, so exp(-t^2) = exp(-ax^2) = exp(-z^2/2).
+        let tail = 0.5 * (-(ax * ax)).exp() * cephes_erfce(ax);
+        if z >= 0.0 { 1.0 - tail } else { tail }
+    };
+
+    // --------------------------------------------------------------------
+    // Belt-and-suspenders clamp: right here, right at the end,
+    // right before returning, so it applies to both branches.
+    // --------------------------------------------------------------------
+    p.max(0.0).min(1.0)
 }
+
+#[allow(clippy::manual_clamp)]
+pub fn normal_sf_cephes(z: f64) -> f64 {
+    use std::f64::consts::FRAC_1_SQRT_2;
+    const SQRTH: f64 = FRAC_1_SQRT_2; // 1/sqrt(2)
+
+    if !z.is_finite() {
+        return if z.is_nan() {
+            f64::NAN
+        } else if z.is_sign_negative() {
+            1.0
+        } else {
+            0.0
+        };
+    }
+
+    // For z < 0: Q(z) = Phi(-z)
+    if z < 0.0 {
+        return normal_cdf_cephes(-z);
+    }
+
+    // z >= 0:
+    let x = z * SQRTH;
+    let ax = x.abs();
+
+    let q = if ax < 1.0 {
+        0.5 * cephes_erfc(x)
+    } else {
+        0.5 * (-(ax * ax)).exp() * cephes_erfce(ax)
+    };
+
+    q.max(0.0).min(1.0)
+}
+
+
 
 /// Computes the error function erf(x) using Cephes rational approximation.
 ///
@@ -379,7 +535,8 @@ pub fn normal_cdf_cephes(z: f64) -> f64 {
 /// For |x| >= 1: erf(x) = 1 - erfc(x)
 ///
 /// Accuracy: Relative error < 3.7e-16 (IEEE double precision)
-fn cephes_erf(x: f64) -> f64 {
+#[allow(clippy::excessive_precision)]
+pub fn cephes_erf(x: f64) -> f64 {
     const T: [f64; 5] = [
         9.60497373987051638749e0,
         9.00260197203842689217e1,
@@ -411,7 +568,8 @@ fn cephes_erf(x: f64) -> f64 {
 ///
 /// Uses rational approximations with exp(-x²) computed via expx2
 /// to avoid error amplification for large |x|.
-fn cephes_erfc(a: f64) -> f64 {
+#[allow(clippy::excessive_precision)]
+pub fn cephes_erfc(a: f64) -> f64 {
     const P: [f64; 9] = [
         2.46196981473530512524e-10,
         5.64189564831068821977e-1,
@@ -484,10 +642,19 @@ fn cephes_erfc(a: f64) -> f64 {
     y
 }
 
-/// Exponentially scaled erfc function: exp(x²) * erfc(x)
+/// Exponentially scaled erfc function: exp(x²) * erfc(x).
 ///
-/// Valid for x > 1. Used by normal_cdf to avoid error amplification.
-fn cephes_erfce(x: f64) -> f64 {
+/// Intended for use in the normal tail where cancellation makes `erfc` sensitive.
+/// In this module it's called with non-negative `x` (typically |z|/sqrt(2)).
+#[allow(clippy::excessive_precision)]
+pub fn cephes_erfce(x: f64) -> f64 {
+    // For |x| <= ~26, exp(x^2) will not overflow in f64, and using the
+    // defining identity often improves agreement with reference values.
+    let ax = x.abs();
+    if ax <= 26.0 {
+        return (x * x).exp() * cephes_erfc(x);
+    }
+    // For large x, fall back to the stable Cephes-style approximation
     const P: [f64; 9] = [
         2.46196981473530512524e-10,
         5.64189564831068821977e-1,
@@ -546,6 +713,7 @@ fn cephes_erfce(x: f64) -> f64 {
 ///
 /// * `x` - Input value
 /// * `sign` - If negative, computes exp(-x²); if non-negative, computes exp(x²)
+#[allow(clippy::excessive_precision)]
 fn cephes_expx2(x: f64, sign: i32) -> f64 {
     const MAXLOG: f64 = 7.0978271289338399684e2;
     #[cfg(target_arch = "x86")]
@@ -580,32 +748,46 @@ fn cephes_expx2(x: f64, sign: i32) -> f64 {
     u.exp() * u1.exp()
 }
 
-/// Evaluates a polynomial with given coefficients.
+/// Evaluates a polynomial with coefficients in descending-power order (Cephes).
 ///
-/// Computes: P[0] + P[1]*x + P[2]*x² + ... + P[n]*x^n
+/// If coeffs = [c0, c1, ..., cn], computes:
+///   c0*x^n + c1*x^(n-1) + ... + cn
 fn polevl(x: f64, coeffs: &[f64]) -> f64 {
+    // Cephes expects coeffs in descending-power order:
+    // coeffs[0] is the leading coefficient.
     let mut result = 0.0;
-    for &c in coeffs.iter().rev() {
-        result = result * x + c;
-    }
-    result
-}
-
-/// Evaluates a polynomial with given coefficients (no constant term).
-///
-/// Cephes p1evl: computes x + P[0] + P[1]*x + P[2]*x² + ...
-/// which is equivalent to x * (1 + P[1] + P[2]*x + ...) + P[0]
-///
-/// This is used for rational approximations where the denominator is
-/// implicitly 1 + P[1]*x + P[2]*x² + ... but we want the full polynomial.
-fn p1evl(x: f64, coeffs: &[f64]) -> f64 {
-    // C implementation: ans = x + *p++; while(--N) ans = ans*x + *p++;
-    let mut result = x;
     for &c in coeffs.iter() {
         result = result * x + c;
     }
     result
 }
+
+
+/// Evaluates a polynomial with an implicit leading coefficient 1.0 (Cephes p1evl).
+///
+/// If coeffs = [c0, c1, ..., c_{n-1}], computes:
+///   x^n + c0*x^(n-1) + ... + c_{n-1}
+///
+/// Cephes does this as:
+///   ans = x + c0
+///   ans = ans*x + c1
+///   ...
+fn p1evl(x: f64, coeffs: &[f64]) -> f64 {
+    // Cephes p1evl: evaluate a polynomial of degree coeffs.len()
+    // with *implicit leading coefficient 1.0* in descending-power order.
+    //
+    // C reference:
+    //   ans = x + coef[0];
+    //   for i=1..N-1: ans = ans*x + coef[i];
+    //
+    // Here, coeffs are in descending-power order, matching Cephes tables.
+    let mut result = x + coeffs[0];
+    for &c in coeffs.iter().skip(1) {
+        result = result * x + c;
+    }
+    result
+}
+
 
 /// Computes the inverse of the standard normal CDF (probit function).
 ///
@@ -619,12 +801,21 @@ fn p1evl(x: f64, coeffs: &[f64]) -> f64 {
 /// # Returns
 ///
 /// The z-score such that P(Z ≤ z) = p for a standard normal distribution.
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::distributions::normal_inverse_cdf;
+/// let z = normal_inverse_cdf(0.975);
+/// assert!((z - 1.96).abs() < 0.01); // approximately 1.96 for p=0.975
+/// ```
+#[allow(clippy::excessive_precision)]
+#[allow(clippy::manual_clamp)]
 pub fn normal_inverse_cdf(p: f64) -> f64 {
     if p <= 0.0 { return f64::NEG_INFINITY; }
     if p >= 1.0 { return f64::INFINITY; }
     if p == 0.5 { return 0.0; }
 
-    // Coefficients for rational approximation
     const A: [f64; 6] = [
         -3.969683028665376e+01,
          2.209460984245205e+02,
@@ -661,27 +852,67 @@ pub fn normal_inverse_cdf(p: f64) -> f64 {
     const P_LOW: f64 = 0.02425;
     const P_HIGH: f64 = 1.0 - P_LOW;
 
-    // Rational approximation for central region
-    if p > P_LOW && p < P_HIGH {
+    // ------------------------------------------------------------------------
+    // Initial rational approximation (Acklam)
+    // ------------------------------------------------------------------------
+    let mut z = if p > P_LOW && p < P_HIGH {
+        // Central region
         let q = p - 0.5;
         let r = q * q;
         let num = (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r + A[5]) * q;
         let den = ((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1.0;
-        return num / den;
-    }
-
-    // Rational approximation for tails
-    let (sign, q) = if p < P_LOW {
-        (-1.0, (-2.0 * p.ln()).sqrt())
+        num / den
     } else {
-        (1.0, (-2.0 * (1.0 - p).ln()).sqrt())
+        // Tail regions
+        let q = if p < P_LOW {
+            (-2.0 * p.ln()).sqrt()
+        } else {
+            (-2.0 * (-p).ln_1p()).sqrt() // ln(1 - p) computed stably
+        };
+
+        let num = ((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5];
+        let den = (((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0;
+        let x = num / den;
+
+        if p < P_LOW { x } else { -x }
     };
 
-    let num = ((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5];
-    let den = (((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0;
+    // ------------------------------------------------------------------------
+    // One Newton refinement step:
+    //   If p <= 0.5: refine using Phi(z) - p
+    //   If p >  0.5: refine using Q(z) - (1-p) to avoid cancellation near 1
+    // ------------------------------------------------------------------------
+    if z.is_finite() && z.abs() <= 10.0 {
+        // phi(z) = exp(-0.5 z^2) / sqrt(2π)
+        let pdf = (-0.5 * z * z).exp() / 2.5066282746310005;
 
-    sign * (q - num / den)
+        if pdf > 0.0 {
+            if p <= 0.5 {
+                let pz = normal_cdf_cephes(z);
+                if pz.is_finite() {
+                    z -= (pz - p) / pdf;
+                }
+            } else {
+                use std::f64::consts::FRAC_1_SQRT_2;
+                let q_target = 1.0 - p;
+
+                // For Newton refinement in the upper tail, compute Q(z) via erfc directly:
+                // Q(z) = 0.5 * erfc(z / sqrt(2))
+                let qz = 0.5 * cephes_erfc(z * FRAC_1_SQRT_2);
+
+                if qz.is_finite() {
+                    z += (qz - q_target) / pdf;
+                }
+
+            }
+        }
+    }
+
+    z
 }
+
+
+
 
 /// Computes the inverse Student's t-distribution function (quantile function).
 ///
@@ -696,7 +927,19 @@ pub fn normal_inverse_cdf(p: f64) -> f64 {
 /// # Returns
 ///
 /// The t-statistic such that the CDF at that value equals p.
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::distributions::student_t_inverse_cdf;
+/// let t = student_t_inverse_cdf(0.975, 20.0);
+/// assert!(t > 2.0); // approximately 2.086 for df=20, p=0.975
+/// ```
+#[allow(clippy::manual_clamp)]
 pub fn student_t_inverse_cdf(p: f64, df: f64) -> f64 {
+    if !df.is_finite() || df <= 0.0 {
+        return f64::NAN;
+    }
     if p <= 0.0 { return f64::NEG_INFINITY; }
     if p >= 1.0 { return f64::INFINITY; }
     if p == 0.5 { return 0.0; }
@@ -727,278 +970,3 @@ pub fn student_t_inverse_cdf(p: f64, df: f64) -> f64 {
     x
 }
 
-// ============================================================================
-// Unit Tests
-// ============================================================================
-//
-// All functions validated against R reference values to ensure accuracy.
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[allow(dead_code)]
-    const TOL: f64 = 1e-8;      // General tolerance (reserved for future use)
-    const TOL_LOOSE: f64 = 1e-6; // For iterative methods
-
-    fn approx_eq(a: f64, b: f64, tol: f64) -> bool {
-        (a - b).abs() < tol
-    }
-
-    // ========================================================================
-    // Log Gamma Tests (R: lgamma)
-    // ========================================================================
-    #[test]
-    fn test_ln_gamma() {
-        let cases = [
-            (0.5,  0.572364942924700),
-            (1.0,  0.000000000000000),
-            (1.5, -0.120782237635245),
-            (2.0,  0.000000000000000),
-            (5.0,  3.178053830347946),
-            (10.0, 12.801827480081469),
-            (11.5, 16.292000476567242),
-            (100.0, 359.134205369575398),
-        ];
-
-        for (z, expected) in cases {
-            let result = ln_gamma(z);
-            assert!(
-                approx_eq(result, expected, TOL_LOOSE),
-                "ln_gamma({}) = {}, expected {}", z, result, expected
-            );
-        }
-    }
-
-    // ========================================================================
-    // Incomplete Beta Tests (R: pbeta)
-    // ========================================================================
-    #[test]
-    fn test_inc_beta() {
-        let cases = [
-            (0.0, 2.0, 3.0, 0.0),
-            (0.5, 2.0, 3.0, 0.6875),
-            (1.0, 2.0, 3.0, 1.0),
-            (0.3, 5.0, 3.0, 0.0287955),
-            (0.7, 10.5, 0.5, 0.006821825813971),
-            (0.1, 0.5, 10.5, 0.858446908187113),
-        ];
-
-        for (x, a, b, expected) in cases {
-            let result = inc_beta(x, a, b);
-            assert!(
-                approx_eq(result, expected, TOL_LOOSE),
-                "inc_beta({}, {}, {}) = {}, expected {}", x, a, b, result, expected
-            );
-        }
-    }
-
-    // ========================================================================
-    // Student's t CDF Tests (R: pt)
-    // ========================================================================
-    #[test]
-    fn test_student_t_cdf() {
-        let cases = [
-            (0.0, 10.0, 0.5),
-            (1.0, 10.0, 0.829553433848970),
-            (-1.0, 10.0, 0.170446566151030),
-            (2.0, 21.0, 0.970699993975645),
-            (-2.0, 21.0, 0.029300006024355),
-            (1.67, 21.0, 0.945120486597924),
-            (-1.67, 21.0, 0.054879513402076),
-            (0.5, 5.0, 0.680850564179535),
-            (10.0, 21.0, 0.999999999031288),
-            (-10.0, 21.0, 0.000000000968712),
-        ];
-
-        for (t, df, expected) in cases {
-            let result = student_t_cdf(t, df);
-            assert!(
-                approx_eq(result, expected, TOL_LOOSE),
-                "student_t_cdf({}, {}) = {}, expected {}", t, df, result, expected
-            );
-        }
-    }
-
-    // ========================================================================
-    // Two-tailed p-value Tests (R: 2 * pt(-|t|, df))
-    // ========================================================================
-    #[test]
-    fn test_two_tailed_p_value() {
-        use crate::core::two_tailed_p_value;
-
-        let cases = [
-            (0.0, 10.0, 1.0),
-            (1.0, 10.0, 0.340893132302060),
-            (-1.0, 10.0, 0.340893132302060),
-            (2.0, 21.0, 0.058600012048710),
-            (-2.0, 21.0, 0.058600012048710),
-            (1.67, 21.0, 0.109759026804152),
-            (-1.67, 21.0, 0.109759026804152),
-            (0.5, 5.0, 0.638298871640929),
-            (10.0, 21.0, 0.000000001937424),
-        ];
-
-        for (t, df, expected) in cases {
-            let result = two_tailed_p_value(t, df);
-            assert!(
-                approx_eq(result, expected, TOL_LOOSE),
-                "two_tailed_p_value({}, {}) = {}, expected {}", t, df, result, expected
-            );
-        }
-    }
-
-    // ========================================================================
-    // F-distribution CDF Tests (R: pf)
-    // ========================================================================
-    #[test]
-    fn test_fisher_snedecor_cdf() {
-        let cases = [
-            (0.0, 3.0, 21.0, 0.0),
-            (1.0, 3.0, 21.0, 0.587715322376118),
-            (2.0, 3.0, 21.0, 0.855144210917774),
-            (5.0, 3.0, 21.0, 0.990993683132052),
-            (10.0, 3.0, 21.0, 0.999731241389630),
-            (100.0, 3.0, 21.0, 0.999999999998652),
-        ];
-
-        for (f, df1, df2, expected) in cases {
-            let result = fisher_snedecor_cdf(f, df1, df2);
-            assert!(
-                approx_eq(result, expected, TOL_LOOSE),
-                "fisher_snedecor_cdf({}, {}, {}) = {}, expected {}", f, df1, df2, result, expected
-            );
-        }
-    }
-
-    // ========================================================================
-    // F p-value Tests (R: pf(f, df1, df2, lower.tail=FALSE))
-    // ========================================================================
-    #[test]
-    fn test_f_p_value() {
-        use crate::core::f_p_value;
-
-        let cases = [
-            (0.0, 3.0, 21.0, 1.0),
-            (1.0, 3.0, 21.0, 0.412284677623881656849),
-            (2.0, 3.0, 21.0, 0.144855789082225933084),
-            (5.0, 3.0, 21.0, 0.00900631686794783198335),
-            (10.0, 3.0, 21.0, 0.000268758610370509090203),
-        ];
-
-        for (f, df1, df2, expected) in cases {
-            let result = f_p_value(f, df1, df2);
-            assert!(
-                approx_eq(result, expected, TOL_LOOSE),
-                "f_p_value({}, {}, {}) = {}, expected {}", f, df1, df2, result, expected
-            );
-        }
-    }
-
-    // ========================================================================
-    // Chi-Squared Survival Tests (R: pchisq(x, df, lower.tail=FALSE))
-    // ========================================================================
-    #[test]
-    fn test_chi_squared_survival() {
-        let cases = [
-            (0.5, 1.0, 0.479500122186953),
-            (1.0, 1.0, 0.317310507862914),
-            (3.84, 1.0, 0.050043521248705), // Close to 0.05 alpha for df=1
-            (2.0, 2.0, 0.367879441171442),
-            (5.99, 2.0, 0.050036687364377), // Close to 0.05 alpha for df=2
-            (10.0, 5.0, 0.075235246132234),
-            (20.0, 10.0, 0.029252688076961),
-        ];
-
-        for (x, k, expected) in cases {
-            let result = chi_squared_survival(x, k);
-            assert!(
-                approx_eq(result, expected, TOL_LOOSE),
-                "chi_squared_survival({}, {}) = {}, expected {}", x, k, result, expected
-            );
-        }
-    }
-
-    // ========================================================================
-    // Inverse t-distribution Tests (R: qt)
-    // ========================================================================
-    #[test]
-    fn test_student_t_inverse_cdf() {
-        let cases = [
-            (0.025, 21.0, -2.079613844727680),
-            (0.05, 21.0, -1.720742902811878),
-            (0.1, 21.0, -1.323187873865172),
-            (0.5, 21.0, 0.0),
-            (0.9, 21.0, 1.323187873865172),
-            (0.95, 21.0, 1.720742902811878),
-            (0.975, 21.0, 2.079613844727680),
-        ];
-
-        for (p, df, expected) in cases {
-            let result = student_t_inverse_cdf(p, df);
-            assert!(
-                approx_eq(result, expected, TOL_LOOSE),
-                "student_t_inverse_cdf({}, {}) = {}, expected {}", p, df, result, expected
-            );
-        }
-    }
-
-    // ========================================================================
-    // Normal Inverse CDF Tests
-    // ========================================================================
-    #[test]
-    fn test_normal_inverse_cdf() {
-        // Standard normal quantiles
-        let cases = [
-            (0.5, 0.0),
-            (0.025, -1.959963984540054),
-            (0.975, 1.959963984540054),
-            (0.05, -1.644853626951472),
-            (0.95, 1.644853626951472),
-        ];
-
-        for (p, expected) in cases {
-            let result = normal_inverse_cdf(p);
-            assert!(
-                approx_eq(result, expected, TOL_LOOSE),
-                "normal_inverse_cdf({}) = {}, expected {}", p, result, expected
-            );
-        }
-    }
-
-    // ========================================================================
-    // Edge Case Tests
-    // ========================================================================
-    #[test]
-    fn test_edge_cases() {
-        // t-CDF at extreme values
-        assert!(student_t_cdf(100.0, 21.0) > 0.9999);
-        assert!(student_t_cdf(-100.0, 21.0) < 0.0001);
-
-        // F-CDF at zero
-        assert_eq!(fisher_snedecor_cdf(0.0, 3.0, 21.0), 0.0);
-
-        // Inc beta at boundaries
-        assert_eq!(inc_beta(0.0, 2.0, 3.0), 0.0);
-        assert_eq!(inc_beta(1.0, 2.0, 3.0), 1.0);
-    }
-
-    // ========================================================================
-    // P-value Sanity Tests
-    // ========================================================================
-    #[test]
-    fn test_p_value_bounds() {
-        use crate::core::two_tailed_p_value;
-
-        // P-values must be in [0, 1]
-        for t in [-100.0, -10.0, -1.0, 0.0, 1.0, 10.0, 100.0] {
-            for df in [1.0, 5.0, 10.0, 21.0, 100.0] {
-                let p = two_tailed_p_value(t, df);
-                assert!(
-                    p >= 0.0 && p <= 1.0,
-                    "two_tailed_p_value({}, {}) = {} is out of bounds [0,1]", t, df, p
-                );
-            }
-        }
-    }
-}

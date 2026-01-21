@@ -413,6 +413,112 @@ export function jarque_bera_test(y_json, x_vars_json) {
 }
 
 /**
+ * Performs Lasso regression via WASM.
+ *
+ * Lasso regression adds an L1 penalty to the coefficients, which performs
+ * automatic variable selection by shrinking some coefficients to exactly zero.
+ * The intercept is never penalized.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `variable_names` - JSON array of variable names
+ * * `lambda` - Regularization strength (>= 0, typical range 0.01 to 10)
+ * * `standardize` - Whether to standardize predictors (recommended: true)
+ *
+ * # Returns
+ *
+ * JSON string containing:
+ * - `lambda` - Lambda value used
+ * - `intercept` - Intercept coefficient
+ * - `coefficients` - Slope coefficients (some may be exactly zero)
+ * - `fitted_values` - Predictions on training data
+ * - `residuals` - Residuals (y - fitted_values)
+ * - `n_nonzero` - Number of non-zero coefficients (excluding intercept)
+ * - `iterations` - Number of coordinate descent iterations
+ * - `converged` - Whether the algorithm converged
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, lambda is negative,
+ * or domain check fails.
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @param {string} _variable_names
+ * @param {number} lambda
+ * @param {boolean} standardize
+ * @returns {string}
+ */
+export function lasso_regression(y_json, x_vars_json, _variable_names, lambda, standardize) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(_variable_names, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.lasso_regression(ptr0, len0, ptr1, len1, ptr2, len2, lambda, standardize);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Generates a lambda path for regularized regression via WASM.
+ *
+ * Creates a logarithmically-spaced sequence of lambda values from lambda_max
+ * (where all penalized coefficients are zero) down to lambda_min. This is
+ * useful for fitting regularization paths and selecting optimal lambda via
+ * cross-validation.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `n_lambda` - Number of lambda values to generate (default: 100)
+ * * `lambda_min_ratio` - Ratio for smallest lambda (default: 0.0001 if n >= p, else 0.01)
+ *
+ * # Returns
+ *
+ * JSON string containing:
+ * - `lambda_path` - Array of lambda values in decreasing order
+ * - `lambda_max` - Maximum lambda value
+ * - `lambda_min` - Minimum lambda value
+ * - `n_lambda` - Number of lambda values
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails or domain check fails.
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @param {number} n_lambda
+ * @param {number} lambda_min_ratio
+ * @returns {string}
+ */
+export function make_lambda_path(y_json, x_vars_json, n_lambda, lambda_min_ratio) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.make_lambda_path(ptr0, len0, ptr1, len1, n_lambda, lambda_min_ratio);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * Performs OLS regression via WASM.
  *
  * All parameters and return values are JSON-encoded strings for JavaScript
@@ -629,9 +735,63 @@ export function rainbow_test(y_json, x_vars_json, fraction, method) {
 }
 
 /**
+ * Performs Ridge regression via WASM.
+ *
+ * Ridge regression adds an L2 penalty to the coefficients, which helps with
+ * multicollinearity and overfitting. The intercept is never penalized.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `variable_names` - JSON array of variable names
+ * * `lambda` - Regularization strength (>= 0, typical range 0.01 to 100)
+ * * `standardize` - Whether to standardize predictors (recommended: true)
+ *
+ * # Returns
+ *
+ * JSON string containing:
+ * - `lambda` - Lambda value used
+ * - `intercept` - Intercept coefficient
+ * - `coefficients` - Slope coefficients
+ * - `fitted_values` - Predictions on training data
+ * - `residuals` - Residuals (y - fitted_values)
+ * - `df` - Effective degrees of freedom
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, lambda is negative,
+ * or domain check fails.
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @param {string} _variable_names
+ * @param {number} lambda
+ * @param {boolean} standardize
+ * @returns {string}
+ */
+export function ridge_regression(y_json, x_vars_json, _variable_names, lambda, standardize) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(_variable_names, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.ridge_regression(ptr0, len0, ptr1, len1, ptr2, len2, lambda, standardize);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * Performs the Shapiro-Wilk test for normality via WASM.
  *
- * The Shapiro-Wilk test is a powerful tests for normality,
+ * The Shapiro-Wilk test is a powerful test for normality,
  * especially for small to moderate sample sizes (3 ≤ n ≤ 5000). It tests
  * the null hypothesis that the residuals are normally distributed.
  *
