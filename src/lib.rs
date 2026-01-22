@@ -169,9 +169,9 @@
 pub mod core;
 pub mod diagnostics;
 pub mod distributions;
+pub mod error;
 pub mod linalg;
 pub mod regularized;
-pub mod error;
 
 // Unit tests are now in tests/unit/ directory
 // - error_tests.rs -> tests/unit/error_tests.rs
@@ -183,17 +183,15 @@ pub mod error;
 // Re-export public API (always available)
 pub use core::{RegressionOutput, VifResult};
 pub use diagnostics::{
-    DiagnosticTestResult,
-    RainbowTestOutput, RainbowSingleResult, RainbowMethod,
-    WhiteTestOutput, WhiteSingleResult, WhiteMethod,
-    CooksDistanceResult,
+    CooksDistanceResult, DiagnosticTestResult, RainbowMethod, RainbowSingleResult,
+    RainbowTestOutput, WhiteMethod, WhiteSingleResult, WhiteTestOutput,
 };
 
 // Re-export core test functions with different names to avoid WASM conflicts
 pub use diagnostics::rainbow_test as rainbow_test_core;
 pub use diagnostics::white_test as white_test_core;
 
-pub use error::{Error, Result, error_json, error_to_json};
+pub use error::{error_json, error_to_json, Error, Result};
 
 // ============================================================================
 // WASM-specific code (only compiled when "wasm" feature is enabled)
@@ -209,7 +207,7 @@ use std::collections::HashSet;
 use serde::Serialize;
 
 #[cfg(feature = "wasm")]
-use crate::distributions::{student_t_cdf, normal_inverse_cdf};
+use crate::distributions::{normal_inverse_cdf, student_t_cdf};
 
 // ============================================================================
 // CSV Parsing (WASM-only)
@@ -300,7 +298,10 @@ pub fn parse_csv(content: &str) -> String {
             }
 
             // Fallback to string
-            row_map.insert(header.clone(), serde_json::Value::String(val_trimmed.to_string()));
+            row_map.insert(
+                header.clone(),
+                serde_json::Value::String(val_trimmed.to_string()),
+            );
         }
         data.push(row_map);
     }
@@ -347,11 +348,7 @@ pub fn parse_csv(content: &str) -> String {
 /// - Insufficient data (n ≤ k + 1)
 /// - Matrix is singular
 /// - Domain check fails
-pub fn ols_regression(
-    y_json: &str,
-    x_vars_json: &str,
-    variable_names: &str,
-) -> String {
+pub fn ols_regression(y_json: &str, x_vars_json: &str, variable_names: &str) -> String {
     if let Err(e) = check_domain() {
         return error_to_json(&e);
     }
@@ -405,12 +402,7 @@ pub fn ols_regression(
 /// Returns a JSON error object if parsing fails or domain check fails.
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn rainbow_test(
-    y_json: &str,
-    x_vars_json: &str,
-    fraction: f64,
-    method: &str,
-) -> String {
+pub fn rainbow_test(y_json: &str, x_vars_json: &str, fraction: f64, method: &str) -> String {
     if let Err(e) = check_domain() {
         return error_to_json(&e);
     }
@@ -429,7 +421,7 @@ pub fn rainbow_test(
     let method = match method.to_lowercase().as_str() {
         "python" => diagnostics::RainbowMethod::Python,
         "both" => diagnostics::RainbowMethod::Both,
-        _ => diagnostics::RainbowMethod::R,  // Default to R
+        _ => diagnostics::RainbowMethod::R, // Default to R
     };
 
     match diagnostics::rainbow_test(&y, &x_vars, fraction, method) {
@@ -459,10 +451,7 @@ pub fn rainbow_test(
 /// Returns a JSON error object if parsing fails or domain check fails.
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn harvey_collier_test(
-    y_json: &str,
-    x_vars_json: &str,
-) -> String {
+pub fn harvey_collier_test(y_json: &str, x_vars_json: &str) -> String {
     if let Err(e) = check_domain() {
         return error_to_json(&e);
     }
@@ -504,10 +493,7 @@ pub fn harvey_collier_test(
 /// Returns a JSON error object if parsing fails or domain check fails.
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn breusch_pagan_test(
-    y_json: &str,
-    x_vars_json: &str,
-) -> String {
+pub fn breusch_pagan_test(y_json: &str, x_vars_json: &str) -> String {
     if let Err(e) = check_domain() {
         return error_to_json(&e);
     }
@@ -550,11 +536,7 @@ pub fn breusch_pagan_test(
 /// Returns a JSON error object if parsing fails or domain check fails.
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn white_test(
-    y_json: &str,
-    x_vars_json: &str,
-    method: &str,
-) -> String {
+pub fn white_test(y_json: &str, x_vars_json: &str, method: &str) -> String {
     if let Err(e) = check_domain() {
         return error_to_json(&e);
     }
@@ -573,7 +555,7 @@ pub fn white_test(
     let method = match method.to_lowercase().as_str() {
         "python" => diagnostics::WhiteMethod::Python,
         "both" => diagnostics::WhiteMethod::Both,
-        _ => diagnostics::WhiteMethod::R,  // Default to R
+        _ => diagnostics::WhiteMethod::R, // Default to R
     };
 
     match diagnostics::white_test(&y, &x_vars, method) {
@@ -603,10 +585,7 @@ pub fn white_test(
 /// Returns a JSON error object if parsing fails or domain check fails.
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn r_white_test(
-    y_json: &str,
-    x_vars_json: &str,
-) -> String {
+pub fn r_white_test(y_json: &str, x_vars_json: &str) -> String {
     if let Err(e) = check_domain() {
         return error_to_json(&e);
     }
@@ -648,10 +627,7 @@ pub fn r_white_test(
 /// Returns a JSON error object if parsing fails or domain check fails.
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn python_white_test(
-    y_json: &str,
-    x_vars_json: &str,
-) -> String {
+pub fn python_white_test(y_json: &str, x_vars_json: &str) -> String {
     if let Err(e) = check_domain() {
         return error_to_json(&e);
     }
@@ -693,10 +669,7 @@ pub fn python_white_test(
 /// Returns a JSON error object if parsing fails or domain check fails.
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn jarque_bera_test(
-    y_json: &str,
-    x_vars_json: &str,
-) -> String {
+pub fn jarque_bera_test(y_json: &str, x_vars_json: &str) -> String {
     if let Err(e) = check_domain() {
         return error_to_json(&e);
     }
@@ -742,10 +715,7 @@ pub fn jarque_bera_test(
 /// Returns a JSON error object if parsing fails or domain check fails.
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn durbin_watson_test(
-    y_json: &str,
-    x_vars_json: &str,
-) -> String {
+pub fn durbin_watson_test(y_json: &str, x_vars_json: &str) -> String {
     if let Err(e) = check_domain() {
         return error_to_json(&e);
     }
@@ -792,10 +762,7 @@ pub fn durbin_watson_test(
 /// Returns a JSON error object if parsing fails or domain check fails.
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn shapiro_wilk_test(
-    y_json: &str,
-    x_vars_json: &str,
-) -> String {
+pub fn shapiro_wilk_test(y_json: &str, x_vars_json: &str) -> String {
     if let Err(e) = check_domain() {
         return error_to_json(&e);
     }
@@ -838,10 +805,7 @@ pub fn shapiro_wilk_test(
 /// Returns a JSON error object if parsing fails or domain check fails.
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn anderson_darling_test(
-    y_json: &str,
-    x_vars_json: &str,
-) -> String {
+pub fn anderson_darling_test(y_json: &str, x_vars_json: &str) -> String {
     if let Err(e) = check_domain() {
         return error_to_json(&e);
     }
@@ -891,10 +855,7 @@ pub fn anderson_darling_test(
 /// Returns a JSON error object if parsing fails or domain check fails.
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
-pub fn cooks_distance_test(
-    y_json: &str,
-    x_vars_json: &str,
-) -> String {
+pub fn cooks_distance_test(y_json: &str, x_vars_json: &str) -> String {
     if let Err(e) = check_domain() {
         return error_to_json(&e);
     }
@@ -1204,7 +1165,8 @@ pub fn make_lambda_path(
                 0.0 // Intercept column - no centering
             } else {
                 let mean = x_mean[j];
-                let variance = (0..n).map(|i| (x.get(i, j) - mean).powi(2)).sum::<f64>() / (n - 1) as f64;
+                let variance =
+                    (0..n).map(|i| (x.get(i, j) - mean).powi(2)).sum::<f64>() / (n - 1) as f64;
                 variance.sqrt()
             }
         })
@@ -1235,12 +1197,17 @@ pub fn make_lambda_path(
     // Configure lambda path options
     let options = regularized::path::LambdaPathOptions {
         nlambda: n_lambda.max(1),
-        lambda_min_ratio: if lambda_min_ratio > 0.0 { Some(lambda_min_ratio) } else { None },
+        lambda_min_ratio: if lambda_min_ratio > 0.0 {
+            Some(lambda_min_ratio)
+        } else {
+            None
+        },
         alpha: 1.0, // Lasso
         ..Default::default()
     };
 
-    let lambda_path = regularized::path::make_lambda_path(&x_std, &y_centered, &options, None, Some(0));
+    let lambda_path =
+        regularized::path::make_lambda_path(&x_std, &y_centered, &options, None, Some(0));
 
     let lambda_max = lambda_path.first().copied().unwrap_or(0.0);
     let lambda_min = lambda_path.last().copied().unwrap_or(0.0);
@@ -1349,9 +1316,12 @@ fn check_domain() -> Result<()> {
     match allowed_domains {
         Some(domains) if !domains.is_empty() => {
             // Domain restriction is enabled
-            let window = web_sys::window().ok_or(Error::DomainCheck("No window found".to_string()))?;
+            let window =
+                web_sys::window().ok_or(Error::DomainCheck("No window found".to_string()))?;
             let location = window.location();
-            let hostname = location.hostname().map_err(|_| Error::DomainCheck("No hostname found".to_string()))?;
+            let hostname = location
+                .hostname()
+                .map_err(|_| Error::DomainCheck("No hostname found".to_string()))?;
 
             let domain_list: Vec<&str> = domains.split(',').map(|s| s.trim()).collect();
 
@@ -1363,11 +1333,11 @@ fn check_domain() -> Result<()> {
                     hostname, domains
                 )))
             }
-        }
+        },
         _ => {
             // No restriction - allow all domains
             Ok(())
-        }
+        },
     }
 }
 
@@ -1434,7 +1404,10 @@ pub fn test_t_critical(df: f64, alpha: f64) -> String {
         return error_to_json(&e);
     }
     let t_crit = core::t_critical_quantile(df, alpha);
-    format!(r#"{{"df": {}, "alpha": {}, "t_critical": {}}}"#, df, alpha, t_crit)
+    format!(
+        r#"{{"df": {}, "alpha": {}, "t_critical": {}}}"#,
+        df, alpha, t_crit
+    )
 }
 
 #[cfg(feature = "wasm")]
@@ -1451,7 +1424,11 @@ pub fn test_ci(coef: f64, se: f64, df: f64, alpha: f64) -> String {
         return error_to_json(&e);
     }
     let t_crit = core::t_critical_quantile(df, alpha);
-    format!(r#"{{"lower": {}, "upper": {}}}"#, coef - t_crit * se, coef + t_crit * se)
+    format!(
+        r#"{{"lower": {}, "upper": {}}}"#,
+        coef - t_crit * se,
+        coef + t_crit * se
+    )
 }
 
 #[cfg(feature = "wasm")]
@@ -1491,36 +1468,38 @@ pub fn test_housing_regression() -> String {
 
     match test_housing_regression_native() {
         Ok(result) => result,
-        Err(e) => serde_json::json!({ "status": "ERROR", "error": e.to_string() }).to_string()
+        Err(e) => serde_json::json!({ "status": "ERROR", "error": e.to_string() }).to_string(),
     }
 }
 
 // Native Rust test function (works without WASM feature)
 fn test_housing_regression_native() -> Result<String> {
     let y = vec![
-        245.5, 312.8, 198.4, 425.6, 278.9, 356.2, 189.5, 512.3, 234.7, 298.1,
-        445.8, 167.9, 367.4, 289.6, 198.2, 478.5, 256.3, 334.7, 178.5, 398.9,
-        223.4, 312.5, 156.8, 423.7, 267.9
+        245.5, 312.8, 198.4, 425.6, 278.9, 356.2, 189.5, 512.3, 234.7, 298.1, 445.8, 167.9, 367.4,
+        289.6, 198.2, 478.5, 256.3, 334.7, 178.5, 398.9, 223.4, 312.5, 156.8, 423.7, 267.9,
     ];
 
     let square_feet = vec![
-        1200.0, 1800.0, 950.0, 2400.0, 1450.0, 2000.0, 1100.0, 2800.0, 1350.0, 1650.0,
-        2200.0, 900.0, 1950.0, 1500.0, 1050.0, 2600.0, 1300.0, 1850.0, 1000.0, 2100.0,
-        1250.0, 1700.0, 850.0, 2350.0, 1400.0
+        1200.0, 1800.0, 950.0, 2400.0, 1450.0, 2000.0, 1100.0, 2800.0, 1350.0, 1650.0, 2200.0,
+        900.0, 1950.0, 1500.0, 1050.0, 2600.0, 1300.0, 1850.0, 1000.0, 2100.0, 1250.0, 1700.0,
+        850.0, 2350.0, 1400.0,
     ];
     let bedrooms = vec![
-        3.0, 4.0, 2.0, 4.0, 3.0, 4.0, 2.0, 5.0, 3.0, 3.0,
-        4.0, 2.0, 4.0, 3.0, 2.0, 5.0, 3.0, 4.0, 2.0, 4.0,
-        3.0, 3.0, 2.0, 4.0, 3.0
+        3.0, 4.0, 2.0, 4.0, 3.0, 4.0, 2.0, 5.0, 3.0, 3.0, 4.0, 2.0, 4.0, 3.0, 2.0, 5.0, 3.0, 4.0,
+        2.0, 4.0, 3.0, 3.0, 2.0, 4.0, 3.0,
     ];
     let age = vec![
-        15.0, 10.0, 25.0, 5.0, 8.0, 12.0, 20.0, 2.0, 18.0, 7.0,
-        3.0, 30.0, 6.0, 14.0, 22.0, 1.0, 16.0, 9.0, 28.0, 4.0,
-        19.0, 11.0, 35.0, 3.0, 13.0
+        15.0, 10.0, 25.0, 5.0, 8.0, 12.0, 20.0, 2.0, 18.0, 7.0, 3.0, 30.0, 6.0, 14.0, 22.0, 1.0,
+        16.0, 9.0, 28.0, 4.0, 19.0, 11.0, 35.0, 3.0, 13.0,
     ];
 
     let x_vars = vec![square_feet, bedrooms, age];
-    let names = vec!["Intercept".to_string(), "Square_Feet".to_string(), "Bedrooms".to_string(), "Age".to_string()];
+    let names = vec![
+        "Intercept".to_string(),
+        "Square_Feet".to_string(),
+        "Bedrooms".to_string(),
+        "Age".to_string(),
+    ];
 
     let result = core::ols_regression(&y, &x_vars, &names)?;
 
@@ -1533,10 +1512,16 @@ fn test_housing_regression_native() -> Result<String> {
 
     for i in 0..4 {
         if (result.coefficients[i] - expected_coeffs[i]).abs() > tolerance {
-            mismatches.push(format!("coeff[{}] differs: got {}, expected {}", i, result.coefficients[i], expected_coeffs[i]));
+            mismatches.push(format!(
+                "coeff[{}] differs: got {}, expected {}",
+                i, result.coefficients[i], expected_coeffs[i]
+            ));
         }
         if (result.std_errors[i] - expected_std_errs[i]).abs() > tolerance {
-            mismatches.push(format!("std_err[{}] differs: got {}, expected {}", i, result.std_errors[i], expected_std_errs[i]));
+            mismatches.push(format!(
+                "std_err[{}] differs: got {}, expected {}",
+                i, result.std_errors[i], expected_std_errs[i]
+            ));
         }
     }
 

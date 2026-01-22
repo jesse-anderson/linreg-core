@@ -110,7 +110,11 @@ impl Default for StandardizeOptions {
 /// For y (if `standardize_y=true`):
 /// - Centered: `y_centered = y - mean(y)`
 /// - Scaled: `y_scaled = y_centered / sqrt(sum(y²) / n)`
-pub fn standardize_xy(x: &Matrix, y: &[f64], options: &StandardizeOptions) -> (Matrix, Vec<f64>, StandardizationInfo) {
+pub fn standardize_xy(
+    x: &Matrix,
+    y: &[f64],
+    options: &StandardizeOptions,
+) -> (Matrix, Vec<f64>, StandardizationInfo) {
     let n = x.rows;
     let p = x.cols;
 
@@ -209,7 +213,7 @@ pub fn standardize_xy(x: &Matrix, y: &[f64], options: &StandardizeOptions) -> (M
     // If intercept column exists, set its scale to 1.0 (not penalized)
     if options.intercept && p > 0 {
         x_scale[0] = 1.0;
-        x_mean[0] = 0.0;  // Intercept column has no "mean" to subtract
+        x_mean[0] = 0.0; // Intercept column has no "mean" to subtract
     }
 
     let info = StandardizationInfo {
@@ -341,11 +345,7 @@ mod tests {
     #[test]
     fn test_standardize_xy_with_intercept() {
         // Simple test data
-        let x_data = vec![
-            1.0, 2.0, 3.0,
-            1.0, 4.0, 6.0,
-            1.0, 6.0, 9.0,
-        ];
+        let x_data = vec![1.0, 2.0, 3.0, 1.0, 4.0, 6.0, 1.0, 6.0, 9.0];
         let x = Matrix::new(3, 3, x_data);
         let y = vec![3.0, 5.0, 7.0];
 
@@ -401,7 +401,7 @@ mod tests {
         // beta_slopes[0] = (y_scale * beta_std[1]) / x_scale[1] = (2 * 1) / 2 = 1
         assert!((beta_slopes[0] - 1.0).abs() < 1e-10);
         // beta_slopes[1] = (y_scale * beta_std[2]) / x_scale[2] = (2 * 2) / 3 = 4/3
-        assert!((beta_slopes[1] - 4.0/3.0).abs() < 1e-10);
+        assert!((beta_slopes[1] - 4.0 / 3.0).abs() < 1e-10);
 
         // beta0 = y_mean - sum(x_mean[j] * beta_slopes[j-1])
         //      = 5 - (4 * 1 + 6 * 4/3) = 5 - 4 - 8 = -7
@@ -414,10 +414,7 @@ mod tests {
     #[test]
     fn test_predict() {
         // X has intercept column (first col all 1s) plus 2 predictors
-        let x_data = vec![
-            1.0, 2.0, 3.0,
-            1.0, 4.0, 6.0,
-        ];
+        let x_data = vec![1.0, 2.0, 3.0, 1.0, 4.0, 6.0];
         let x = Matrix::new(2, 3, x_data);
 
         // beta0 = 1, beta = [2.0, 3.0] (slope coefficients only, no intercept col coef)

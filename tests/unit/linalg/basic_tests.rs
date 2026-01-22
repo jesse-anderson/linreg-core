@@ -5,8 +5,8 @@
 // Tests for matrix constructors, element access, transpose operations,
 // and basic matrix properties.
 
+use super::common::{assert_close, assert_matrix_eq, EPSILON};
 use linreg_core::linalg::Matrix;
-use super::common::{EPSILON, assert_close, assert_matrix_eq};
 
 // ============================================================================
 // Constructor Tests
@@ -137,7 +137,9 @@ fn test_get_set_roundtrip() {
 
 #[test]
 fn test_get_all_elements() {
-    let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0];
+    let data = vec![
+        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+    ];
     let m = Matrix::new(3, 4, data.clone());
 
     for i in 0..3 {
@@ -202,11 +204,7 @@ fn test_transpose_rectangular() {
 #[test]
 fn test_transpose_symmetric() {
     // Symmetric matrix: A^T = A
-    let m = Matrix::new(
-        3,
-        3,
-        vec![1.0, 2.0, 3.0, 2.0, 5.0, 6.0, 3.0, 6.0, 9.0],
-    );
+    let m = Matrix::new(3, 3, vec![1.0, 2.0, 3.0, 2.0, 5.0, 6.0, 3.0, 6.0, 9.0]);
     let t = m.transpose();
 
     for i in 0..3 {
@@ -228,7 +226,13 @@ fn test_transpose_identity() {
 #[test]
 fn test_transpose_of_transpose() {
     // (A^T)^T = A
-    let a = Matrix::new(3, 4, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
+    let a = Matrix::new(
+        3,
+        4,
+        vec![
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+        ],
+    );
 
     let att = a.transpose().transpose();
 
@@ -237,7 +241,12 @@ fn test_transpose_of_transpose() {
 
     for i in 0..a.rows {
         for j in 0..a.cols {
-            assert_close(att.get(i, j), a.get(i, j), EPSILON, &format!("double transpose[{},{}]", i, j));
+            assert_close(
+                att.get(i, j),
+                a.get(i, j),
+                EPSILON,
+                &format!("double transpose[{},{}]", i, j),
+            );
         }
     }
 }

@@ -46,13 +46,13 @@
 //! - [`lasso`] - Lasso regression (L1 penalty)
 //! - [`path`] - Lambda path generation for regularization paths
 
-pub mod preprocess;
-pub mod ridge;
 pub mod lasso;
 pub mod path;
+pub mod preprocess;
+pub mod ridge;
 
 // Re-exports for convenience
-pub use preprocess::{standardize_xy, unstandardize_coefficients, StandardizationInfo};
-pub use ridge::{ridge_fit, RidgeFit, RidgeFitOptions};
 pub use lasso::{lasso_fit, LassoFit, LassoFitOptions};
 pub use path::{make_lambda_path, LambdaPathOptions};
+pub use preprocess::{standardize_xy, unstandardize_coefficients, StandardizationInfo};
+pub use ridge::{ridge_fit, RidgeFit, RidgeFitOptions};

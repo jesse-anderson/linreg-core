@@ -5,8 +5,8 @@
 // Tests for matrix inversion, upper triangular inversion, chol2inv_from_qr,
 // and related edge cases.
 
+use super::common::{assert_close, assert_matrix_eq, EPSILON};
 use linreg_core::linalg::Matrix;
-use super::common::{EPSILON, assert_close, assert_matrix_eq};
 
 // ============================================================================
 // Basic Inversion Tests
@@ -72,11 +72,7 @@ fn test_invert_1x1() {
 
 #[test]
 fn test_invert_upper_triangular() {
-    let a = Matrix::new(
-        3,
-        3,
-        vec![2.0, 3.0, 4.0, 0.0, 5.0, 6.0, 0.0, 0.0, 7.0],
-    );
+    let a = Matrix::new(3, 3, vec![2.0, 3.0, 4.0, 0.0, 5.0, 6.0, 0.0, 0.0, 7.0]);
 
     let inv = a
         .invert_upper_triangular()
@@ -111,7 +107,7 @@ fn test_invert_5x5() {
     for i in 0..5 {
         for j in 0..5 {
             if i == j {
-                a_data[i * 5 + j] = 10.0 + i as f64;  // Diagonal dominance
+                a_data[i * 5 + j] = 10.0 + i as f64; // Diagonal dominance
             } else {
                 a_data[i * 5 + j] = 1.0 / (1.0 + i as f64 + j as f64);
             }
@@ -120,7 +116,10 @@ fn test_invert_5x5() {
     let a = Matrix::new(5, 5, a_data);
 
     let inv = a.invert();
-    assert!(inv.is_some(), "5x5 diagonally dominant matrix should be invertible");
+    assert!(
+        inv.is_some(),
+        "5x5 diagonally dominant matrix should be invertible"
+    );
 
     if let Some(inv_mat) = inv {
         let result = a.matmul(&inv_mat);
@@ -132,26 +131,32 @@ fn test_invert_5x5() {
 #[test]
 fn test_invert_diagonal_matrix() {
     // Diagonal matrix inversion is simple
-    let a = Matrix::new(4, 4, vec![
-        2.0, 0.0, 0.0, 0.0,
-        0.0, 3.0, 0.0, 0.0,
-        0.0, 0.0, 5.0, 0.0,
-        0.0, 0.0, 0.0, 7.0,
-    ]);
+    let a = Matrix::new(
+        4,
+        4,
+        vec![
+            2.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 7.0,
+        ],
+    );
 
     let inv = a.invert().expect("Diagonal should be invertible");
 
     // Check diagonal elements
     assert_close(inv.get(0, 0), 0.5, EPSILON, "diag inv[0,0]");
-    assert_close(inv.get(1, 1), 1.0/3.0, EPSILON, "diag inv[1,1]");
+    assert_close(inv.get(1, 1), 1.0 / 3.0, EPSILON, "diag inv[1,1]");
     assert_close(inv.get(2, 2), 0.2, EPSILON, "diag inv[2,2]");
-    assert_close(inv.get(3, 3), 1.0/7.0, EPSILON, "diag inv[3,3]");
+    assert_close(inv.get(3, 3), 1.0 / 7.0, EPSILON, "diag inv[3,3]");
 
     // Off-diagonal should be zero
     for i in 0..4 {
         for j in 0..4 {
             if i != j {
-                assert_close(inv.get(i, j), 0.0, EPSILON, &format!("diag inv off[{},{}]", i, j));
+                assert_close(
+                    inv.get(i, j),
+                    0.0,
+                    EPSILON,
+                    &format!("diag inv off[{},{}]", i, j),
+                );
             }
         }
     }
@@ -161,33 +166,21 @@ fn test_invert_diagonal_matrix() {
 fn test_invert_near_singular() {
     // Matrix with very small determinant (near-singular but still invertible)
     let epsilon = 1e-8;
-    let a = Matrix::new(
-        2,
-        2,
-        vec![
-            1.0, 1.0,
-            1.0 + epsilon, 1.0,
-        ],
-    );
+    let a = Matrix::new(2, 2, vec![1.0, 1.0, 1.0 + epsilon, 1.0]);
 
     let inv = a.invert();
     // With relative tolerance, this might still be invertible
     // if the diagonal elements are large enough relative to epsilon
-    assert!(inv.is_some(), "Near-singular matrix might still invert with relative tolerance");
+    assert!(
+        inv.is_some(),
+        "Near-singular matrix might still invert with relative tolerance"
+    );
 }
 
 #[test]
 fn test_invert_permutation_matrix() {
     // Permutation matrix (reversed rows of identity)
-    let a = Matrix::new(
-        3,
-        3,
-        vec![
-            0.0, 0.0, 1.0,
-            0.0, 1.0, 0.0,
-            1.0, 0.0, 0.0,
-        ],
-    );
+    let a = Matrix::new(3, 3, vec![0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]);
 
     let inv = a.invert().expect("Permutation matrix should be invertible");
 
@@ -195,7 +188,12 @@ fn test_invert_permutation_matrix() {
     let a_t = a.transpose();
     for i in 0..3 {
         for j in 0..3 {
-            assert_close(inv.get(i, j), a_t.get(i, j), EPSILON, &format!("perm inv[{},{}]", i, j));
+            assert_close(
+                inv.get(i, j),
+                a_t.get(i, j),
+                EPSILON,
+                &format!("perm inv[{},{}]", i, j),
+            );
         }
     }
 
@@ -213,15 +211,15 @@ fn test_with_tiny_values() {
     let a = Matrix::new(
         2,
         2,
-        vec![
-            100.0 * scale, 200.0 * scale,
-            300.0 * scale, 400.0 * scale,
-        ],
+        vec![100.0 * scale, 200.0 * scale, 300.0 * scale, 400.0 * scale],
     );
 
     let inv = a.invert();
     // At 1e-10 scale, relative tolerance should still allow inversion
-    assert!(inv.is_some(), "1e-10 scale matrix should be invertible with relative tolerance");
+    assert!(
+        inv.is_some(),
+        "1e-10 scale matrix should be invertible with relative tolerance"
+    );
 
     // Verify the inversion is correct
     if let Some(inv_mat) = inv {
@@ -235,7 +233,9 @@ fn test_with_tiny_values() {
                 assert!(
                     diff < tolerance,
                     "Tiny value inversion error at [{},{}]: diff = {}",
-                    i, j, diff
+                    i,
+                    j,
+                    diff
                 );
             }
         }
@@ -254,9 +254,8 @@ fn test_invert_large_scale_matrix() {
         3,
         3,
         vec![
-            1e6, 2e6, 3e6,
-            4e6, 5e6, 6e6,
-            7e6, 8e6, 1e7,  // Changed from 9e6 to avoid near-singularity
+            1e6, 2e6, 3e6, 4e6, 5e6, 6e6, 7e6, 8e6,
+            1e7, // Changed from 9e6 to avoid near-singularity
         ],
     );
 
@@ -267,7 +266,7 @@ fn test_invert_large_scale_matrix() {
     let _i = Matrix::identity(3);
 
     // Use a tolerance relative to the scale of the matrix
-    let tolerance = 1e-8 * 1e6;  // Relative tolerance for 1e6 scale
+    let tolerance = 1e-8 * 1e6; // Relative tolerance for 1e6 scale
     for i in 0..3 {
         for j in 0..3 {
             let expected = if i == j { 1.0 } else { 0.0 };
@@ -275,7 +274,11 @@ fn test_invert_large_scale_matrix() {
             assert!(
                 diff < tolerance,
                 "Large scale inversion error at [{},{}]: got {}, expected {}, diff = {}",
-                i, j, result.get(i, j), expected, diff
+                i,
+                j,
+                result.get(i, j),
+                expected,
+                diff
             );
         }
     }
@@ -288,9 +291,8 @@ fn test_invert_small_scale_matrix() {
         3,
         3,
         vec![
-            1e-6, 2e-6, 3e-6,
-            4e-6, 5e-6, 6e-6,
-            7e-6, 8e-6, 1e-7,  // Note: small value to avoid singularity
+            1e-6, 2e-6, 3e-6, 4e-6, 5e-6, 6e-6, 7e-6, 8e-6,
+            1e-7, // Note: small value to avoid singularity
         ],
     );
 
@@ -309,7 +311,11 @@ fn test_invert_small_scale_matrix() {
             assert!(
                 diff < tolerance,
                 "Small scale inversion error at [{},{}]: got {}, expected {}, diff = {}",
-                i, j, result.get(i, j), expected, diff
+                i,
+                j,
+                result.get(i, j),
+                expected,
+                diff
             );
         }
     }
@@ -318,24 +324,18 @@ fn test_invert_small_scale_matrix() {
 #[test]
 fn test_invert_upper_triangular_large_scale() {
     // Test upper triangular inversion with large diagonal values
-    let a = Matrix::new(
-        3,
-        3,
-        vec![
-            1e8, 2e8, 3e8,
-            0.0, 4e8, 5e8,
-            0.0, 0.0, 6e8,
-        ],
-    );
+    let a = Matrix::new(3, 3, vec![1e8, 2e8, 3e8, 0.0, 4e8, 5e8, 0.0, 0.0, 6e8]);
 
-    let inv = a.invert_upper_triangular().expect("Large upper triangular should be invertible");
+    let inv = a
+        .invert_upper_triangular()
+        .expect("Large upper triangular should be invertible");
 
     // Verify A * A^-1 = I
     let result = a.matmul(&inv);
     let _i = Matrix::identity(3);
 
     // Use relative tolerance for large scale
-    let tolerance = 1e-10 * 1e8;  // Relative tolerance for 1e8 scale
+    let tolerance = 1e-10 * 1e8; // Relative tolerance for 1e8 scale
     for i in 0..3 {
         for j in 0..3 {
             let expected = if i == j { 1.0 } else { 0.0 };
@@ -343,7 +343,11 @@ fn test_invert_upper_triangular_large_scale() {
             assert!(
                 diff < tolerance,
                 "Large triangular inversion error at [{},{}]: got {}, expected {}, diff = {}",
-                i, j, result.get(i, j), expected, diff
+                i,
+                j,
+                result.get(i, j),
+                expected,
+                diff
             );
         }
     }
@@ -357,16 +361,18 @@ fn test_singular_with_wide_range_diagonals() {
         3,
         3,
         vec![
-            1e-10, 1.0, 1.0,     // Very small first diagonal element
-            0.0,   1e6, 1.0,
-            0.0,   0.0, 1.0,
+            1e-10, 1.0, 1.0, // Very small first diagonal element
+            0.0, 1e6, 1.0, 0.0, 0.0, 1.0,
         ],
     );
 
     let inv = a.invert_upper_triangular();
     // With relative tolerance, the small diagonal (1e-10) compared to max (1e6)
     // should be correctly identified as singular
-    assert!(inv.is_none(), "Matrix with very small diagonal element should be singular");
+    assert!(
+        inv.is_none(),
+        "Matrix with very small diagonal element should be singular"
+    );
 }
 
 #[test]
@@ -376,17 +382,16 @@ fn test_well_conditioned_with_wide_range_diagonals() {
     let a = Matrix::new(
         3,
         3,
-        vec![
-            0.1,   1.0, 1.0,
-            0.0,   1000.0, 1.0,
-            0.0,   0.0,    10000.0,
-        ],
+        vec![0.1, 1.0, 1.0, 0.0, 1000.0, 1.0, 0.0, 0.0, 10000.0],
     );
 
     let inv = a.invert_upper_triangular();
     // This should be invertible - the range (0.1 to 10000) is large but
     // all elements are well above machine epsilon relative to max
-    assert!(inv.is_some(), "Matrix with well-conditioned wide-range diagonals should be invertible");
+    assert!(
+        inv.is_some(),
+        "Matrix with well-conditioned wide-range diagonals should be invertible"
+    );
 }
 
 // ============================================================================
@@ -421,15 +426,17 @@ fn test_chol2inv_basic() {
         4,
         3,
         vec![
-            1.0, 2.0, 3.0,
-            4.0, 5.0, 6.0,
-            7.0, 8.0, 10.0,  // Changed from 9.0 to ensure full rank
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0,
+            10.0, // Changed from 9.0 to ensure full rank
             2.0, 3.0, 4.0,
         ],
     );
 
     let result = x.chol2inv_from_qr();
-    assert!(result.is_some(), "chol2inv should succeed for full-rank matrix");
+    assert!(
+        result.is_some(),
+        "chol2inv should succeed for full-rank matrix"
+    );
 
     let chol2inv = result.unwrap();
 
@@ -449,11 +456,7 @@ fn test_chol2inv_reconstruction() {
         5,
         3,
         vec![
-            1.0, 2.0, 3.0,
-            4.0, 5.0, 6.0,
-            7.0, 8.0, 10.0,
-            2.0, 3.0, 4.0,
-            5.0, 6.0, 8.0,
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0,
         ],
     );
 
@@ -477,10 +480,8 @@ fn test_chol2inv_symmetric() {
         4,
         2,
         vec![
-            1.0, 2.0,
-            3.0, 4.0,
-            5.0, 6.0,
-            7.0, 9.0,  // Last value slightly off to ensure full rank
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0,
+            9.0, // Last value slightly off to ensure full rank
         ],
     );
 
@@ -507,9 +508,8 @@ fn test_chol2inv_rank_deficient_returns_none() {
         3,
         2,
         vec![
-            1.0, 2.0,
-            2.0, 4.0,  // 2x col1
-            3.0, 6.0,  // 3x col1
+            1.0, 2.0, 2.0, 4.0, // 2x col1
+            3.0, 6.0, // 3x col1
         ],
     );
 
@@ -521,29 +521,20 @@ fn test_chol2inv_rank_deficient_returns_none() {
 fn test_chol2inv_near_rank_deficient() {
     // Nearly rank-deficient but still invertible
     let epsilon = 1e-6;
-    let x = Matrix::new(
-        3,
-        2,
-        vec![
-            1.0, 2.0,
-            2.0, 4.0 + epsilon,
-            3.0, 6.0,
-        ],
-    );
+    let x = Matrix::new(3, 2, vec![1.0, 2.0, 2.0, 4.0 + epsilon, 3.0, 6.0]);
 
     let result = x.chol2inv_from_qr();
     // Should still work for near-full-rank matrices
-    assert!(result.is_some(), "Near-full-rank matrix should be invertible");
+    assert!(
+        result.is_some(),
+        "Near-full-rank matrix should be invertible"
+    );
 }
 
 #[test]
 fn test_chol2inv_single_column() {
     // Test with single predictor (p=1)
-    let x = Matrix::new(
-        4,
-        1,
-        vec![1.0, 2.0, 3.0, 4.0],
-    );
+    let x = Matrix::new(4, 1, vec![1.0, 2.0, 3.0, 4.0]);
 
     let result = x.chol2inv_from_qr().expect("Single column should work");
 
@@ -551,7 +542,12 @@ fn test_chol2inv_single_column() {
     // (X'X)^(-1) = 1/30
     assert_eq!(result.rows, 1);
     assert_eq!(result.cols, 1);
-    assert_close(result.get(0, 0), 1.0 / 30.0, 1e-10, "single column chol2inv");
+    assert_close(
+        result.get(0, 0),
+        1.0 / 30.0,
+        1e-10,
+        "single column chol2inv",
+    );
 }
 
 #[test]
@@ -562,11 +558,8 @@ fn test_chol2inv_two_predictors() {
         5,
         2,
         vec![
-            1.0, 1.0,  // intercept=1, x1=1
-            1.0, 2.0,
-            1.0, 3.0,
-            1.0, 4.0,
-            1.0, 5.0,
+            1.0, 1.0, // intercept=1, x1=1
+            1.0, 2.0, 1.0, 3.0, 1.0, 4.0, 1.0, 5.0,
         ],
     );
 
@@ -588,10 +581,18 @@ fn test_chol2inv_large_scale() {
         4,
         3,
         vec![
-            1.0 * scale, 2.0 * scale, 3.0 * scale,
-            2.0 * scale, 3.0 * scale, 4.0 * scale,
-            3.0 * scale, 4.0 * scale, 6.0 * scale,
-            1.5 * scale, 2.5 * scale, 3.5 * scale,
+            1.0 * scale,
+            2.0 * scale,
+            3.0 * scale,
+            2.0 * scale,
+            3.0 * scale,
+            4.0 * scale,
+            3.0 * scale,
+            4.0 * scale,
+            6.0 * scale,
+            1.5 * scale,
+            2.5 * scale,
+            3.5 * scale,
         ],
     );
 
@@ -616,7 +617,9 @@ fn test_chol2inv_large_scale() {
                 assert!(
                     diff < tolerance,
                     "Large scale chol2inv reconstruction error at [{},{}]: diff = {}",
-                    i_idx, j, diff
+                    i_idx,
+                    j,
+                    diff
                 );
             }
         }
@@ -632,9 +635,12 @@ fn test_chol2inv_small_scale() {
         3,
         2,
         vec![
-            1.0 * scale, 2.0 * scale,
-            2.0 * scale, 3.0 * scale,
-            3.0 * scale, 5.0 * scale,
+            1.0 * scale,
+            2.0 * scale,
+            2.0 * scale,
+            3.0 * scale,
+            3.0 * scale,
+            5.0 * scale,
         ],
     );
 
@@ -654,7 +660,11 @@ fn test_chol2inv_small_scale() {
                 assert!(
                     diff < 1e-9,
                     "Small scale reconstruction error at [{},{}]: got {}, expected {}, diff = {}",
-                    i, j, identity.get(i, j), expected, diff
+                    i,
+                    j,
+                    identity.get(i, j),
+                    expected,
+                    diff
                 );
             }
         }

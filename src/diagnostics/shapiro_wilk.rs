@@ -19,23 +19,24 @@
 // - Royston, P. (1995). "Remark AS R94: A Remark on Algorithm AS 181:
 //   The W-test for Normality". Applied Statistics, 44, 547-551.
 
-use crate::error::{Error, Result};
 use super::types::DiagnosticTestResult;
+use crate::error::{Error, Result};
 
 /// Performs the Shapiro-Wilk test for normality of residuals.
-pub fn shapiro_wilk_test(
-    y: &[f64],
-    x_vars: &[Vec<f64>],
-) -> Result<DiagnosticTestResult> {
+pub fn shapiro_wilk_test(y: &[f64], x_vars: &[Vec<f64>]) -> Result<DiagnosticTestResult> {
     let n = y.len();
 
     if n < 3 {
-        return Err(Error::InsufficientData { required: 3, available: n });
+        return Err(Error::InsufficientData {
+            required: 3,
+            available: n,
+        });
     }
 
     if n > 5000 {
         return Err(Error::InvalidInput(
-            "Shapiro-Wilk test only supports n ≤ 5000. Use Jarque-Bera test for larger samples.".to_string()
+            "Shapiro-Wilk test only supports n ≤ 5000. Use Jarque-Bera test for larger samples."
+                .to_string(),
         ));
     }
 
@@ -92,12 +93,15 @@ pub fn shapiro_wilk_test_raw(sample: &[f64]) -> Result<DiagnosticTestResult> {
     let n = sample.len();
 
     if n < 3 {
-        return Err(Error::InsufficientData { required: 3, available: n });
+        return Err(Error::InsufficientData {
+            required: 3,
+            available: n,
+        });
     }
 
     if n > 5000 {
         return Err(Error::InvalidInput(
-            "Shapiro-Wilk test only supports n ≤ 5000.".to_string()
+            "Shapiro-Wilk test only supports n ≤ 5000.".to_string(),
         ));
     }
 
@@ -105,7 +109,8 @@ pub fn shapiro_wilk_test_raw(sample: &[f64]) -> Result<DiagnosticTestResult> {
     for (i, &val) in sample.iter().enumerate() {
         if !val.is_finite() {
             return Err(Error::InvalidInput(format!(
-                "Sample contains non-finite value at index {}: {}", i, val
+                "Sample contains non-finite value at index {}: {}",
+                i, val
             )));
         }
     }
@@ -117,7 +122,9 @@ pub fn shapiro_wilk_test_raw(sample: &[f64]) -> Result<DiagnosticTestResult> {
     // Check for constant values
     let range = sorted.last().unwrap() - sorted.first().unwrap();
     if range == 0.0 || !range.is_finite() {
-        return Err(Error::InvalidInput("Invalid sample variance (all values identical)".to_string()));
+        return Err(Error::InvalidInput(
+            "Invalid sample variance (all values identical)".to_string(),
+        ));
     }
 
     // Compute W statistic and p-value using Royston's algorithm
@@ -177,13 +184,15 @@ fn compute_residuals(y: &[f64], x_vars: &[Vec<f64>]) -> Result<Vec<f64>> {
 
     let beta = solve_spd(&xt_x, &xt_y, p)?;
 
-    let residuals: Vec<f64> = (0..n).map(|i| {
-        let mut y_pred = beta[0];
-        for j in 1..p {
-            y_pred += beta[j] * x_vars[j - 1][i];
-        }
-        y[i] - y_pred
-    }).collect();
+    let residuals: Vec<f64> = (0..n)
+        .map(|i| {
+            let mut y_pred = beta[0];
+            for j in 1..p {
+                y_pred += beta[j] * x_vars[j - 1][i];
+            }
+            y[i] - y_pred
+        })
+        .collect();
 
     Ok(residuals)
 }
@@ -346,14 +355,14 @@ fn compute_swilk_coefficients_into(a: &mut [f64], n: usize) -> Result<()> {
     // R code: if (n > 5) { i1 = 3; a2 = -a[2] / ssumm2 + poly(c2, 6, rsn); ...
     let (i1, fac) = if n > 5 {
         let a2 = -a[2] / ssumm2 + poly(&c2, rsn);
-        let fac = ((summ2 - 2.0 * a[1] * a[1] - 2.0 * a[2] * a[2]) /
-                   (1.0 - 2.0 * a1 * a1 - 2.0 * a2 * a2)).sqrt();
+        let fac = ((summ2 - 2.0 * a[1] * a[1] - 2.0 * a[2] * a[2])
+            / (1.0 - 2.0 * a1 * a1 - 2.0 * a2 * a2))
+            .sqrt();
         a[2] = a2;
         (3, fac)
     } else {
         // n <= 5
-        let fac = ((summ2 - 2.0 * a[1] * a[1]) /
-                   (1.0 - 2.0 * a1 * a1)).sqrt();
+        let fac = ((summ2 - 2.0 * a[1] * a[1]) / (1.0 - 2.0 * a1 * a1)).sqrt();
         (2, fac)
     };
 
@@ -374,7 +383,7 @@ fn poly(cc: &[f64], x: f64) -> f64 {
     let mut ret_val = cc[0];
     if nord > 1 {
         let mut p = x * cc[nord - 1];
-        for j in (1..nord-1).rev() {
+        for j in (1..nord - 1).rev() {
             p = (p + cc[j]) * x;
         }
         ret_val += p;
@@ -385,26 +394,45 @@ fn poly(cc: &[f64], x: f64) -> f64 {
 /// Standard normal quantile function (inverse CDF) using Acklam's algorithm.
 #[allow(clippy::excessive_precision)]
 fn normal_quantile(p: f64) -> Result<f64> {
-    if p <= 0.0 { return Ok(f64::NEG_INFINITY); }
-    if p >= 1.0 { return Ok(f64::INFINITY); }
-    if (p - 0.5).abs() < 1e-15 { return Ok(0.0); }
+    if p <= 0.0 {
+        return Ok(f64::NEG_INFINITY);
+    }
+    if p >= 1.0 {
+        return Ok(f64::INFINITY);
+    }
+    if (p - 0.5).abs() < 1e-15 {
+        return Ok(0.0);
+    }
 
     // Acklam's algorithm coefficients
     const A: [f64; 6] = [
-        -3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
-         1.383577518672690e+02, -3.066479806614716e+01,  2.506628277459239e+00,
+        -3.969683028665376e+01,
+        2.209460984245205e+02,
+        -2.759285104469687e+02,
+        1.383577518672690e+02,
+        -3.066479806614716e+01,
+        2.506628277459239e+00,
     ];
     const B: [f64; 5] = [
-        -5.447609879822406e+01,  1.615858368580409e+02, -1.556989798598866e+02,
-         6.680131188771972e+01, -1.328068155288572e+01,
+        -5.447609879822406e+01,
+        1.615858368580409e+02,
+        -1.556989798598866e+02,
+        6.680131188771972e+01,
+        -1.328068155288572e+01,
     ];
     const C: [f64; 6] = [
-        -7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
-        -2.549732539343734e+00,  4.374664141464968e+00,  2.938163982698783e+00,
+        -7.784894002430293e-03,
+        -3.223964580411365e-01,
+        -2.400758277161838e+00,
+        -2.549732539343734e+00,
+        4.374664141464968e+00,
+        2.938163982698783e+00,
     ];
     const D: [f64; 4] = [
-         7.784695709041462e-03,  3.224671290700398e-01,
-         2.445134137142996e+00,  3.754408661907416e+00,
+        7.784695709041462e-03,
+        3.224671290700398e-01,
+        2.445134137142996e+00,
+        3.754408661907416e+00,
     ];
 
     const P_LOW: f64 = 0.02425;
@@ -425,12 +453,12 @@ fn normal_quantile(p: f64) -> Result<f64> {
         let q = (-2.0 * p.ln()).sqrt();
         let n = ((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5];
         let d = (((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0;
-        (n, d, 1.0)  // Lower tail: x = num/den (will be negative)
+        (n, d, 1.0) // Lower tail: x = num/den (will be negative)
     } else {
         let q = (-2.0 * (1.0 - p).ln()).sqrt();
         let n = ((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5];
         let d = (((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0;
-        (n, d, -1.0)  // Upper tail: x = -num/den (will be positive)
+        (n, d, -1.0) // Upper tail: x = -num/den (will be positive)
     };
 
     Ok(sign * num / den)
@@ -449,7 +477,7 @@ fn royston_p_value(w: f64, n: usize) -> f64 {
 
     // For n = 3, use exact formula
     if n == 3 {
-        let pi6 = 1.90985931710274;  // = 6/pi
+        let pi6 = 1.90985931710274; // = 6/pi
         let stqr = std::f64::consts::FRAC_PI_3; // = asin(sqrt(3/4)) = π/3
         let mut pw = pi6 * (w.sqrt().asin() - stqr);
         if pw < 0.0 {
@@ -511,7 +539,7 @@ fn normal_cdf(x: f64) -> f64 {
 
     // For normal CDF, we need to use erf(x/sqrt(2))
     let sign = if x < 0.0 { -1.0 } else { 1.0 };
-    let x_abs = (x * FRAC_1_SQRT_2).abs();  // x/sqrt(2)
+    let x_abs = (x * FRAC_1_SQRT_2).abs(); // x/sqrt(2)
 
     let t = 1.0 / (1.0 + P * x_abs);
     // Using Horner's method: ((((A5*t + A4)*t + A3)*t + A2)*t + A1)
@@ -533,8 +561,8 @@ mod tests {
     #[test]
     fn test_shapiro_wilk_normal_data() {
         let normal_data = vec![
-            0.1, -0.5, 0.3, 1.2, -0.8, 0.4, -0.2, 0.9, -0.3, 0.6,
-            -0.1, 0.7, -0.4, 0.2, 1.1, -0.6, 0.8, -0.9, 0.5, -0.7,
+            0.1, -0.5, 0.3, 1.2, -0.8, 0.4, -0.2, 0.9, -0.3, 0.6, -0.1, 0.7, -0.4, 0.2, 1.1, -0.6,
+            0.8, -0.9, 0.5, -0.7,
         ];
         let result = shapiro_wilk_test_raw(&normal_data).unwrap();
         assert!(result.p_value > 0.01);
@@ -596,9 +624,9 @@ mod tests {
 
     #[test]
     fn test_poly() {
-        let coeffs = [1.0, 2.0, 3.0];  // 1 + 2x + 3x^2
+        let coeffs = [1.0, 2.0, 3.0]; // 1 + 2x + 3x^2
         assert!((poly(&coeffs, 0.0) - 1.0).abs() < 1e-10);
-        assert!((poly(&coeffs, 1.0) - 6.0).abs() < 1e-10);  // 1 + 2 + 3
+        assert!((poly(&coeffs, 1.0) - 6.0).abs() < 1e-10); // 1 + 2 + 3
         assert!((poly(&coeffs, 2.0) - 17.0).abs() < 1e-10); // 1 + 4 + 12
     }
 
@@ -618,8 +646,13 @@ mod tests {
                 _ => unreachable!(),
             };
 
-            assert!((result.statistic - expected_w).abs() < 0.001,
-                    "n={}: W={} != {}", n, result.statistic, expected_w);
+            assert!(
+                (result.statistic - expected_w).abs() < 0.001,
+                "n={}: W={} != {}",
+                n,
+                result.statistic,
+                expected_w
+            );
         }
     }
 }

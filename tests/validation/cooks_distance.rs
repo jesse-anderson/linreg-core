@@ -9,8 +9,7 @@
 // both high residuals and high leverage.
 
 use crate::common::{
-    load_dataset, load_r_cooks_result, load_python_cooks_result,
-    ALL_DATASETS, COOKS_TOLERANCE,
+    load_dataset, load_python_cooks_result, load_r_cooks_result, ALL_DATASETS, COOKS_TOLERANCE,
 };
 
 use linreg_core::diagnostics;
@@ -54,10 +53,14 @@ fn validate_cooks_distance_all_datasets() {
                 println!("     Failed to load dataset: {}", e);
                 failed_tests.push((dataset_name.to_string(), "Load failed".to_string()));
                 continue;
-            }
+            },
         };
 
-        println!("    Loaded: n = {}, predictors = {}", dataset.y.len(), dataset.x_vars.len());
+        println!(
+            "    Loaded: n = {}, predictors = {}",
+            dataset.y.len(),
+            dataset.x_vars.len()
+        );
 
         // Run Cook's distance test
         let rust_cooks = match diagnostics::cooks_distance_test(&dataset.y, &dataset.x_vars) {
@@ -66,18 +69,22 @@ fn validate_cooks_distance_all_datasets() {
                 println!("     Cook's distance test failed: {}", e);
                 failed_tests.push((dataset_name.to_string(), format!("Cook's error: {}", e)));
                 continue;
-            }
+            },
         };
 
         // Find max distance and its index
-        let (rust_max_dist, rust_max_idx) = rust_cooks.distances
+        let (rust_max_dist, rust_max_idx) = rust_cooks
+            .distances
             .iter()
             .enumerate()
             .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(i, v)| (*v, i))
             .unwrap_or((0.0, 0));
 
-        println!("    Rust: max_dist = {:.6}, max_idx = {}", rust_max_dist, rust_max_idx);
+        println!(
+            "    Rust: max_dist = {:.6}, max_idx = {}",
+            rust_max_dist, rust_max_idx
+        );
 
         // Validate against R
         let r_result_path = r_results_dir.join(format!("{}_cooks_distance.json", dataset_name));
@@ -90,11 +97,21 @@ fn validate_cooks_distance_all_datasets() {
 
             // Compare all distances
             let mut all_match = true;
-            for (i, (rust_d, r_d)) in rust_cooks.distances.iter().zip(r_distances.iter()).enumerate() {
+            for (i, (rust_d, r_d)) in rust_cooks
+                .distances
+                .iter()
+                .zip(r_distances.iter())
+                .enumerate()
+            {
                 if (rust_d - r_d).abs() > COOKS_TOLERANCE {
                     all_match = false;
-                    println!("      Distance[{}] mismatch: Rust = {:.2e}, R = {:.2e}, diff = {:.2e}",
-                        i, rust_d, r_d, (rust_d - r_d).abs());
+                    println!(
+                        "      Distance[{}] mismatch: Rust = {:.2e}, R = {:.2e}, diff = {:.2e}",
+                        i,
+                        rust_d,
+                        r_d,
+                        (rust_d - r_d).abs()
+                    );
                 }
             }
 
@@ -102,9 +119,14 @@ fn validate_cooks_distance_all_datasets() {
             // R uses 1-based indexing, Rust uses 0-based
             let max_idx_match = rust_max_idx + 1 == r_max_idx;
 
-            println!("    R:    max_dist = {:.6}, max_idx = {}", r_max_dist, r_max_idx);
-            println!("          Diff: max_dist = {:.2e}, max_idx_match = {}",
-                max_dist_diff, max_idx_match);
+            println!(
+                "    R:    max_dist = {:.6}, max_idx = {}",
+                r_max_dist, r_max_idx
+            );
+            println!(
+                "          Diff: max_dist = {:.2e}, max_idx_match = {}",
+                max_dist_diff, max_idx_match
+            );
 
             if all_match && max_idx_match && max_dist_diff < COOKS_TOLERANCE {
                 println!("     R validation: PASS");
@@ -114,12 +136,19 @@ fn validate_cooks_distance_all_datasets() {
                 failed_tests.push((dataset_name.to_string(), "R Cook's mismatch".to_string()));
             }
         } else {
-            println!("      R reference file not found: {}", r_result_path.display());
-            failed_tests.push((dataset_name.to_string(), "R reference file missing".to_string()));
+            println!(
+                "      R reference file not found: {}",
+                r_result_path.display()
+            );
+            failed_tests.push((
+                dataset_name.to_string(),
+                "R reference file missing".to_string(),
+            ));
         }
 
         // Validate against Python
-        let python_result_path = python_results_dir.join(format!("{}_cooks_distance.json", dataset_name));
+        let python_result_path =
+            python_results_dir.join(format!("{}_cooks_distance.json", dataset_name));
         if let Some(py_ref) = load_python_cooks_result(&python_result_path) {
             total_tests += 1;
 
@@ -128,7 +157,12 @@ fn validate_cooks_distance_all_datasets() {
 
             // Compare all distances
             let mut all_match = true;
-            for (i, (rust_d, py_d)) in rust_cooks.distances.iter().zip(py_ref.distances.iter()).enumerate() {
+            for (i, (rust_d, py_d)) in rust_cooks
+                .distances
+                .iter()
+                .zip(py_ref.distances.iter())
+                .enumerate()
+            {
                 if (rust_d - py_d).abs() > COOKS_TOLERANCE {
                     all_match = false;
                     println!("      Distance[{}] mismatch: Rust = {:.2e}, Python = {:.2e}, diff = {:.2e}",
@@ -140,20 +174,34 @@ fn validate_cooks_distance_all_datasets() {
             // Python uses 1-based indexing, Rust uses 0-based
             let max_idx_match = rust_max_idx + 1 == py_max_idx;
 
-            println!("    Python: max_dist = {:.6}, max_idx = {}", py_max_dist, py_max_idx);
-            println!("          Diff: max_dist = {:.2e}, max_idx_match = {}",
-                max_dist_diff, max_idx_match);
+            println!(
+                "    Python: max_dist = {:.6}, max_idx = {}",
+                py_max_dist, py_max_idx
+            );
+            println!(
+                "          Diff: max_dist = {:.2e}, max_idx_match = {}",
+                max_dist_diff, max_idx_match
+            );
 
             if all_match && max_idx_match && max_dist_diff < COOKS_TOLERANCE {
                 println!("     Python validation: PASS");
                 passed_python += 1;
             } else {
                 println!("     Python validation: FAIL");
-                failed_tests.push((dataset_name.to_string(), "Python Cook's mismatch".to_string()));
+                failed_tests.push((
+                    dataset_name.to_string(),
+                    "Python Cook's mismatch".to_string(),
+                ));
             }
         } else {
-            println!("      Python reference file not found: {}", python_result_path.display());
-            failed_tests.push((dataset_name.to_string(), "Python reference file missing".to_string()));
+            println!(
+                "      Python reference file not found: {}",
+                python_result_path.display()
+            );
+            failed_tests.push((
+                dataset_name.to_string(),
+                "Python reference file missing".to_string(),
+            ));
         }
 
         println!();
@@ -169,9 +217,16 @@ fn validate_cooks_distance_all_datasets() {
     println!("║  Failed tests:          {:>40}║", failed_tests.len());
     println!("╚══════════════════════════════════════════════════════════════════════╝");
 
-    assert!(total_tests > 0, "No Cook's Distance validation tests were run.");
+    assert!(
+        total_tests > 0,
+        "No Cook's Distance validation tests were run."
+    );
     let pass_rate = (passed_r + passed_python) as f64 / total_tests as f64;
-    assert!(pass_rate >= 0.9, "Cook's Distance validation pass rate ({:.1}%) is below 90%.", pass_rate * 100.0);
+    assert!(
+        pass_rate >= 0.9,
+        "Cook's Distance validation pass rate ({:.1}%) is below 90%.",
+        pass_rate * 100.0
+    );
 
     println!();
     println!(" Cook's Distance comprehensive validation passed!");

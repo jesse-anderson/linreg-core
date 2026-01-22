@@ -23,10 +23,10 @@
 // - D_i > 4/n: Common threshold (n = sample size)
 // - D_i > 4/(n-p-1): More conservative threshold
 
-use crate::error::{Error, Result};
-use crate::linalg::{Matrix, vec_sub};
-use crate::core::compute_leverage;
 use super::types::CooksDistanceResult;
+use crate::core::compute_leverage;
+use crate::error::{Error, Result};
+use crate::linalg::{vec_sub, Matrix};
 
 /// Computes Cook's distance for identifying influential observations.
 ///
@@ -67,17 +67,17 @@ use super::types::CooksDistanceResult;
 /// println!("Influential observations: {:?}", result.influential_1);
 /// # Ok::<(), linreg_core::error::Error>(())
 /// ```
-pub fn cooks_distance_test(
-    y: &[f64],
-    x_vars: &[Vec<f64>],
-) -> Result<CooksDistanceResult> {
+pub fn cooks_distance_test(y: &[f64], x_vars: &[Vec<f64>]) -> Result<CooksDistanceResult> {
     let n = y.len();
     let k = x_vars.len();
     let p = k + 1;
 
     // Validate inputs
     if n <= p {
-        return Err(Error::InsufficientData { required: p + 1, available: n });
+        return Err(Error::InsufficientData {
+            required: p + 1,
+            available: n,
+        });
     }
 
     // Validate dimensions and finite values using shared helper
@@ -86,7 +86,7 @@ pub fn cooks_distance_test(
     // Create design matrix with intercept
     let mut x_data = vec![1.0; n * p];
     for row in 0..n {
-        x_data[row * p] = 1.0;  // intercept
+        x_data[row * p] = 1.0; // intercept
         for (col, x_var) in x_vars.iter().enumerate() {
             x_data[row * p + col + 1] = x_var[row];
         }
@@ -162,10 +162,14 @@ pub fn cooks_distance_test(
     // When MSE is essentially zero, Cook's distance formula becomes unstable
     // (0/0 type situation). In this case, all Cook's distances should be zero
     // since the model fits perfectly and no observation has "influence".
-    let y_variance: f64 = y.iter().map(|&yi| {
-        let mean = y.iter().sum::<f64>() / y.len() as f64;
-        (yi - mean).powi(2)
-    }).sum::<f64>() / (y.len() - 1) as f64;
+    let y_variance: f64 = y
+        .iter()
+        .map(|&yi| {
+            let mean = y.iter().sum::<f64>() / y.len() as f64;
+            (yi - mean).powi(2)
+        })
+        .sum::<f64>()
+        / (y.len() - 1) as f64;
     let mse_is_effectively_zero = mse < y_variance * f64::EPSILON.sqrt() || mse < 1e-20;
 
     if mse_is_effectively_zero {
@@ -209,19 +213,22 @@ pub fn cooks_distance_test(
     let threshold_1 = 1.0;
 
     // Identify influential observations (using 1-based indexing for output)
-    let influential_4_over_n: Vec<usize> = distances.iter()
+    let influential_4_over_n: Vec<usize> = distances
+        .iter()
         .enumerate()
         .filter(|(_, &d)| d > threshold_4_over_n)
         .map(|(i, _)| i + 1)
         .collect();
 
-    let influential_4_over_df: Vec<usize> = distances.iter()
+    let influential_4_over_df: Vec<usize> = distances
+        .iter()
         .enumerate()
         .filter(|(_, &d)| d > threshold_4_over_df)
         .map(|(i, _)| i + 1)
         .collect();
 
-    let influential_1: Vec<usize> = distances.iter()
+    let influential_1: Vec<usize> = distances
+        .iter()
         .enumerate()
         .filter(|(_, &d)| d > threshold_1)
         .map(|(i, _)| i + 1)
@@ -229,7 +236,8 @@ pub fn cooks_distance_test(
 
     // Find maximum Cook's distance
     let max_d = distances.iter().cloned().fold(0.0, f64::max);
-    let max_idx = distances.iter()
+    let max_idx = distances
+        .iter()
         .enumerate()
         .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
         .map(|(i, _)| i + 1)
@@ -315,7 +323,7 @@ mod tests {
     #[test]
     fn test_cooks_distance_with_outlier() {
         // Data with one clear outlier
-        let y = vec![1.0, 2.0, 3.0, 4.0, 100.0];  // Last value is outlier
+        let y = vec![1.0, 2.0, 3.0, 4.0, 100.0]; // Last value is outlier
         let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
 
         let result = cooks_distance_test(&y, &[x1]).unwrap();
@@ -324,7 +332,9 @@ mod tests {
         assert_eq!(result.distances.len(), 5);
 
         // The last observation should have highest Cook's distance
-        let max_idx = result.distances.iter()
+        let max_idx = result
+            .distances
+            .iter()
             .enumerate()
             .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(i, _)| i)

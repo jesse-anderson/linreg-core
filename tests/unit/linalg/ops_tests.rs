@@ -5,8 +5,8 @@
 // Tests for matrix multiplication, matrix-vector multiplication,
 // and vector helper functions.
 
-use linreg_core::linalg::{Matrix, vec_mean, vec_sub, vec_dot};
-use super::common::{EPSILON, assert_close, assert_matrix_eq};
+use super::common::{assert_close, assert_matrix_eq, EPSILON};
+use linreg_core::linalg::{vec_dot, vec_mean, vec_sub, Matrix};
 
 // ============================================================================
 // Matrix Multiplication Tests
@@ -118,7 +118,12 @@ fn test_matmul_with_zero_matrix() {
 
     for i in 0..2 {
         for j in 0..2 {
-            assert_close(result.get(i, j), 0.0, EPSILON, &format!("zero mult result[{},{}]", i, j));
+            assert_close(
+                result.get(i, j),
+                0.0,
+                EPSILON,
+                &format!("zero mult result[{},{}]", i, j),
+            );
         }
     }
 }
@@ -153,7 +158,12 @@ fn test_matmul_associativity_random() {
 
     for i in 0..2 {
         for j in 0..2 {
-            assert_close(result1.get(i, j), result2.get(i, j), 1e-10, &format!("associativity[{},{}]", i, j));
+            assert_close(
+                result1.get(i, j),
+                result2.get(i, j),
+                1e-10,
+                &format!("associativity[{},{}]", i, j),
+            );
         }
     }
 }

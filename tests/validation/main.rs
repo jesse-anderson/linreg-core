@@ -22,12 +22,12 @@
 
 pub mod common;
 
-mod core_regression;
-mod breusch_pagan;
-mod white;
-mod rainbow;
-mod cooks_distance;
-mod shapiro_wilk;
 mod anderson_darling;
-mod regularized;
+mod breusch_pagan;
+mod cooks_distance;
+mod core_regression;
 mod ols_by_dataset;
+mod rainbow;
+mod regularized;
+mod shapiro_wilk;
+mod white;

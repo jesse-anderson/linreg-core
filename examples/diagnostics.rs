@@ -8,24 +8,20 @@ use linreg_core::diagnostics::{self, RainbowMethod, WhiteMethod};
 fn main() {
     // Sample data from the classic "mtcars" dataset
     let y = vec![
-        21.0, 21.0, 22.8, 21.4, 18.7, 18.1, 14.3, 24.4, 22.8, 19.2,
-        17.8, 16.4, 17.3, 15.2, 10.4, 10.4, 14.7, 32.4, 30.4, 33.9,
-        21.5, 15.5, 15.2, 13.3, 19.2, 27.3, 26.0, 30.4, 15.8, 19.7,
+        21.0, 21.0, 22.8, 21.4, 18.7, 18.1, 14.3, 24.4, 22.8, 19.2, 17.8, 16.4, 17.3, 15.2, 10.4,
+        10.4, 14.7, 32.4, 30.4, 33.9, 21.5, 15.5, 15.2, 13.3, 19.2, 27.3, 26.0, 30.4, 15.8, 19.7,
         15.0, 21.4,
     ]; // mpg
 
     let x1 = vec![
-        6.0, 6.0, 4.0, 6.0, 8.0, 6.0, 8.0, 4.0, 4.0, 6.0,
-        6.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 4.0, 4.0, 4.0,
-        4.0, 8.0, 8.0, 8.0, 8.0, 4.0, 4.0, 4.0, 8.0, 8.0,
-        8.0, 8.0,
+        6.0, 6.0, 4.0, 6.0, 8.0, 6.0, 8.0, 4.0, 4.0, 6.0, 6.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 4.0,
+        4.0, 4.0, 4.0, 8.0, 8.0, 8.0, 8.0, 4.0, 4.0, 4.0, 8.0, 8.0, 8.0, 8.0,
     ]; // cyl
 
     let x2 = vec![
-        160.0, 160.0, 108.0, 258.0, 360.0, 225.0, 360.0, 146.7, 140.8, 167.6,
-        167.6, 275.8, 275.8, 275.8, 472.0, 460.0, 440.0, 97.0, 78.7, 75.7,
-        71.1, 120.1, 318.0, 304.0, 350.0, 79.0, 120.3, 95.1, 351.0, 145.0,
-        301.0, 121.0,
+        160.0, 160.0, 108.0, 258.0, 360.0, 225.0, 360.0, 146.7, 140.8, 167.6, 167.6, 275.8, 275.8,
+        275.8, 472.0, 460.0, 440.0, 97.0, 78.7, 75.7, 71.1, 120.1, 318.0, 304.0, 350.0, 79.0,
+        120.3, 95.1, 351.0, 145.0, 301.0, 121.0,
     ]; // disp
 
     let x_vars = vec![x1, x2];
@@ -45,7 +41,7 @@ fn main() {
                 println!("  statistic={:.4}, p-value={:.4}", r.statistic, r.p_value);
                 println!("  Interpretation: p < 0.05 suggests non-linearity");
             }
-        }
+        },
         Err(e) => println!("  Rainbow Test error: {}", e),
     }
 
@@ -55,7 +51,7 @@ fn main() {
             println!("Harvey-Collier Test:");
             println!("  statistic={:.4}, p-value={:.4}", hc.statistic, hc.p_value);
             println!("  Interpretation: p < 0.05 suggests functional form misspecification");
-        }
+        },
         Err(e) => println!("  Harvey-Collier Test error: {}", e),
     }
 
@@ -72,7 +68,7 @@ fn main() {
             println!("Breusch-Pagan Test:");
             println!("  statistic={:.4}, p-value={:.4}", bp.statistic, bp.p_value);
             println!("  Interpretation: p < 0.05 suggests heteroscedasticity");
-        }
+        },
         Err(e) => println!("  Breusch-Pagan Test error: {}", e),
     }
 
@@ -83,7 +79,7 @@ fn main() {
                 println!("White Test (R method):");
                 println!("  statistic={:.4}, p-value={:.4}", r.statistic, r.p_value);
             }
-        }
+        },
         Err(e) => println!("  White Test error: {}", e),
     }
 
@@ -100,7 +96,7 @@ fn main() {
             println!("Jarque-Bera Test:");
             println!("  statistic={:.4}, p-value={:.4}", jb.statistic, jb.p_value);
             println!("  Interpretation: p < 0.05 suggests non-normal residuals");
-        }
+        },
         Err(e) => println!("  Jarque-Bera Test error: {}", e),
     }
 
@@ -109,7 +105,7 @@ fn main() {
         Ok(sw) => {
             println!("Shapiro-Wilk Test:");
             println!("  statistic={:.4}, p-value={:.4}", sw.statistic, sw.p_value);
-        }
+        },
         Err(e) => println!("  Shapiro-Wilk Test error: {}", e),
     }
 
@@ -118,7 +114,7 @@ fn main() {
         Ok(ad) => {
             println!("Anderson-Darling Test:");
             println!("  statistic={:.4}, p-value={:.4}", ad.statistic, ad.p_value);
-        }
+        },
         Err(e) => println!("  Anderson-Darling Test error: {}", e),
     }
 
@@ -137,7 +133,7 @@ fn main() {
             println!("    - Value near 2.0: no autocorrelation");
             println!("    - Value < 1.5: positive autocorrelation");
             println!("    - Value > 2.5: negative autocorrelation");
-        }
+        },
         Err(e) => println!("  Durbin-Watson Test error: {}", e),
     }
 
@@ -160,7 +156,7 @@ fn main() {
                     println!("    Observation {}: {:.4}", idx + 1, cooks.distances[*idx]);
                 }
             }
-        }
+        },
         Err(e) => println!("  Cook's Distance error: {}", e),
     }
 }

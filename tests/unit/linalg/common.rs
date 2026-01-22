@@ -18,7 +18,11 @@ pub fn assert_close(a: f64, b: f64, tolerance: f64, context: &str) {
     assert!(
         diff <= tolerance,
         "{}: {} != {}, diff = {} (tolerance = {})",
-        context, a, b, diff, tolerance
+        context,
+        a,
+        b,
+        diff,
+        tolerance
     );
 }
 

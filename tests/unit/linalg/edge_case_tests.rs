@@ -5,8 +5,8 @@
 // Tests for special floating-point values (NaN, Infinity, subnormals),
 // large-scale stress testing, and numerical edge cases.
 
-use linreg_core::linalg::{Matrix, vec_mean, vec_dot, vec_l2_norm, vec_max_abs};
 use super::common::EPSILON;
+use linreg_core::linalg::{vec_dot, vec_l2_norm, vec_max_abs, vec_mean, Matrix};
 
 // ============================================================================
 // NaN (Not-a-Number) Tests
@@ -75,10 +75,11 @@ fn test_matrix_matmul_with_nan() {
     let b = Matrix::new(2, 2, vec![5.0, 6.0, 7.0, 8.0]);
     let result = a.matmul(&b);
     // At least one element should be NaN
-    let has_nan = (0..result.rows).any(|i| {
-        (0..result.cols).any(|j| result.get(i, j).is_nan())
-    });
-    assert!(has_nan, "Matrix multiplication with NaN should propagate NaN");
+    let has_nan = (0..result.rows).any(|i| (0..result.cols).any(|j| result.get(i, j).is_nan()));
+    assert!(
+        has_nan,
+        "Matrix multiplication with NaN should propagate NaN"
+    );
 }
 
 // ============================================================================
@@ -89,16 +90,28 @@ fn test_matrix_matmul_with_nan() {
 fn test_vec_mean_with_infinity() {
     let v = vec![1.0, f64::INFINITY, 3.0];
     let result = vec_mean(&v);
-    assert!(result.is_infinite(), "Mean with Infinity should be infinite");
-    assert!(result.is_sign_positive(), "Mean with positive Infinity should be positive");
+    assert!(
+        result.is_infinite(),
+        "Mean with Infinity should be infinite"
+    );
+    assert!(
+        result.is_sign_positive(),
+        "Mean with positive Infinity should be positive"
+    );
 }
 
 #[test]
 fn test_vec_mean_with_negative_infinity() {
     let v = vec![1.0, f64::NEG_INFINITY, 3.0];
     let result = vec_mean(&v);
-    assert!(result.is_infinite(), "Mean with -Infinity should be infinite");
-    assert!(result.is_sign_negative(), "Mean with negative Infinity should be negative");
+    assert!(
+        result.is_infinite(),
+        "Mean with -Infinity should be infinite"
+    );
+    assert!(
+        result.is_sign_negative(),
+        "Mean with negative Infinity should be negative"
+    );
 }
 
 #[test]
@@ -114,21 +127,30 @@ fn test_vec_dot_with_infinity() {
     let a = vec![1.0, 2.0, 3.0];
     let b = vec![f64::INFINITY, 1.0, 1.0];
     let result = vec_dot(&a, &b);
-    assert!(result.is_infinite(), "Dot product with Infinity should be infinite");
+    assert!(
+        result.is_infinite(),
+        "Dot product with Infinity should be infinite"
+    );
 }
 
 #[test]
 fn test_vec_l2_norm_with_infinity() {
     let v = vec![1.0, f64::INFINITY, 3.0];
     let result = vec_l2_norm(&v);
-    assert!(result.is_infinite(), "L2 norm with Infinity should be infinite");
+    assert!(
+        result.is_infinite(),
+        "L2 norm with Infinity should be infinite"
+    );
 }
 
 #[test]
 fn test_vec_max_abs_with_infinity() {
     let v = vec![1.0, f64::NEG_INFINITY, 3.0];
     let result = vec_max_abs(&v);
-    assert!(result.is_infinite(), "max_abs with Infinity should be infinite");
+    assert!(
+        result.is_infinite(),
+        "max_abs with Infinity should be infinite"
+    );
 }
 
 #[test]
@@ -136,7 +158,10 @@ fn test_matrix_operations_with_infinity() {
     let m = Matrix::new(2, 2, vec![1.0, f64::INFINITY, 3.0, 4.0]);
     let v = vec![1.0, 2.0];
     let result = m.mul_vec(&v);
-    assert!(result[0].is_infinite(), "Matrix-vector mul with Infinity should propagate");
+    assert!(
+        result[0].is_infinite(),
+        "Matrix-vector mul with Infinity should propagate"
+    );
 }
 
 // ============================================================================
@@ -159,7 +184,10 @@ fn test_vec_dot_with_subnormals() {
     let b = vec![3e-310, 4e-310];
     let result = vec_dot(&a, &b);
     // These are below f64::MIN_POSITIVE, should still work
-    assert!(result >= 0.0, "Dot product with subnormals should be non-negative");
+    assert!(
+        result >= 0.0,
+        "Dot product with subnormals should be non-negative"
+    );
 }
 
 #[test]
@@ -255,7 +283,13 @@ fn test_large_matrix_multiplication() {
     for i in 0..n {
         for j in 0..n {
             let diff = (result.get(i, j) - result2.get(i, j)).abs();
-            assert!(diff < 1e-9, "Associativity failed at [{},{}]: diff = {}", i, j, diff);
+            assert!(
+                diff < 1e-9,
+                "Associativity failed at [{},{}]: diff = {}",
+                i,
+                j,
+                diff
+            );
         }
     }
 }
@@ -278,14 +312,25 @@ fn test_large_qr_decomposition() {
         for j in 0..m {
             let expected = if i == j { 1.0 } else { 0.0 };
             let diff = (qt_q.get(i, j) - expected).abs();
-            assert!(diff < 1e-6, "Q not orthogonal at [{},{}]: diff = {}", i, j, diff);
+            assert!(
+                diff < 1e-6,
+                "Q not orthogonal at [{},{}]: diff = {}",
+                i,
+                j,
+                diff
+            );
         }
     }
 
     // Verify R is upper triangular
     for i in 1..r.rows {
         for j in 0..i.min(r.cols) {
-            assert!(r.get(i, j).abs() < 1e-6, "R not upper triangular at [{},{}]", i, j);
+            assert!(
+                r.get(i, j).abs() < 1e-6,
+                "R not upper triangular at [{},{}]",
+                i,
+                j
+            );
         }
     }
 }
@@ -308,7 +353,10 @@ fn test_large_matrix_inversion() {
     let a = Matrix::new(n, n, data);
     let inv = a.invert();
 
-    assert!(inv.is_some(), "Large diagonally dominant matrix should be invertible");
+    assert!(
+        inv.is_some(),
+        "Large diagonally dominant matrix should be invertible"
+    );
 
     let inv = inv.unwrap();
     let result = a.matmul(&inv);
@@ -318,7 +366,13 @@ fn test_large_matrix_inversion() {
         for j in 0..n {
             let expected = if i == j { 1.0 } else { 0.0 };
             let diff = (result.get(i, j) - expected).abs();
-            assert!(diff < 1e-6, "Large inversion failed at [{},{}]: diff = {}", i, j, diff);
+            assert!(
+                diff < 1e-6,
+                "Large inversion failed at [{},{}]: diff = {}",
+                i,
+                j,
+                diff
+            );
         }
     }
 }
@@ -379,12 +433,19 @@ fn test_hilbert_matrix_qr() {
     // R should be upper triangular
     for i in 1..n {
         for j in 0..i {
-            assert!(r.get(i, j).abs() < 1e-9, "Hilbert R not upper triangular at [{},{}]", i, j);
+            assert!(
+                r.get(i, j).abs() < 1e-9,
+                "Hilbert R not upper triangular at [{},{}]",
+                i,
+                j
+            );
         }
     }
 
     // The diagonal of R should be very small (ill-conditioned)
-    let min_diag = (0..n).map(|i| r.get(i, i).abs()).fold(f64::INFINITY, f64::min);
+    let min_diag = (0..n)
+        .map(|i| r.get(i, i).abs())
+        .fold(f64::INFINITY, f64::min);
     assert!(min_diag < 1e-3, "Hilbert matrix R diagonal should be small");
 }
 
@@ -394,10 +455,8 @@ fn test_ill_conditioned_matrix_inversion() {
     let n = 4;
     // Using a matrix that's nearly singular
     let data = vec![
-        1.0, 1.0, 1.0, 1.0,
-        1.0, 1.000001, 1.0, 1.0,
-        1.0, 1.0, 1.000001, 1.0,
-        1.0, 1.0, 1.0, 1.000001,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.000001, 1.0, 1.0, 1.0, 1.0, 1.000001, 1.0, 1.0, 1.0, 1.0,
+        1.000001,
     ];
 
     let m = Matrix::new(n, n, data);
@@ -412,7 +471,13 @@ fn test_ill_conditioned_matrix_inversion() {
             for j in 0..n {
                 let expected = if i == j { 1.0 } else { 0.0 };
                 let diff = (result.get(i, j) - expected).abs();
-                assert!(diff < 0.1, "Ill-conditioned inversion error at [{},{}]: diff = {}", i, j, diff);
+                assert!(
+                    diff < 0.1,
+                    "Ill-conditioned inversion error at [{},{}]: diff = {}",
+                    i,
+                    j,
+                    diff
+                );
             }
         }
     }
@@ -483,11 +548,7 @@ fn test_householder_stability_edge_case() {
 #[test]
 fn test_matrix_with_wide_dynamic_range() {
     // Matrix with elements spanning many orders of magnitude
-    let data = vec![
-        1e100, 1e-100, 1.0,
-        1e-100, 1e100, 1.0,
-        1.0, 1.0, 1.0,
-    ];
+    let data = vec![1e100, 1e-100, 1.0, 1e-100, 1e100, 1.0, 1.0, 1.0, 1.0];
 
     let m = Matrix::new(3, 3, data);
 

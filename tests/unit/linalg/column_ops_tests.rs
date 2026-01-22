@@ -5,8 +5,8 @@
 // Tests for column-specific matrix operations: col_dot, col_axpy_inplace,
 // col_norm2, and add_diagonal_in_place.
 
+use super::common::{assert_close, EPSILON};
 use linreg_core::linalg::Matrix;
-use super::common::{EPSILON, assert_close};
 
 // ============================================================================
 // col_dot() Tests
@@ -233,11 +233,7 @@ fn test_col_norm2_panic_invalid_column() {
 
 #[test]
 fn test_add_diagonal_in_place_basic() {
-    let mut m = Matrix::new(
-        3,
-        3,
-        vec![1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0],
-    );
+    let mut m = Matrix::new(3, 3, vec![1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0]);
 
     m.add_diagonal_in_place(5.0, 0);
 
@@ -257,8 +253,7 @@ fn test_add_diagonal_in_place_start_index() {
         4,
         4,
         vec![
-            1.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0,
-            0.0, 0.0, 4.0,
+            1.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 4.0,
         ],
     );
 
@@ -277,13 +272,7 @@ fn test_add_diagonal_in_place_start_index() {
 #[test]
 fn test_add_diagonal_in_place_ridge_regression() {
     // Simulate ridge regression where intercept column is not penalized
-    let mut m = Matrix::new(
-        3,
-        3,
-        vec![
-            10.0, 1.0, 2.0, 3.0, 20.0, 4.0, 5.0, 6.0, 30.0,
-        ],
-    );
+    let mut m = Matrix::new(3, 3, vec![10.0, 1.0, 2.0, 3.0, 20.0, 4.0, 5.0, 6.0, 30.0]);
 
     let lambda = 2.0;
     // Don't penalize intercept (column 0)
@@ -299,11 +288,7 @@ fn test_add_diagonal_in_place_ridge_regression() {
 
 #[test]
 fn test_add_diagonal_in_place_negative_value() {
-    let mut m = Matrix::new(
-        2,
-        2,
-        vec![10.0, 1.0, 2.0, 20.0],
-    );
+    let mut m = Matrix::new(2, 2, vec![10.0, 1.0, 2.0, 20.0]);
 
     m.add_diagonal_in_place(-3.0, 0);
 
@@ -313,11 +298,7 @@ fn test_add_diagonal_in_place_negative_value() {
 
 #[test]
 fn test_add_diagonal_in_place_zero_value() {
-    let mut m = Matrix::new(
-        2,
-        2,
-        vec![1.0, 2.0, 3.0, 4.0],
-    );
+    let mut m = Matrix::new(2, 2, vec![1.0, 2.0, 3.0, 4.0]);
 
     let m_copy = m.clone();
     m.add_diagonal_in_place(0.0, 0);
@@ -329,11 +310,7 @@ fn test_add_diagonal_in_place_zero_value() {
 
 #[test]
 fn test_add_diagonal_in_place_start_at_end() {
-    let mut m = Matrix::new(
-        3,
-        3,
-        vec![1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0],
-    );
+    let mut m = Matrix::new(3, 3, vec![1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0]);
 
     // Start at index 3 (past the last element)
     m.add_diagonal_in_place(5.0, 3);
@@ -390,7 +367,8 @@ fn test_col_dot_matches_matmul_element() {
     let weights = vec![m2.get(0, 0), m2.get(1, 0)];
 
     let mut computed = vec![0.0; 3];
-    computed[0] = m1.col_dot(0, &vec![weights[0], 0.0, 0.0]) + m1.col_dot(1, &vec![0.0, weights[1], 0.0]);
+    computed[0] =
+        m1.col_dot(0, &vec![weights[0], 0.0, 0.0]) + m1.col_dot(1, &vec![0.0, weights[1], 0.0]);
 
     // let's just verify the basic property:
     // col_dot of column with unit vector gives the element at that position
@@ -398,11 +376,41 @@ fn test_col_dot_matches_matmul_element() {
     let unit_1 = vec![0.0, 1.0, 0.0];
     let unit_2 = vec![0.0, 0.0, 1.0];
 
-    assert_close(m1.col_dot(0, &unit_0), 1.0, EPSILON, "unit vector check 0,0");
-    assert_close(m1.col_dot(0, &unit_1), 2.0, EPSILON, "unit vector check 1,0");
-    assert_close(m1.col_dot(0, &unit_2), 3.0, EPSILON, "unit vector check 2,0");
+    assert_close(
+        m1.col_dot(0, &unit_0),
+        1.0,
+        EPSILON,
+        "unit vector check 0,0",
+    );
+    assert_close(
+        m1.col_dot(0, &unit_1),
+        2.0,
+        EPSILON,
+        "unit vector check 1,0",
+    );
+    assert_close(
+        m1.col_dot(0, &unit_2),
+        3.0,
+        EPSILON,
+        "unit vector check 2,0",
+    );
 
-    assert_close(m1.col_dot(1, &unit_0), 4.0, EPSILON, "unit vector check 0,1");
-    assert_close(m1.col_dot(1, &unit_1), 5.0, EPSILON, "unit vector check 1,1");
-    assert_close(m1.col_dot(1, &unit_2), 6.0, EPSILON, "unit vector check 2,1");
+    assert_close(
+        m1.col_dot(1, &unit_0),
+        4.0,
+        EPSILON,
+        "unit vector check 0,1",
+    );
+    assert_close(
+        m1.col_dot(1, &unit_1),
+        5.0,
+        EPSILON,
+        "unit vector check 1,1",
+    );
+    assert_close(
+        m1.col_dot(1, &unit_2),
+        6.0,
+        EPSILON,
+        "unit vector check 2,1",
+    );
 }

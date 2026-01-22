@@ -11,8 +11,8 @@
 #![cfg(target_arch = "wasm32")]
 
 extern crate wasm_bindgen_test;
-use wasm_bindgen_test::*;
 use linear_regression_wasm::*;
+use wasm_bindgen_test::*;
 
 // ============================================================================
 // Test Fixtures
@@ -20,27 +20,25 @@ use linear_regression_wasm::*;
 
 fn get_housing_y() -> String {
     serde_json::to_string(&vec![
-        245.5, 312.8, 198.4, 425.6, 278.9, 356.2, 189.5, 512.3, 234.7, 298.1,
-        445.8, 167.9, 367.4, 289.6, 198.2, 478.5, 256.3, 334.7, 178.5, 398.9,
-        223.4, 312.5, 156.8, 423.7, 267.9
-    ]).unwrap()
+        245.5, 312.8, 198.4, 425.6, 278.9, 356.2, 189.5, 512.3, 234.7, 298.1, 445.8, 167.9, 367.4,
+        289.6, 198.2, 478.5, 256.3, 334.7, 178.5, 398.9, 223.4, 312.5, 156.8, 423.7, 267.9,
+    ])
+    .unwrap()
 }
 
 fn get_housing_x_vars() -> String {
     let square_feet = vec![
-        1200.0, 1800.0, 950.0, 2400.0, 1450.0, 2000.0, 1100.0, 2800.0, 1350.0, 1650.0,
-        2200.0, 900.0, 1950.0, 1500.0, 1050.0, 2600.0, 1300.0, 1850.0, 1000.0, 2100.0,
-        1250.0, 1700.0, 850.0, 2350.0, 1400.0
+        1200.0, 1800.0, 950.0, 2400.0, 1450.0, 2000.0, 1100.0, 2800.0, 1350.0, 1650.0, 2200.0,
+        900.0, 1950.0, 1500.0, 1050.0, 2600.0, 1300.0, 1850.0, 1000.0, 2100.0, 1250.0, 1700.0,
+        850.0, 2350.0, 1400.0,
     ];
     let bedrooms = vec![
-        3.0, 4.0, 2.0, 4.0, 3.0, 4.0, 2.0, 5.0, 3.0, 3.0,
-        4.0, 2.0, 4.0, 3.0, 2.0, 5.0, 3.0, 4.0, 2.0, 4.0,
-        3.0, 3.0, 2.0, 4.0, 3.0
+        3.0, 4.0, 2.0, 4.0, 3.0, 4.0, 2.0, 5.0, 3.0, 3.0, 4.0, 2.0, 4.0, 3.0, 2.0, 5.0, 3.0, 4.0,
+        2.0, 4.0, 3.0, 3.0, 2.0, 4.0, 3.0,
     ];
     let age = vec![
-        15.0, 10.0, 25.0, 5.0, 8.0, 12.0, 20.0, 2.0, 18.0, 7.0,
-        3.0, 30.0, 6.0, 14.0, 22.0, 1.0, 16.0, 9.0, 28.0, 4.0,
-        19.0, 11.0, 35.0, 3.0, 13.0
+        15.0, 10.0, 25.0, 5.0, 8.0, 12.0, 20.0, 2.0, 18.0, 7.0, 3.0, 30.0, 6.0, 14.0, 22.0, 1.0,
+        16.0, 9.0, 28.0, 4.0, 19.0, 11.0, 35.0, 3.0, 13.0,
     ];
     serde_json::to_string(&vec![square_feet, bedrooms, age]).unwrap()
 }
@@ -62,14 +60,15 @@ fn test_wasm_ols_regression() {
     let result_json = ols_regression(&y_json, &x_vars_json, &names_json);
 
     // Should be valid JSON
-    let result: serde_json::Value = serde_json::from_str(&result_json)
-        .expect("Result should be valid JSON");
+    let result: serde_json::Value =
+        serde_json::from_str(&result_json).expect("Result should be valid JSON");
 
     // Check structure
     assert!(result.is_object(), "Result should be an object");
 
     // Check coefficients array exists
-    let coefficients = result.get("coefficients")
+    let coefficients = result
+        .get("coefficients")
         .expect("Should have coefficients")
         .as_array()
         .expect("coefficients should be an array");
@@ -77,12 +76,16 @@ fn test_wasm_ols_regression() {
     assert_eq!(coefficients.len(), 4, "Should have 4 coefficients");
 
     // Check R-squared exists and is in valid range
-    let r_squared = result.get("r_squared")
+    let r_squared = result
+        .get("r_squared")
         .expect("Should have r_squared")
         .as_f64()
         .expect("r_squared should be a number");
 
-    assert!(r_squared > 0.0 && r_squared <= 1.0, "R² should be in [0, 1]");
+    assert!(
+        r_squared > 0.0 && r_squared <= 1.0,
+        "R² should be in [0, 1]"
+    );
     assert!(r_squared > 0.9, "Housing data should have high R²");
 }
 
@@ -116,20 +119,26 @@ fn test_wasm_rainbow_test() {
     let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
 
     // Should have test name
-    let test_name = result.get("test_name")
+    let test_name = result
+        .get("test_name")
         .expect("Should have test_name")
         .as_str()
         .unwrap();
 
-    assert!(test_name.contains("Rainbow"), "Test name should mention Rainbow");
+    assert!(
+        test_name.contains("Rainbow"),
+        "Test name should mention Rainbow"
+    );
 
     // Should have R result
-    let r_result = result.get("r_result")
+    let r_result = result
+        .get("r_result")
         .expect("Should have r_result for 'r' method");
 
     assert!(r_result.is_object(), "r_result should be an object");
 
-    let statistic = r_result.get("statistic")
+    let statistic = r_result
+        .get("statistic")
         .expect("Should have statistic")
         .as_f64()
         .unwrap();
@@ -146,8 +155,14 @@ fn test_wasm_rainbow_test_python_method() {
     let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
 
     // Should have python_result, not r_result
-    assert!(result.get("python_result").is_some(), "Should have python_result");
-    assert!(result.get("r_result").is_none(), "Should not have r_result for python method");
+    assert!(
+        result.get("python_result").is_some(),
+        "Should have python_result"
+    );
+    assert!(
+        result.get("r_result").is_none(),
+        "Should not have r_result for python method"
+    );
 }
 
 #[wasm_bindgen_test]
@@ -160,7 +175,10 @@ fn test_wasm_rainbow_test_both_methods() {
 
     // Should have both results
     assert!(result.get("r_result").is_some(), "Should have r_result");
-    assert!(result.get("python_result").is_some(), "Should have python_result");
+    assert!(
+        result.get("python_result").is_some(),
+        "Should have python_result"
+    );
 }
 
 #[wasm_bindgen_test]
@@ -172,16 +190,20 @@ fn test_wasm_harvey_collier_test() {
     let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
 
     // Should have test name
-    let test_name = result.get("test_name")
+    let test_name = result
+        .get("test_name")
         .expect("Should have test_name")
         .as_str()
         .unwrap();
 
-    assert!(test_name.contains("Harvey-Collier") || test_name.contains("Harvey"),
-        "Test name should mention Harvey-Collier");
+    assert!(
+        test_name.contains("Harvey-Collier") || test_name.contains("Harvey"),
+        "Test name should mention Harvey-Collier"
+    );
 
     // Should have statistic
-    let statistic = result.get("statistic")
+    let statistic = result
+        .get("statistic")
         .expect("Should have statistic")
         .as_f64()
         .unwrap();
@@ -198,13 +220,16 @@ fn test_wasm_breusch_pagan_test() {
     let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
 
     // Should have test name
-    let test_name = result.get("test_name")
+    let test_name = result
+        .get("test_name")
         .expect("Should have test_name")
         .as_str()
         .unwrap();
 
-    assert!(test_name.contains("Breusch-Pagan") || test_name.contains("Breusch"),
-        "Test name should mention Breusch-Pagan");
+    assert!(
+        test_name.contains("Breusch-Pagan") || test_name.contains("Breusch"),
+        "Test name should mention Breusch-Pagan"
+    );
 
     // Should have statistic and p_value
     assert!(result.get("statistic").is_some(), "Should have statistic");
@@ -220,15 +245,20 @@ fn test_wasm_white_test() {
     let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
 
     // Should have test name
-    let test_name = result.get("test_name")
+    let test_name = result
+        .get("test_name")
         .expect("Should have test_name")
         .as_str()
         .unwrap();
 
-    assert!(test_name.contains("White"), "Test name should mention White");
+    assert!(
+        test_name.contains("White"),
+        "Test name should mention White"
+    );
 
     // Should have R result
-    let r_result = result.get("r_result")
+    let r_result = result
+        .get("r_result")
         .expect("Should have r_result for 'r' method");
 
     assert!(r_result.is_object(), "r_result should be an object");
@@ -243,16 +273,20 @@ fn test_wasm_jarque_bera_test() {
     let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
 
     // Should have test name
-    let test_name = result.get("test_name")
+    let test_name = result
+        .get("test_name")
         .expect("Should have test_name")
         .as_str()
         .unwrap();
 
-    assert!(test_name.contains("Jarque-Bera") || test_name.contains("Jarque"),
-        "Test name should mention Jarque-Bera");
+    assert!(
+        test_name.contains("Jarque-Bera") || test_name.contains("Jarque"),
+        "Test name should mention Jarque-Bera"
+    );
 
     // Should have statistic
-    let statistic = result.get("statistic")
+    let statistic = result
+        .get("statistic")
         .expect("Should have statistic")
         .as_f64()
         .unwrap();
@@ -269,22 +303,29 @@ fn test_wasm_durbin_watson_test() {
     let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
 
     // Should have test name
-    let test_name = result.get("test_name")
+    let test_name = result
+        .get("test_name")
         .expect("Should have test_name")
         .as_str()
         .unwrap();
 
-    assert!(test_name.contains("Durbin-Watson") || test_name.contains("Durbin"),
-        "Test name should mention Durbin-Watson");
+    assert!(
+        test_name.contains("Durbin-Watson") || test_name.contains("Durbin"),
+        "Test name should mention Durbin-Watson"
+    );
 
     // DW statistic should be in [0, 4]
-    let statistic = result.get("statistic")
+    let statistic = result
+        .get("statistic")
         .expect("Should have statistic")
         .as_f64()
         .unwrap();
 
-    assert!(statistic >= 0.0 && statistic <= 4.0,
-        "DW statistic should be in [0, 4], got {}", statistic);
+    assert!(
+        statistic >= 0.0 && statistic <= 4.0,
+        "DW statistic should be in [0, 4], got {}",
+        statistic
+    );
 }
 
 // ============================================================================
@@ -317,12 +358,17 @@ fn test_wasm_error_handling_insufficient_data() {
     let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
 
     // Should have error field
-    assert!(result.get("error").is_some(), "Should return error for insufficient data");
+    assert!(
+        result.get("error").is_some(),
+        "Should return error for insufficient data"
+    );
 
     let error_msg = result.get("error").unwrap().as_str().unwrap();
-    assert!(error_msg.to_lowercase().contains("insufficient") ||
-            error_msg.to_lowercase().contains("data"),
-        "Error should mention insufficient data");
+    assert!(
+        error_msg.to_lowercase().contains("insufficient")
+            || error_msg.to_lowercase().contains("data"),
+        "Error should mention insufficient data"
+    );
 }
 
 #[wasm_bindgen_test]
@@ -340,12 +386,17 @@ fn test_wasm_error_handling_singular_matrix() {
     let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
 
     // Should have error field
-    assert!(result.get("error").is_some(), "Should return error for singular matrix");
+    assert!(
+        result.get("error").is_some(),
+        "Should return error for singular matrix"
+    );
 
     let error_msg = result.get("error").unwrap().as_str().unwrap();
-    assert!(error_msg.to_lowercase().contains("singular") ||
-            error_msg.to_lowercase().contains("multicollinearity"),
-        "Error should mention singular or multicollinearity");
+    assert!(
+        error_msg.to_lowercase().contains("singular")
+            || error_msg.to_lowercase().contains("multicollinearity"),
+        "Error should mention singular or multicollinearity"
+    );
 }
 
 // ============================================================================
@@ -360,7 +411,8 @@ fn test_wasm_csv_parsing() {
     let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
 
     // Should have headers
-    let headers = result.get("headers")
+    let headers = result
+        .get("headers")
         .expect("Should have headers")
         .as_array()
         .unwrap();
@@ -368,7 +420,8 @@ fn test_wasm_csv_parsing() {
     assert_eq!(headers.len(), 3, "Should have 3 headers");
 
     // Should have data
-    let data = result.get("data")
+    let data = result
+        .get("data")
         .expect("Should have data")
         .as_array()
         .unwrap();
@@ -376,12 +429,16 @@ fn test_wasm_csv_parsing() {
     assert_eq!(data.len(), 3, "Should have 3 data rows");
 
     // Should have numeric_columns
-    let numeric = result.get("numeric_columns")
+    let numeric = result
+        .get("numeric_columns")
         .expect("Should have numeric_columns")
         .as_array()
         .unwrap();
 
-    assert!(numeric.len() >= 2, "Should have at least 2 numeric columns (Age, Score)");
+    assert!(
+        numeric.len() >= 2,
+        "Should have at least 2 numeric columns (Age, Score)"
+    );
 }
 
 #[wasm_bindgen_test]
@@ -392,7 +449,8 @@ fn test_wasm_csv_parsing_invalid() {
     let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
 
     // Empty CSV should still return valid structure with empty arrays
-    let headers = result.get("headers")
+    let headers = result
+        .get("headers")
         .expect("Should have headers field")
         .as_array()
         .unwrap();
@@ -420,8 +478,11 @@ fn test_wasm_get_t_critical() {
     let t_crit = get_t_critical(0.05, 10.0);
 
     // For df=10, alpha=0.05, t-critical ≈ 2.23
-    assert!(t_crit > 2.0 && t_crit < 2.5,
-        "t-critical for df=10, alpha=0.05 should be ~2.23, got {}", t_crit);
+    assert!(
+        t_crit > 2.0 && t_crit < 2.5,
+        "t-critical for df=10, alpha=0.05 should be ~2.23, got {}",
+        t_crit
+    );
 }
 
 #[wasm_bindgen_test]
@@ -432,8 +493,11 @@ fn test_wasm_get_normal_inverse() {
 
     // p = 0.975 should give z ≈ 1.96
     let z_975 = get_normal_inverse(0.975);
-    assert!(z_975 > 1.9 && z_975 < 2.0,
-        "p=0.975 should give z ≈ 1.96, got {}", z_975);
+    assert!(
+        z_975 > 1.9 && z_975 < 2.0,
+        "p=0.975 should give z ≈ 1.96, got {}",
+        z_975
+    );
 }
 
 #[wasm_bindgen_test]
@@ -457,30 +521,45 @@ fn test_wasm_full_diagnostic_workflow() {
     // Run regression
     let regression_result = ols_regression(&y_json, &x_vars_json, &names_json);
     let reg: serde_json::Value = serde_json::from_str(&regression_result).unwrap();
-    assert!(reg.get("coefficients").is_some(), "Regression should succeed");
+    assert!(
+        reg.get("coefficients").is_some(),
+        "Regression should succeed"
+    );
 
     // Run all 6 diagnostic tests
     let rainbow = rainbow_test(&y_json, &x_vars_json, 0.5, "r");
-    assert!(serde_json::from_str::<serde_json::Value>(&rainbow).is_ok(),
-        "Rainbow test should return valid JSON");
+    assert!(
+        serde_json::from_str::<serde_json::Value>(&rainbow).is_ok(),
+        "Rainbow test should return valid JSON"
+    );
 
     let hc = harvey_collier_test(&y_json, &x_vars_json);
-    assert!(serde_json::from_str::<serde_json::Value>(&hc).is_ok(),
-        "Harvey-Collier test should return valid JSON");
+    assert!(
+        serde_json::from_str::<serde_json::Value>(&hc).is_ok(),
+        "Harvey-Collier test should return valid JSON"
+    );
 
     let bp = breusch_pagan_test(&y_json, &x_vars_json);
-    assert!(serde_json::from_str::<serde_json::Value>(&bp).is_ok(),
-        "Breusch-Pagan test should return valid JSON");
+    assert!(
+        serde_json::from_str::<serde_json::Value>(&bp).is_ok(),
+        "Breusch-Pagan test should return valid JSON"
+    );
 
     let white = white_test(&y_json, &x_vars_json, "r");
-    assert!(serde_json::from_str::<serde_json::Value>(&white).is_ok(),
-        "White test should return valid JSON");
+    assert!(
+        serde_json::from_str::<serde_json::Value>(&white).is_ok(),
+        "White test should return valid JSON"
+    );
 
     let jb = jarque_bera_test(&y_json, &x_vars_json);
-    assert!(serde_json::from_str::<serde_json::Value>(&jb).is_ok(),
-        "Jarque-Bera test should return valid JSON");
+    assert!(
+        serde_json::from_str::<serde_json::Value>(&jb).is_ok(),
+        "Jarque-Bera test should return valid JSON"
+    );
 
     let dw = durbin_watson_test(&y_json, &x_vars_json);
-    assert!(serde_json::from_str::<serde_json::Value>(&dw).is_ok(),
-        "Durbin-Watson test should return valid JSON");
+    assert!(
+        serde_json::from_str::<serde_json::Value>(&dw).is_ok(),
+        "Durbin-Watson test should return valid JSON"
+    );
 }

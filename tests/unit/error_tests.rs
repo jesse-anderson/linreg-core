@@ -4,7 +4,7 @@
 //
 // Tests for all error variants, display formatting, and JSON serialization.
 
-use linreg_core::{Error, error_json, error_to_json};
+use linreg_core::{error_json, error_to_json, Error};
 
 // ============================================================================
 // Error Display Tests
@@ -29,7 +29,10 @@ fn test_error_display_singular_matrix() {
 
 #[test]
 fn test_error_display_insufficient_data() {
-    let err = Error::InsufficientData { required: 10, available: 5 };
+    let err = Error::InsufficientData {
+        required: 10,
+        available: 5,
+    };
     let display = format!("{}", err);
 
     assert!(
@@ -110,7 +113,10 @@ fn test_error_json_format() {
 
     // Should be valid JSON with "error" field
     assert!(json.contains("\"error\""), "JSON should have 'error' field");
-    assert!(json.contains("Test error"), "JSON should contain the message");
+    assert!(
+        json.contains("Test error"),
+        "JSON should contain the message"
+    );
 }
 
 #[test]
@@ -118,8 +124,7 @@ fn test_error_json_exact_format() {
     let json = error_json("Test message");
 
     // Parse as JSON to verify structure
-    let parsed: serde_json::Value = serde_json::from_str(&json)
-        .expect("Should be valid JSON");
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("Should be valid JSON");
 
     assert!(parsed.is_object(), "Should be a JSON object");
     assert!(parsed.get("error").is_some(), "Should have 'error' field");
@@ -135,8 +140,7 @@ fn test_error_to_json_singular_matrix() {
     let err = Error::SingularMatrix;
     let json = error_to_json(&err);
 
-    let parsed: serde_json::Value = serde_json::from_str(&json)
-        .expect("Should be valid JSON");
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("Should be valid JSON");
 
     assert!(parsed.get("error").is_some());
     let error_msg = parsed.get("error").unwrap().as_str().unwrap();
@@ -145,11 +149,13 @@ fn test_error_to_json_singular_matrix() {
 
 #[test]
 fn test_error_to_json_insufficient_data() {
-    let err = Error::InsufficientData { required: 10, available: 5 };
+    let err = Error::InsufficientData {
+        required: 10,
+        available: 5,
+    };
     let json = error_to_json(&err);
 
-    let parsed: serde_json::Value = serde_json::from_str(&json)
-        .expect("Should be valid JSON");
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("Should be valid JSON");
 
     assert!(parsed.get("error").is_some());
     let error_msg = parsed.get("error").unwrap().as_str().unwrap();
@@ -161,8 +167,7 @@ fn test_error_to_json_invalid_input() {
     let err = Error::InvalidInput("Bad parameter".to_string());
     let json = error_to_json(&err);
 
-    let parsed: serde_json::Value = serde_json::from_str(&json)
-        .expect("Should be valid JSON");
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("Should be valid JSON");
 
     assert!(parsed.get("error").is_some());
     let error_msg = parsed.get("error").unwrap().as_str().unwrap();
@@ -174,8 +179,7 @@ fn test_error_to_json_parse_error() {
     let err = Error::ParseError("JSON parse failed".to_string());
     let json = error_to_json(&err);
 
-    let parsed: serde_json::Value = serde_json::from_str(&json)
-        .expect("Should be valid JSON");
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("Should be valid JSON");
 
     assert!(parsed.get("error").is_some());
     let error_msg = parsed.get("error").unwrap().as_str().unwrap();
@@ -187,8 +191,7 @@ fn test_error_to_json_domain_check() {
     let err = Error::DomainCheck("Unauthorized".to_string());
     let json = error_to_json(&err);
 
-    let parsed: serde_json::Value = serde_json::from_str(&json)
-        .expect("Should be valid JSON");
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("Should be valid JSON");
 
     assert!(parsed.get("error").is_some());
     let error_msg = parsed.get("error").unwrap().as_str().unwrap();
@@ -209,18 +212,33 @@ fn test_error_equality_singular_matrix() {
 
 #[test]
 fn test_error_equality_insufficient_data() {
-    let err1 = Error::InsufficientData { required: 10, available: 5 };
-    let err2 = Error::InsufficientData { required: 10, available: 5 };
+    let err1 = Error::InsufficientData {
+        required: 10,
+        available: 5,
+    };
+    let err2 = Error::InsufficientData {
+        required: 10,
+        available: 5,
+    };
 
     assert_eq!(err1, err2, "InsufficientData errors should be equal");
 }
 
 #[test]
 fn test_error_inequality_insufficient_data() {
-    let err1 = Error::InsufficientData { required: 10, available: 5 };
-    let err2 = Error::InsufficientData { required: 8, available: 5 };
+    let err1 = Error::InsufficientData {
+        required: 10,
+        available: 5,
+    };
+    let err2 = Error::InsufficientData {
+        required: 8,
+        available: 5,
+    };
 
-    assert_ne!(err1, err2, "InsufficientData errors with different values should not be equal");
+    assert_ne!(
+        err1, err2,
+        "InsufficientData errors with different values should not be equal"
+    );
 }
 
 #[test]
@@ -228,14 +246,20 @@ fn test_error_equality_invalid_input() {
     let err1 = Error::InvalidInput("msg".to_string());
     let err2 = Error::InvalidInput("msg".to_string());
 
-    assert_eq!(err1, err2, "InvalidInput errors with same message should be equal");
+    assert_eq!(
+        err1, err2,
+        "InvalidInput errors with same message should be equal"
+    );
 }
 
 #[test]
 fn test_error_inequality_different_variants() {
     let errors = vec![
         Error::SingularMatrix,
-        Error::InsufficientData { required: 10, available: 5 },
+        Error::InsufficientData {
+            required: 10,
+            available: 5,
+        },
         Error::InvalidInput("test".to_string()),
         Error::ParseError("parse".to_string()),
         Error::DomainCheck("domain".to_string()),
@@ -260,7 +284,10 @@ fn test_error_inequality_different_variants() {
 fn test_all_error_variants_display() {
     let errors = vec![
         Error::SingularMatrix,
-        Error::InsufficientData { required: 10, available: 5 },
+        Error::InsufficientData {
+            required: 10,
+            available: 5,
+        },
         Error::InvalidInput("test message".to_string()),
         Error::ParseError("parse error".to_string()),
         Error::DomainCheck("domain error".to_string()),
@@ -276,7 +303,8 @@ fn test_all_error_variants_display() {
         assert!(
             display.len() > 10,
             "Error display should be meaningful: {:?} -> {}",
-            err, display
+            err,
+            display
         );
     }
 }
@@ -285,7 +313,10 @@ fn test_all_error_variants_display() {
 fn test_all_error_variants_json_serialization() {
     let errors = vec![
         Error::SingularMatrix,
-        Error::InsufficientData { required: 10, available: 5 },
+        Error::InsufficientData {
+            required: 10,
+            available: 5,
+        },
         Error::InvalidInput("test message".to_string()),
         Error::ParseError("parse error".to_string()),
         Error::DomainCheck("domain error".to_string()),

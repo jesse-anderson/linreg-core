@@ -12,14 +12,12 @@
 // - Predictions at various lambda values
 
 use crate::common::{
-    load_dataset, load_ridge_result, load_lasso_result,
-    RIDGE_TOLERANCE, RIDGE_TOLERANCE_LOOSE,
-    LASSO_TOLERANCE, LASSO_TOLERANCE_LOOSE,
-    assert_close_to,
+    assert_close_to, load_dataset, load_lasso_result, load_ridge_result, LASSO_TOLERANCE,
+    LASSO_TOLERANCE_LOOSE, RIDGE_TOLERANCE, RIDGE_TOLERANCE_LOOSE,
 };
 
-use linreg_core::regularized::{ridge_fit, lasso_fit, RidgeFitOptions, LassoFitOptions};
 use linreg_core::linalg::Matrix;
+use linreg_core::regularized::{lasso_fit, ridge_fit, LassoFitOptions, RidgeFitOptions};
 
 const REGULARIZED_TEST_DATASETS: &[&str] = &[
     "mtcars",
@@ -62,7 +60,7 @@ fn validate_ridge_mtcars() {
     // Build design matrix with intercept
     let n = dataset.y.len();
     let p = dataset.x_vars.len();
-    let mut x_data = vec![1.0; n * (p + 1)];  // First column is intercept (all ones)
+    let mut x_data = vec![1.0; n * (p + 1)]; // First column is intercept (all ones)
     for (col_idx, x_col) in dataset.x_vars.iter().enumerate() {
         for (row_idx, val) in x_col.iter().enumerate() {
             x_data[row_idx * (p + 1) + col_idx + 1] = *val;
@@ -70,25 +68,35 @@ fn validate_ridge_mtcars() {
     }
     let x = Matrix::new(n, p + 1, x_data);
 
-    println!("  Dataset: mtcars (n = {}, p = {} predictors + intercept)", n, p);
+    println!(
+        "  Dataset: mtcars (n = {}, p = {} predictors + intercept)",
+        n, p
+    );
 
     // Load R reference
     let r_result_path = r_results_dir.join("mtcars_ridge.json");
     let r_ref = match load_ridge_result(&r_result_path) {
         Some(r) => r,
         None => {
-            println!("    R ridge result file not found: {}", r_result_path.display());
+            println!(
+                "    R ridge result file not found: {}",
+                r_result_path.display()
+            );
             println!("     Run: cd verification/scripts/r/regularized && Rscript test_ridge.R");
             println!("     Skipping ridge validation.");
             return;
-        }
+        },
     };
 
     println!("  glmnet version: {}", r_ref.glmnet_version);
     println!("  Lambda sequence: {} lambdas", r_ref.lambda_sequence.len());
 
     // Test at a few representative lambdas (first, middle, last)
-    let test_indices = vec![0, r_ref.lambda_sequence.len() / 2, r_ref.lambda_sequence.len() - 1];
+    let test_indices = vec![
+        0,
+        r_ref.lambda_sequence.len() / 2,
+        r_ref.lambda_sequence.len() - 1,
+    ];
 
     let mut all_passed = true;
 
@@ -96,7 +104,12 @@ fn validate_ridge_mtcars() {
         let lambda = r_ref.lambda_sequence[lambda_idx];
 
         println!("  ─────────────────────────────────────────────────────────────────");
-        println!("  Lambda [{}/{}]: lambda = {:.6}", idx + 1, test_indices.len(), lambda);
+        println!(
+            "  Lambda [{}/{}]: lambda = {:.6}",
+            idx + 1,
+            test_indices.len(),
+            lambda
+        );
         println!("  ─────────────────────────────────────────────────────────────────");
 
         // Fit ridge with this lambda
@@ -112,15 +125,19 @@ fn validate_ridge_mtcars() {
                 println!("     Rust ridge fit failed: {}", e);
                 all_passed = false;
                 continue;
-            }
+            },
         };
 
         // Get R coefficients at this lambda
         let r_coefs = &r_ref.coefficients[lambda_idx];
 
         // Compare intercept (first coefficient in R's output)
-        println!("    Intercept: Rust = {:.8}, R = {:.8}, diff = {:.2e}",
-            rust_fit.intercept, r_coefs[0], (rust_fit.intercept - r_coefs[0]).abs());
+        println!(
+            "    Intercept: Rust = {:.8}, R = {:.8}, diff = {:.2e}",
+            rust_fit.intercept,
+            r_coefs[0],
+            (rust_fit.intercept - r_coefs[0]).abs()
+        );
 
         let intercept_match = (rust_fit.intercept - r_coefs[0]).abs() < RIDGE_TOLERANCE;
         if !intercept_match {
@@ -131,13 +148,18 @@ fn validate_ridge_mtcars() {
         // Compare slope coefficients
         let mut all_coefs_match = true;
         for j in 1..=p {
-            let diff = (rust_fit.coefficients[j-1] - r_coefs[j]).abs();
+            let diff = (rust_fit.coefficients[j - 1] - r_coefs[j]).abs();
             let coef_match = diff < RIDGE_TOLERANCE;
 
             if j <= 3 || !coef_match {
-                println!("      Beta[{}]: Rust = {:.8}, R = {:.8}, diff = {:.2e} {}",
-                    j, rust_fit.coefficients[j-1], r_coefs[j], diff,
-                    if coef_match { "✓" } else { "" });
+                println!(
+                    "      Beta[{}]: Rust = {:.8}, R = {:.8}, diff = {:.2e} {}",
+                    j,
+                    rust_fit.coefficients[j - 1],
+                    r_coefs[j],
+                    diff,
+                    if coef_match { "✓" } else { "" }
+                );
             }
 
             if !coef_match {
@@ -178,14 +200,26 @@ fn validate_ridge_mtcars() {
                     preds_match = false;
                 }
                 if i < 3 || !preds_match {
-                    println!("      Pred[{}]: Rust = {:.6}, R = {:.6}, diff = {:.2e} {}",
-                        i, rust_pred, r_pred, diff,
-                        if diff < RIDGE_TOLERANCE_LOOSE { "✓" } else { "" });
+                    println!(
+                        "      Pred[{}]: Rust = {:.6}, R = {:.6}, diff = {:.2e} {}",
+                        i,
+                        rust_pred,
+                        r_pred,
+                        diff,
+                        if diff < RIDGE_TOLERANCE_LOOSE {
+                            "✓"
+                        } else {
+                            ""
+                        }
+                    );
                 }
             }
 
             if !preds_match {
-                println!("      Some predictions differ (tolerance = {:.2e})", RIDGE_TOLERANCE_LOOSE);
+                println!(
+                    "      Some predictions differ (tolerance = {:.2e})",
+                    RIDGE_TOLERANCE_LOOSE
+                );
             }
         }
     }
@@ -204,7 +238,9 @@ fn validate_ridge_mtcars() {
         println!("        - Lambda sequence construction (R uses y-standardization)");
         println!("        - Numerical precision in QR decomposition");
         println!("        - Different path construction algorithms");
-        println!("  Consider running R scripts to regenerate fixtures if failures are significant.");
+        println!(
+            "  Consider running R scripts to regenerate fixtures if failures are significant."
+        );
     }
 
     assert!(all_passed, "Ridge validation failed");
@@ -241,7 +277,7 @@ fn validate_lasso_mtcars() {
     // Build design matrix with intercept
     let n = dataset.y.len();
     let p = dataset.x_vars.len();
-    let mut x_data = vec![1.0; n * (p + 1)];  // First column is intercept (all ones)
+    let mut x_data = vec![1.0; n * (p + 1)]; // First column is intercept (all ones)
     for (col_idx, x_col) in dataset.x_vars.iter().enumerate() {
         for (row_idx, val) in x_col.iter().enumerate() {
             x_data[row_idx * (p + 1) + col_idx + 1] = *val;
@@ -249,25 +285,35 @@ fn validate_lasso_mtcars() {
     }
     let x = Matrix::new(n, p + 1, x_data);
 
-    println!("  Dataset: mtcars (n = {}, p = {} predictors + intercept)", n, p);
+    println!(
+        "  Dataset: mtcars (n = {}, p = {} predictors + intercept)",
+        n, p
+    );
 
     // Load R reference
     let r_result_path = r_results_dir.join("mtcars_lasso.json");
     let r_ref = match load_lasso_result(&r_result_path) {
         Some(r) => r,
         None => {
-            println!("    R lasso result file not found: {}", r_result_path.display());
+            println!(
+                "    R lasso result file not found: {}",
+                r_result_path.display()
+            );
             println!("     Run: cd verification/scripts/r/regularized && Rscript test_lasso.R");
             println!("     Skipping lasso validation.");
             return;
-        }
+        },
     };
 
     println!("  glmnet version: {}", r_ref.glmnet_version);
     println!("  Lambda sequence: {} lambdas", r_ref.lambda_sequence.len());
 
     // Test at a few representative lambdas (first, middle, last)
-    let test_indices = vec![0, r_ref.lambda_sequence.len() / 2, r_ref.lambda_sequence.len() - 1];
+    let test_indices = vec![
+        0,
+        r_ref.lambda_sequence.len() / 2,
+        r_ref.lambda_sequence.len() - 1,
+    ];
 
     let mut all_passed = true;
 
@@ -275,7 +321,12 @@ fn validate_lasso_mtcars() {
         let lambda = r_ref.lambda_sequence[lambda_idx];
 
         println!("  ─────────────────────────────────────────────────────────────────");
-        println!("  Lambda [{}/{}]: lambda = {:.6}", idx + 1, test_indices.len(), lambda);
+        println!(
+            "  Lambda [{}/{}]: lambda = {:.6}",
+            idx + 1,
+            test_indices.len(),
+            lambda
+        );
         println!("  ─────────────────────────────────────────────────────────────────");
 
         // Fit lasso with this lambda
@@ -283,7 +334,7 @@ fn validate_lasso_mtcars() {
             lambda,
             intercept: true,
             standardize: true,
-            max_iter: 10000,  // Increase for convergence
+            max_iter: 10000, // Increase for convergence
             tol: 1e-8,
             ..Default::default()
         };
@@ -294,19 +345,26 @@ fn validate_lasso_mtcars() {
                 println!("     Rust lasso fit failed: {}", e);
                 all_passed = false;
                 continue;
-            }
+            },
         };
 
         if !rust_fit.converged {
-            println!("      Warning: Lasso did not converge in {} iterations", rust_fit.iterations);
+            println!(
+                "      Warning: Lasso did not converge in {} iterations",
+                rust_fit.iterations
+            );
         }
 
         // Get R coefficients at this lambda
         let r_coefs = &r_ref.coefficients[lambda_idx];
 
         // Compare intercept (first coefficient in R's output)
-        println!("    Intercept: Rust = {:.8}, R = {:.8}, diff = {:.2e}",
-            rust_fit.intercept, r_coefs[0], (rust_fit.intercept - r_coefs[0]).abs());
+        println!(
+            "    Intercept: Rust = {:.8}, R = {:.8}, diff = {:.2e}",
+            rust_fit.intercept,
+            r_coefs[0],
+            (rust_fit.intercept - r_coefs[0]).abs()
+        );
 
         let intercept_match = (rust_fit.intercept - r_coefs[0]).abs() < LASSO_TOLERANCE;
         if !intercept_match {
@@ -319,7 +377,7 @@ fn validate_lasso_mtcars() {
         let mut sparsity_match = true;
 
         for j in 1..=p {
-            let rust_coef = rust_fit.coefficients[j-1];
+            let rust_coef = rust_fit.coefficients[j - 1];
             let r_coef = r_coefs[j];
             let diff = (rust_coef - r_coef).abs();
             let coef_match = diff < LASSO_TOLERANCE;
@@ -333,10 +391,15 @@ fn validate_lasso_mtcars() {
             }
 
             if j <= 3 || !coef_match || !rust_zero {
-                println!("      Beta[{}]: Rust = {:.8}, R = {:.8}, diff = {:.2e} {} {}",
-                    j, rust_coef, r_coef, diff,
+                println!(
+                    "      Beta[{}]: Rust = {:.8}, R = {:.8}, diff = {:.2e} {} {}",
+                    j,
+                    rust_coef,
+                    r_coef,
+                    diff,
                     if coef_match { "✓" } else { "" },
-                    if rust_zero { "[0]" } else { "[≠0]" });
+                    if rust_zero { "[0]" } else { "[≠0]" }
+                );
             }
 
             if !coef_match {
@@ -347,7 +410,10 @@ fn validate_lasso_mtcars() {
         // Compare non-zero counts
         let rust_nonzero = rust_fit.n_nonzero;
         let r_nonzero = r_ref.nonzero_counts[lambda_idx];
-        println!("    Non-zero count: Rust = {}, R = {}", rust_nonzero, r_nonzero);
+        println!(
+            "    Non-zero count: Rust = {}, R = {}",
+            rust_nonzero, r_nonzero
+        );
 
         if intercept_match && all_coefs_match && sparsity_match {
             println!("     Lasso validation: PASS (lambda = {:.6})", lambda);
@@ -388,14 +454,26 @@ fn validate_lasso_mtcars() {
                     preds_match = false;
                 }
                 if i < 3 || !preds_match {
-                    println!("      Pred[{}]: Rust = {:.6}, R = {:.6}, diff = {:.2e} {}",
-                        i, rust_pred, r_pred, diff,
-                        if diff < LASSO_TOLERANCE_LOOSE { "✓" } else { "" });
+                    println!(
+                        "      Pred[{}]: Rust = {:.6}, R = {:.6}, diff = {:.2e} {}",
+                        i,
+                        rust_pred,
+                        r_pred,
+                        diff,
+                        if diff < LASSO_TOLERANCE_LOOSE {
+                            "✓"
+                        } else {
+                            ""
+                        }
+                    );
                 }
             }
 
             if !preds_match {
-                println!("      Some predictions differ (tolerance = {:.2e})", LASSO_TOLERANCE_LOOSE);
+                println!(
+                    "      Some predictions differ (tolerance = {:.2e})",
+                    LASSO_TOLERANCE_LOOSE
+                );
             }
         }
     }
@@ -440,14 +518,17 @@ fn validate_ridge_dataset(dataset_name: &str) {
     let csv_path = datasets_dir.join(format!("{}.csv", dataset_name));
     let r_result_path = r_results_dir.join(format!("{}_ridge.json", dataset_name));
 
-    let dataset = load_dataset(&csv_path)
-        .expect(&format!("Failed to load {} dataset", dataset_name));
+    let dataset =
+        load_dataset(&csv_path).expect(&format!("Failed to load {} dataset", dataset_name));
     let r_ref = match load_ridge_result(&r_result_path) {
         Some(r) => r,
         None => {
-            println!("    Ridge result file not found: {}", r_result_path.display());
+            println!(
+                "    Ridge result file not found: {}",
+                r_result_path.display()
+            );
             return;
-        }
+        },
     };
 
     let n = dataset.y.len();
@@ -475,15 +556,19 @@ fn validate_ridge_dataset(dataset_name: &str) {
 
     // Validate intercept
     assert_close_to(
-        rust_fit.intercept, r_coefs[0], RIDGE_TOLERANCE,
-        &format!("{} ridge intercept", dataset_name)
+        rust_fit.intercept,
+        r_coefs[0],
+        RIDGE_TOLERANCE,
+        &format!("{} ridge intercept", dataset_name),
     );
 
     // Validate coefficients
     for j in 1..=p {
         assert_close_to(
-            rust_fit.coefficients[j-1], r_coefs[j], RIDGE_TOLERANCE,
-            &format!("{} ridge beta[{}]", dataset_name, j)
+            rust_fit.coefficients[j - 1],
+            r_coefs[j],
+            RIDGE_TOLERANCE,
+            &format!("{} ridge beta[{}]", dataset_name, j),
         );
     }
 
@@ -513,14 +598,17 @@ fn validate_lasso_dataset(dataset_name: &str) {
     let csv_path = datasets_dir.join(format!("{}.csv", dataset_name));
     let r_result_path = r_results_dir.join(format!("{}_lasso.json", dataset_name));
 
-    let dataset = load_dataset(&csv_path)
-        .expect(&format!("Failed to load {} dataset", dataset_name));
+    let dataset =
+        load_dataset(&csv_path).expect(&format!("Failed to load {} dataset", dataset_name));
     let r_ref = match load_lasso_result(&r_result_path) {
         Some(r) => r,
         None => {
-            println!("    Lasso result file not found: {}", r_result_path.display());
+            println!(
+                "    Lasso result file not found: {}",
+                r_result_path.display()
+            );
             return;
-        }
+        },
     };
 
     let n = dataset.y.len();
@@ -551,15 +639,19 @@ fn validate_lasso_dataset(dataset_name: &str) {
 
     // Validate intercept
     assert_close_to(
-        rust_fit.intercept, r_coefs[0], LASSO_TOLERANCE,
-        &format!("{} lasso intercept", dataset_name)
+        rust_fit.intercept,
+        r_coefs[0],
+        LASSO_TOLERANCE,
+        &format!("{} lasso intercept", dataset_name),
     );
 
     // Validate coefficients
     for j in 1..=p {
         assert_close_to(
-            rust_fit.coefficients[j-1], r_coefs[j], LASSO_TOLERANCE,
-            &format!("{} lasso beta[{}]", dataset_name, j)
+            rust_fit.coefficients[j - 1],
+            r_coefs[j],
+            LASSO_TOLERANCE,
+            &format!("{} lasso beta[{}]", dataset_name, j),
         );
     }
 

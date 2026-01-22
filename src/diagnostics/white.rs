@@ -35,23 +35,22 @@
 // 2. The White test regresses on SQUARED residuals, which amplifies differences
 // 3. With multicollinear data, small coefficient differences lead to larger residual differences when squared
 
-use crate::error::{Error, Result};
-use crate::linalg::{Matrix, vec_mean, fit_ols_linpack, fit_and_predict_linpack};
-use super::types::{WhiteTestOutput, WhiteSingleResult, WhiteMethod};
 use super::helpers::chi_squared_p_value;
+use super::types::{WhiteMethod, WhiteSingleResult, WhiteTestOutput};
+use crate::error::{Error, Result};
+use crate::linalg::{fit_and_predict_linpack, fit_ols_linpack, vec_mean, Matrix};
 
 /// Performs the White test for heteroscedasticity.
-pub fn white_test(
-    y: &[f64],
-    x_vars: &[Vec<f64>],
-    method: WhiteMethod,
-) -> Result<WhiteTestOutput> {
+pub fn white_test(y: &[f64], x_vars: &[Vec<f64>], method: WhiteMethod) -> Result<WhiteTestOutput> {
     let n = y.len();
     let k = x_vars.len();
     let p = k + 1;
 
     if n <= p {
-        return Err(Error::InsufficientData { required: p + 1, available: n });
+        return Err(Error::InsufficientData {
+            required: p + 1,
+            available: n,
+        });
     }
 
     // Validate dimensions and finite values using shared helper
@@ -69,7 +68,9 @@ pub fn white_test(
     let x_full = Matrix::new(n, p, x_data);
     let beta = fit_ols_linpack(y, &x_full).ok_or(Error::SingularMatrix)?;
     let predictions = x_full.mul_vec(&beta);
-    let residuals: Vec<f64> = y.iter().zip(predictions.iter())
+    let residuals: Vec<f64> = y
+        .iter()
+        .zip(predictions.iter())
         .map(|(&yi, &yi_hat)| yi - yi_hat)
         .collect();
     let e_squared: Vec<f64> = residuals.iter().map(|&e| e * e).collect();
@@ -106,7 +107,10 @@ pub fn white_test(
 
     #[cfg(test)]
     {
-        eprintln!("First few pred_aux: {:?}", &pred_aux[..5.min(pred_aux.len())]);
+        eprintln!(
+            "First few pred_aux: {:?}",
+            &pred_aux[..5.min(pred_aux.len())]
+        );
         let has_nan = pred_aux.iter().any(|&x| x.is_nan());
         eprintln!("pred_aux has NaN: {}", has_nan);
     }
@@ -154,7 +158,7 @@ pub fn white_test(
             } else {
                 interpret_result(p.p_value, alpha)
             }
-        }
+        },
         (None, None) => unreachable!(),
     };
 
@@ -169,14 +173,17 @@ pub fn white_test(
 
 /// Compute R² and LM test statistic for auxiliary regression.
 fn compute_r2_and_lm(e_squared: &[f64], pred_aux: &[f64], n: usize) -> (f64, f64) {
-    let residuals_aux: Vec<f64> = e_squared.iter().zip(pred_aux.iter())
+    let residuals_aux: Vec<f64> = e_squared
+        .iter()
+        .zip(pred_aux.iter())
         .map(|(&yi, &yi_hat)| yi - yi_hat)
         .collect();
 
     let rss_aux: f64 = residuals_aux.iter().map(|&r| r * r).sum();
 
     let mean_e_squared = vec_mean(e_squared);
-    let tss_centered: f64 = e_squared.iter()
+    let tss_centered: f64 = e_squared
+        .iter()
         .map(|&e| {
             let diff = e - mean_e_squared;
             diff * diff
@@ -194,11 +201,7 @@ fn compute_r2_and_lm(e_squared: &[f64], pred_aux: &[f64], n: usize) -> (f64, f64
 }
 
 /// Builds the auxiliary design matrix Z for the White test.
-fn build_auxiliary_matrix(
-    n: usize,
-    x_vars: &[Vec<f64>],
-    method: WhiteMethod,
-) -> (Vec<f64>, usize) {
+fn build_auxiliary_matrix(n: usize, x_vars: &[Vec<f64>], method: WhiteMethod) -> (Vec<f64>, usize) {
     let k = x_vars.len();
 
     match method {
@@ -223,7 +226,7 @@ fn build_auxiliary_matrix(
             }
 
             (z_data, z_cols)
-        }
+        },
         WhiteMethod::Python => {
             let num_cross = k * (k - 1) / 2;
             let z_cols = 1 + 2 * k + num_cross;
@@ -254,10 +257,8 @@ fn build_auxiliary_matrix(
             }
 
             (z_data, z_cols)
-        }
-        WhiteMethod::Both => {
-            build_auxiliary_matrix(n, x_vars, WhiteMethod::Python)
-        }
+        },
+        WhiteMethod::Both => build_auxiliary_matrix(n, x_vars, WhiteMethod::Python),
     }
 }
 
@@ -283,19 +284,13 @@ fn interpret_result(p_value: f64, alpha: f64) -> (String, &'static str) {
 }
 
 /// Performs the White test for heteroscedasticity using R's method.
-pub fn r_white_method(
-    y: &[f64],
-    x_vars: &[Vec<f64>],
-) -> Result<WhiteSingleResult> {
+pub fn r_white_method(y: &[f64], x_vars: &[Vec<f64>]) -> Result<WhiteSingleResult> {
     let result = white_test(y, x_vars, WhiteMethod::R)?;
     result.r_result.ok_or(Error::SingularMatrix)
 }
 
 /// Performs the White test for heteroscedasticity using Python's method.
-pub fn python_white_method(
-    y: &[f64],
-    x_vars: &[Vec<f64>],
-) -> Result<WhiteSingleResult> {
+pub fn python_white_method(y: &[f64], x_vars: &[Vec<f64>]) -> Result<WhiteSingleResult> {
     let result = white_test(y, x_vars, WhiteMethod::Python)?;
     result.python_result.ok_or(Error::SingularMatrix)
 }
@@ -306,22 +301,19 @@ mod tests {
 
     fn test_data() -> (Vec<f64>, Vec<Vec<f64>>) {
         let y = vec![
-            21.0, 21.0, 22.8, 21.4, 18.7, 18.1, 14.3, 24.4, 22.8, 19.2,
-            17.8, 16.4, 17.3, 15.2, 10.4, 10.4, 14.7, 32.4, 30.4, 33.9,
-            21.5, 15.5, 15.2, 13.3, 19.2, 27.3, 26.0, 30.4, 15.8, 19.7,
-            15.0, 21.4
+            21.0, 21.0, 22.8, 21.4, 18.7, 18.1, 14.3, 24.4, 22.8, 19.2, 17.8, 16.4, 17.3, 15.2,
+            10.4, 10.4, 14.7, 32.4, 30.4, 33.9, 21.5, 15.5, 15.2, 13.3, 19.2, 27.3, 26.0, 30.4,
+            15.8, 19.7, 15.0, 21.4,
         ];
         let x1 = vec![
-            2.62, 2.875, 2.32, 3.215, 3.44, 3.46, 3.57, 3.19, 3.15, 3.44,
-            3.44, 4.07, 3.73, 3.78, 5.25, 5.424, 5.345, 2.2, 1.615, 1.835,
-            2.465, 3.52, 3.435, 3.84, 3.845, 1.935, 2.14, 1.513, 3.17, 2.77,
-            3.57, 2.78
+            2.62, 2.875, 2.32, 3.215, 3.44, 3.46, 3.57, 3.19, 3.15, 3.44, 3.44, 4.07, 3.73, 3.78,
+            5.25, 5.424, 5.345, 2.2, 1.615, 1.835, 2.465, 3.52, 3.435, 3.84, 3.845, 1.935, 2.14,
+            1.513, 3.17, 2.77, 3.57, 2.78,
         ];
         let x2 = vec![
-            110.0, 110.0, 93.0, 110.0, 175.0, 105.0, 245.0, 62.0, 95.0, 123.0,
-            123.0, 180.0, 180.0, 180.0, 205.0, 215.0, 230.0, 66.0, 52.0, 65.0,
-            97.0, 150.0, 150.0, 245.0, 175.0, 66.0, 91.0, 113.0, 264.0, 175.0,
-            335.0, 109.0
+            110.0, 110.0, 93.0, 110.0, 175.0, 105.0, 245.0, 62.0, 95.0, 123.0, 123.0, 180.0, 180.0,
+            180.0, 205.0, 215.0, 230.0, 66.0, 52.0, 65.0, 97.0, 150.0, 150.0, 245.0, 175.0, 66.0,
+            91.0, 113.0, 264.0, 175.0, 335.0, 109.0,
         ];
         (y, vec![x1, x2])
     }
@@ -367,80 +359,64 @@ mod tests {
 
     fn mtcars_data() -> (Vec<f64>, Vec<Vec<f64>>) {
         let y = vec![
-            21.0, 21.0, 22.8, 21.4, 18.7, 18.1, 14.3, 24.4, 22.8, 19.2,
-            17.8, 16.4, 17.3, 15.2, 10.4, 10.4, 14.7, 32.4, 30.4, 33.9,
-            21.5, 15.5, 15.2, 13.3, 19.2, 27.3, 26.0, 30.4, 15.8, 19.7,
-            15.0, 21.4
+            21.0, 21.0, 22.8, 21.4, 18.7, 18.1, 14.3, 24.4, 22.8, 19.2, 17.8, 16.4, 17.3, 15.2,
+            10.4, 10.4, 14.7, 32.4, 30.4, 33.9, 21.5, 15.5, 15.2, 13.3, 19.2, 27.3, 26.0, 30.4,
+            15.8, 19.7, 15.0, 21.4,
         ];
 
         let cyl = vec![
-            6.0, 6.0, 4.0, 6.0, 8.0, 6.0, 8.0, 4.0, 4.0, 6.0,
-            6.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 4.0, 4.0, 4.0,
-            4.0, 8.0, 8.0, 8.0, 8.0, 4.0, 4.0, 4.0, 8.0, 8.0,
-            8.0, 4.0
+            6.0, 6.0, 4.0, 6.0, 8.0, 6.0, 8.0, 4.0, 4.0, 6.0, 6.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0,
+            4.0, 4.0, 4.0, 4.0, 8.0, 8.0, 8.0, 8.0, 4.0, 4.0, 4.0, 8.0, 8.0, 8.0, 4.0,
         ];
 
         let disp = vec![
-            160.0, 160.0, 108.0, 258.0, 360.0, 225.0, 360.0, 146.7, 140.8, 167.6,
-            167.6, 275.8, 275.8, 275.8, 472.0, 460.0, 440.0, 78.7, 75.7, 71.1,
-            120.1, 318.0, 304.0, 350.0, 400.0, 79.0, 120.3, 95.1, 351.0, 145.0,
-            301.0, 121.0
+            160.0, 160.0, 108.0, 258.0, 360.0, 225.0, 360.0, 146.7, 140.8, 167.6, 167.6, 275.8,
+            275.8, 275.8, 472.0, 460.0, 440.0, 78.7, 75.7, 71.1, 120.1, 318.0, 304.0, 350.0, 400.0,
+            79.0, 120.3, 95.1, 351.0, 145.0, 301.0, 121.0,
         ];
 
         let hp = vec![
-            110.0, 110.0, 93.0, 110.0, 175.0, 105.0, 245.0, 62.0, 95.0, 123.0,
-            123.0, 180.0, 180.0, 180.0, 205.0, 215.0, 230.0, 66.0, 52.0, 65.0,
-            97.0, 150.0, 150.0, 245.0, 175.0, 66.0, 91.0, 113.0, 264.0, 175.0,
-            335.0, 109.0
+            110.0, 110.0, 93.0, 110.0, 175.0, 105.0, 245.0, 62.0, 95.0, 123.0, 123.0, 180.0, 180.0,
+            180.0, 205.0, 215.0, 230.0, 66.0, 52.0, 65.0, 97.0, 150.0, 150.0, 245.0, 175.0, 66.0,
+            91.0, 113.0, 264.0, 175.0, 335.0, 109.0,
         ];
 
         let drat = vec![
-            3.90, 3.90, 3.85, 3.08, 3.15, 2.76, 3.21, 3.69, 3.92, 3.92,
-            3.92, 3.07, 3.07, 3.07, 2.93, 3.00, 3.23, 4.08, 4.93, 4.22,
-            3.70, 2.76, 3.15, 3.73, 3.08, 4.08, 4.43, 3.77, 4.22, 3.62,
-            3.54, 4.11
+            3.90, 3.90, 3.85, 3.08, 3.15, 2.76, 3.21, 3.69, 3.92, 3.92, 3.92, 3.07, 3.07, 3.07,
+            2.93, 3.00, 3.23, 4.08, 4.93, 4.22, 3.70, 2.76, 3.15, 3.73, 3.08, 4.08, 4.43, 3.77,
+            4.22, 3.62, 3.54, 4.11,
         ];
 
         let wt = vec![
-            2.62, 2.875, 2.32, 3.215, 3.44, 3.46, 3.57, 3.19, 3.15, 3.44,
-            3.44, 4.07, 3.73, 3.78, 5.25, 5.424, 5.345, 2.2, 1.615, 1.835,
-            2.465, 3.52, 3.435, 3.84, 3.845, 1.935, 2.14, 1.513, 3.17, 2.77,
-            3.57, 2.78
+            2.62, 2.875, 2.32, 3.215, 3.44, 3.46, 3.57, 3.19, 3.15, 3.44, 3.44, 4.07, 3.73, 3.78,
+            5.25, 5.424, 5.345, 2.2, 1.615, 1.835, 2.465, 3.52, 3.435, 3.84, 3.845, 1.935, 2.14,
+            1.513, 3.17, 2.77, 3.57, 2.78,
         ];
 
         let qsec = vec![
-            16.46, 17.02, 18.61, 19.44, 17.02, 20.22, 15.84, 20.00, 22.90, 18.30,
-            18.90, 17.40, 17.60, 18.00, 17.98, 17.82, 17.42, 19.47, 18.52, 19.90,
-            20.01, 16.87, 17.30, 15.41, 17.05, 18.90, 16.70, 16.90, 14.50, 15.50,
-            14.60, 18.60
+            16.46, 17.02, 18.61, 19.44, 17.02, 20.22, 15.84, 20.00, 22.90, 18.30, 18.90, 17.40,
+            17.60, 18.00, 17.98, 17.82, 17.42, 19.47, 18.52, 19.90, 20.01, 16.87, 17.30, 15.41,
+            17.05, 18.90, 16.70, 16.90, 14.50, 15.50, 14.60, 18.60,
         ];
 
         let vs = vec![
-            0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0,
-            1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
-            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0,
-            0.0, 1.0
+            0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
         ];
 
         let am = vec![
-            1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
-            0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-            1.0, 1.0
+            1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
         ];
 
         let gear = vec![
-            4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
-            4.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
-            3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0,
-            5.0, 4.0
+            4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0,
+            4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0, 5.0, 4.0,
         ];
 
         let carb = vec![
-            4.0, 4.0, 1.0, 1.0, 2.0, 1.0, 4.0, 2.0, 2.0, 4.0,
-            4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 1.0, 2.0, 1.0,
-            1.0, 2.0, 2.0, 4.0, 2.0, 1.0, 2.0, 2.0, 4.0, 6.0,
-            8.0, 2.0
+            4.0, 4.0, 1.0, 1.0, 2.0, 1.0, 4.0, 2.0, 2.0, 4.0, 4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
+            1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 4.0, 2.0, 1.0, 2.0, 2.0, 4.0, 6.0, 8.0, 2.0,
         ];
 
         (y, vec![cyl, disp, hp, drat, wt, qsec, vs, am, gear, carb])
@@ -456,7 +432,10 @@ mod tests {
             // LM-statistic = 19.397512014434628, p-value = 0.49613856327408801
             println!("\n=== White Test R Method Validation ===");
             println!("Reference: LM-statistic = 19.3975, p-value = 0.49614");
-            println!("Rust:      LM-statistic = {}, p-value = {}", r.statistic, r.p_value);
+            println!(
+                "Rust:      LM-statistic = {}, p-value = {}",
+                r.statistic, r.p_value
+            );
 
             // Both agree on interpretation: fail to reject H0
             assert!(r.p_value > 0.05);
@@ -474,7 +453,10 @@ mod tests {
             // LM-statistic = 32.0, p-value = 0.4167440299455431
             println!("\n=== White Test Python Method Validation ===");
             println!("Reference: LM-statistic = 32.0, p-value = 0.41674");
-            println!("Rust:      LM-statistic = {}, p-value = {}", p.statistic, p.p_value);
+            println!(
+                "Rust:      LM-statistic = {}, p-value = {}",
+                p.statistic, p.p_value
+            );
 
             // Check it's reasonably close
             let stat_diff = (p.statistic - 32.0).abs();

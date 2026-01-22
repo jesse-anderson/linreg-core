@@ -19,10 +19,10 @@
 // Note: Uses "excess kurtosis" definition where normal distribution has kurtosis = 3
 //       The formula subtracts 3, so we use (K - 3) where K is the raw kurtosis
 
-use crate::error::{Error, Result};
-use crate::linalg::{Matrix, vec_mean};
+use super::helpers::{chi_squared_p_value, fit_ols};
 use super::types::DiagnosticTestResult;
-use super::helpers::{fit_ols, chi_squared_p_value};
+use crate::error::{Error, Result};
+use crate::linalg::{vec_mean, Matrix};
 
 /// Performs the Jarque-Bera test for normality of residuals.
 ///
@@ -48,17 +48,17 @@ use super::helpers::{fit_ols, chi_squared_p_value};
 ///
 /// - Jarque, C. M., & Bera, A. K. (1987). "A Test for Normality of Observations
 ///   and Regression Residuals". International Statistical Review, 55(2), 163-172.
-pub fn jarque_bera_test(
-    y: &[f64],
-    x_vars: &[Vec<f64>],
-) -> Result<DiagnosticTestResult> {
+pub fn jarque_bera_test(y: &[f64], x_vars: &[Vec<f64>]) -> Result<DiagnosticTestResult> {
     let n = y.len();
-    let k = x_vars.len();  // number of non-intercept predictors
-    let p = k + 1;         // total parameters including intercept
+    let k = x_vars.len(); // number of non-intercept predictors
+    let p = k + 1; // total parameters including intercept
 
     // Validate inputs - need at least p + 1 observations
     if n <= p {
-        return Err(Error::InsufficientData { required: p + 1, available: n });
+        return Err(Error::InsufficientData {
+            required: p + 1,
+            available: n,
+        });
     }
 
     // Validate dimensions and finite values using shared helper
@@ -67,7 +67,7 @@ pub fn jarque_bera_test(
     // Create design matrix with intercept
     let mut x_data = vec![1.0; n * p];
     for row in 0..n {
-        x_data[row * p] = 1.0;  // intercept
+        x_data[row * p] = 1.0; // intercept
         for (col, x_var) in x_vars.iter().enumerate() {
             x_data[row * p + col + 1] = x_var[row];
         }
@@ -79,7 +79,9 @@ pub fn jarque_bera_test(
 
     // Compute residuals
     let predictions = x_full.mul_vec(&beta);
-    let residuals: Vec<f64> = y.iter().zip(predictions.iter())
+    let residuals: Vec<f64> = y
+        .iter()
+        .zip(predictions.iter())
         .map(|(&yi, &yi_hat)| yi - yi_hat)
         .collect();
 
@@ -88,12 +90,14 @@ pub fn jarque_bera_test(
 
     // Compute standard deviation (using n denominator, matching scipy.stats)
     // Note: We use the MLE-style denominator (n), not the unbiased estimator (n-1)
-    let variance: f64 = residuals.iter()
+    let variance: f64 = residuals
+        .iter()
         .map(|&r| {
             let diff = r - mean;
             diff * diff
         })
-        .sum::<f64>() / (n as f64);
+        .sum::<f64>()
+        / (n as f64);
 
     if variance <= 0.0 || !variance.is_finite() {
         return Err(Error::InvalidInput("Invalid residual variance".to_string()));
@@ -104,21 +108,25 @@ pub fn jarque_bera_test(
     let std_dev_fourth = std_dev_cubed * std_dev;
 
     // Compute skewness: S = (1/n) * Σ((e_i - mean)³) / σ³
-    let skewness: f64 = residuals.iter()
+    let skewness: f64 = residuals
+        .iter()
         .map(|&r| {
             let diff = r - mean;
             diff * diff * diff
         })
-        .sum::<f64>() / (n as f64 * std_dev_cubed);
+        .sum::<f64>()
+        / (n as f64 * std_dev_cubed);
 
     // Compute kurtosis: K = (1/n) * Σ((e_i - mean)⁴) / σ⁴
-    let kurtosis: f64 = residuals.iter()
+    let kurtosis: f64 = residuals
+        .iter()
         .map(|&r| {
             let diff = r - mean;
             let diff_sq = diff * diff;
             diff_sq * diff_sq
         })
-        .sum::<f64>() / (n as f64 * std_dev_fourth);
+        .sum::<f64>()
+        / (n as f64 * std_dev_fourth);
 
     // Jarque-Bera test statistic: JB = (n/6) * (S² + (K-3)²/4)
     // Note: K is the raw kurtosis, so (K-3) is the excess kurtosis

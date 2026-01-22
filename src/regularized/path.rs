@@ -176,13 +176,7 @@ pub fn make_lambda_path(
     };
 
     // Compute lambda_max
-    let lambda_max = compute_lambda_max(
-        x,
-        y,
-        alpha_for_lambda_max,
-        penalty_factor,
-        intercept_col,
-    );
+    let lambda_max = compute_lambda_max(x, y, alpha_for_lambda_max, penalty_factor, intercept_col);
 
     // Handle the case where lambda_max is infinite or very small
     if !lambda_max.is_finite() || lambda_max <= 0.0 {
@@ -190,7 +184,7 @@ pub fn make_lambda_path(
         return (0..options.nlambda)
             .map(|k| {
                 let t = k as f64 / (options.nlambda - 1) as f64;
-                10.0_f64.powf(2.0 * (1.0 - t))  // 10^2 down to 10^0
+                10.0_f64.powf(2.0 * (1.0 - t)) // 10^2 down to 10^0
             })
             .collect();
     }
@@ -230,11 +224,7 @@ mod tests {
     #[test]
     fn test_compute_lambda_max() {
         // Simple test: X = [1, x], y = [1, 2, 3]
-        let x_data = vec![
-            1.0, -1.0,
-            1.0, 0.0,
-            1.0, 1.0,
-        ];
+        let x_data = vec![1.0, -1.0, 1.0, 0.0, 1.0, 1.0];
         let x = Matrix::new(3, 2, x_data);
         let y = vec![1.0, 2.0, 3.0];
 
@@ -256,11 +246,7 @@ mod tests {
 
     #[test]
     fn test_make_lambda_path_decreasing() {
-        let x_data = vec![
-            1.0, -1.0,
-            1.0, 0.0,
-            1.0, 1.0,
-        ];
+        let x_data = vec![1.0, -1.0, 1.0, 0.0, 1.0, 1.0];
         let x = Matrix::new(3, 2, x_data);
         let y_centered = vec![-1.0, 0.0, 1.0];
 
@@ -288,11 +274,7 @@ mod tests {
 
     #[test]
     fn test_lambda_max_ridge() {
-        let x_data = vec![
-            1.0, -1.0,
-            1.0, 0.0,
-            1.0, 1.0,
-        ];
+        let x_data = vec![1.0, -1.0, 1.0, 0.0, 1.0, 1.0];
         let x = Matrix::new(3, 2, x_data);
         let y = vec![-1.0, 0.0, 1.0];
 

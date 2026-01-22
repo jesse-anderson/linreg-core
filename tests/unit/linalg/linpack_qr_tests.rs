@@ -8,8 +8,8 @@
 // - fit_ols_linpack(): OLS regression using LINPACK QR
 // - fit_and_predict_linpack(): OLS with prediction for rank-deficient cases
 
-use linreg_core::linalg::{Matrix, fit_ols_linpack, fit_and_predict_linpack};
-use super::common::{EPSILON, assert_close};
+use super::common::{assert_close, EPSILON};
+use linreg_core::linalg::{fit_and_predict_linpack, fit_ols_linpack, Matrix};
 
 // ============================================================================
 // QRLinpack Struct Tests
@@ -20,9 +20,7 @@ fn test_qr_linpack_basic() {
     let x = Matrix::new(
         4,
         3,
-        vec![
-            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, 2.0, 3.0, 4.0,
-        ],
+        vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, 2.0, 3.0, 4.0],
     );
 
     let result = x.qr_linpack(None);
@@ -37,11 +35,7 @@ fn test_qr_linpack_basic() {
 
 #[test]
 fn test_qr_linpack_default_tolerance() {
-    let x = Matrix::new(
-        3,
-        2,
-        vec![1.0, 2.0, 2.0, 4.0, 3.0, 5.0],
-    );
+    let x = Matrix::new(3, 2, vec![1.0, 2.0, 2.0, 4.0, 3.0, 5.0]);
 
     let result = x.qr_linpack(None);
 
@@ -51,11 +45,7 @@ fn test_qr_linpack_default_tolerance() {
 
 #[test]
 fn test_qr_linpack_custom_tolerance() {
-    let x = Matrix::new(
-        3,
-        2,
-        vec![1.0, 2.0, 2.0, 4.0, 3.0, 5.0],
-    );
+    let x = Matrix::new(3, 2, vec![1.0, 2.0, 2.0, 4.0, 3.0, 5.0]);
 
     let result_strict = x.qr_linpack(Some(1e-10));
     let result_loose = x.qr_linpack(Some(1e-4));
@@ -68,11 +58,7 @@ fn test_qr_linpack_custom_tolerance() {
 #[test]
 fn test_qr_linpack_rank_deficient() {
     // Column 2 is exactly 2 * column 1
-    let x = Matrix::new(
-        3,
-        2,
-        vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0],
-    );
+    let x = Matrix::new(3, 2, vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0]);
 
     let result = x.qr_linpack(None);
 
@@ -90,11 +76,7 @@ fn test_qr_linpack_rank_deficient() {
 fn test_qr_linpack_near_rank_deficient() {
     // Column 2 is almost 2 * column 1
     let epsilon = 1e-6;
-    let x = Matrix::new(
-        3,
-        2,
-        vec![1.0, 2.0, 2.0, 4.0 + epsilon, 3.0, 6.0],
-    );
+    let x = Matrix::new(3, 2, vec![1.0, 2.0, 2.0, 4.0 + epsilon, 3.0, 6.0]);
 
     let result = x.qr_linpack(None);
 
@@ -109,9 +91,7 @@ fn test_qr_linpack_pivot_is_identity_for_full_rank() {
     let x = Matrix::new(
         4,
         3,
-        vec![
-            1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0,
-        ],
+        vec![1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0],
     );
 
     let result = x.qr_linpack(None);
@@ -136,11 +116,7 @@ fn test_qr_linpack_single_column() {
 
 #[test]
 fn test_qr_linpack_zero_column() {
-    let x = Matrix::new(
-        3,
-        2,
-        vec![1.0, 0.0, 2.0, 0.0, 3.0, 0.0],
-    );
+    let x = Matrix::new(3, 2, vec![1.0, 0.0, 2.0, 0.0, 3.0, 0.0]);
 
     let result = x.qr_linpack(None);
 
@@ -152,13 +128,7 @@ fn test_qr_linpack_zero_column() {
 
 #[test]
 fn test_qr_linpack_square_matrix() {
-    let x = Matrix::new(
-        3,
-        3,
-        vec![
-            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0,
-        ],
-    );
+    let x = Matrix::new(3, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0]);
 
     let result = x.qr_linpack(None);
 
@@ -173,11 +143,7 @@ fn test_qr_linpack_square_matrix() {
 #[test]
 fn test_qr_solve_linpack_basic() {
     // Solve Ax = b where A is well-conditioned
-    let x = Matrix::new(
-        3,
-        2,
-        vec![1.0, 2.0, 2.0, 3.0, 3.0, 5.0],
-    );
+    let x = Matrix::new(3, 2, vec![1.0, 2.0, 2.0, 3.0, 3.0, 5.0]);
     let y = vec![1.0, 2.0, 3.0];
 
     let qr_result = x.qr_linpack(None);
@@ -199,9 +165,7 @@ fn test_qr_solve_linpack_full_rank() {
     let x = Matrix::new(
         4,
         3,
-        vec![
-            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, 2.0, 3.0, 4.0,
-        ],
+        vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, 2.0, 3.0, 4.0],
     );
     let y = vec![6.0, 15.0, 25.0, 9.0];
 
@@ -221,11 +185,7 @@ fn test_qr_solve_linpack_full_rank() {
 #[test]
 fn test_qr_solve_linpack_rank_deficient() {
     // Rank-deficient case: column 2 = 2 * column 1
-    let x = Matrix::new(
-        3,
-        2,
-        vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0],
-    );
+    let x = Matrix::new(3, 2, vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0]);
     let y = vec![1.0, 2.0, 3.0];
 
     let qr_result = x.qr_linpack(None);
@@ -235,7 +195,10 @@ fn test_qr_solve_linpack_rank_deficient() {
     let coef = coef.unwrap();
 
     // Coefficient for dependent column should be NaN
-    assert!(coef[0].is_finite() || coef[1].is_finite(), "At least one coefficient should be finite");
+    assert!(
+        coef[0].is_finite() || coef[1].is_finite(),
+        "At least one coefficient should be finite"
+    );
 }
 
 #[test]
@@ -246,7 +209,10 @@ fn test_qr_solve_linpack_wrong_y_length() {
     let qr_result = x.qr_linpack(None);
     let coef = x.qr_solve_linpack(&qr_result, &y);
 
-    assert!(coef.is_none(), "Should return None for mismatched dimensions");
+    assert!(
+        coef.is_none(),
+        "Should return None for mismatched dimensions"
+    );
 }
 
 #[test]
@@ -312,11 +278,7 @@ fn test_fit_ols_linpack_basic() {
 
 #[test]
 fn test_fit_ols_linpack_predictions() {
-    let x = Matrix::new(
-        4,
-        2,
-        vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0],
-    );
+    let x = Matrix::new(4, 2, vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0]);
     let y = vec![3.0, 5.0, 7.0, 9.0];
 
     let coef = fit_ols_linpack(&y, &x).unwrap();
@@ -331,15 +293,7 @@ fn test_fit_ols_linpack_predictions() {
 #[test]
 fn test_fit_ols_linpack_rank_deficient() {
     // Rank-deficient design matrix
-    let x = Matrix::new(
-        3,
-        2,
-        vec![
-            1.0, 1.0,
-            1.0, 2.0,
-            1.0, 3.0,
-        ],
-    );
+    let x = Matrix::new(3, 2, vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0]);
 
     let y = vec![1.0, 2.0, 3.0];
 
@@ -362,11 +316,7 @@ fn test_fit_ols_linpack_wrong_dimensions() {
 #[test]
 fn test_fit_ols_linpack_perfect_fit() {
     // Perfect linear relationship
-    let x = Matrix::new(
-        3,
-        2,
-        vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0],
-    );
+    let x = Matrix::new(3, 2, vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0]);
     // y = 2 + 3*x exactly
     let y = vec![5.0, 8.0, 11.0];
 
@@ -382,11 +332,7 @@ fn test_fit_ols_linpack_perfect_fit() {
 
 #[test]
 fn test_fit_and_predict_linpack_basic() {
-    let x = Matrix::new(
-        4,
-        2,
-        vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0],
-    );
+    let x = Matrix::new(4, 2, vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0]);
     let y = vec![3.0, 5.0, 7.0, 9.0];
 
     let pred = fit_and_predict_linpack(&y, &x);
@@ -407,20 +353,16 @@ fn test_fit_and_predict_linpack_full_rank() {
         5,
         3,
         vec![
-            1.0, 1.0, 2.0,
-            1.0, 2.0, 3.0,
-            1.0, 3.0, 4.0,
-            1.0, 4.0, 5.0,
-            1.0, 5.0, 6.0,
+            1.0, 1.0, 2.0, 1.0, 2.0, 3.0, 1.0, 3.0, 4.0, 1.0, 4.0, 5.0, 1.0, 5.0, 6.0,
         ],
     );
     // y = 1 + 2*x1 + 3*x2
     let y = vec![
-        1.0 + 2.0*1.0 + 3.0*2.0,
-        1.0 + 2.0*2.0 + 3.0*3.0,
-        1.0 + 2.0*3.0 + 3.0*4.0,
-        1.0 + 2.0*4.0 + 3.0*5.0,
-        1.0 + 2.0*5.0 + 3.0*6.0,
+        1.0 + 2.0 * 1.0 + 3.0 * 2.0,
+        1.0 + 2.0 * 2.0 + 3.0 * 3.0,
+        1.0 + 2.0 * 3.0 + 3.0 * 4.0,
+        1.0 + 2.0 * 4.0 + 3.0 * 5.0,
+        1.0 + 2.0 * 5.0 + 3.0 * 6.0,
     ];
 
     let pred = fit_and_predict_linpack(&y, &x).unwrap();
@@ -434,16 +376,7 @@ fn test_fit_and_predict_linpack_full_rank() {
 #[test]
 fn test_fit_and_predict_linpack_rank_deficient() {
     // Rank-deficient: column 2 = 2 * column 1
-    let x = Matrix::new(
-        4,
-        2,
-        vec![
-            1.0, 2.0,
-            2.0, 4.0,
-            3.0, 6.0,
-            4.0, 8.0,
-        ],
-    );
+    let x = Matrix::new(4, 2, vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0, 4.0, 8.0]);
 
     // y depends only on the first column
     let y = vec![1.0, 2.0, 3.0, 4.0];
@@ -463,17 +396,7 @@ fn test_fit_and_predict_linpack_rank_deficient() {
 #[test]
 fn test_fit_and_predict_linpack_with_intercept() {
     // Standard regression with intercept
-    let x = Matrix::new(
-        5,
-        2,
-        vec![
-            1.0, 1.0,
-            1.0, 2.0,
-            1.0, 3.0,
-            1.0, 4.0,
-            1.0, 5.0,
-        ],
-    );
+    let x = Matrix::new(5, 2, vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0, 1.0, 5.0]);
     let y = vec![2.1, 4.0, 5.9, 8.1, 10.0];
 
     let pred = fit_and_predict_linpack(&y, &x).unwrap();
@@ -492,11 +415,7 @@ fn test_fit_and_predict_linpack_with_intercept() {
 
 #[test]
 fn test_fit_and_predict_linpack_single_predictor() {
-    let x = Matrix::new(
-        4,
-        1,
-        vec![1.0, 2.0, 3.0, 4.0],
-    );
+    let x = Matrix::new(4, 1, vec![1.0, 2.0, 3.0, 4.0]);
     let y = vec![2.0, 4.0, 6.0, 8.0];
 
     let pred = fit_and_predict_linpack(&y, &x).unwrap();
@@ -510,11 +429,7 @@ fn test_fit_and_predict_linpack_single_predictor() {
 #[test]
 fn test_fit_and_predict_vs_fit_ols() {
     // For full-rank matrices, both methods should give same predictions
-    let x = Matrix::new(
-        4,
-        2,
-        vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0],
-    );
+    let x = Matrix::new(4, 2, vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0]);
     let y = vec![3.0, 5.0, 7.0, 9.0];
 
     let pred1 = fit_and_predict_linpack(&y, &x).unwrap();
@@ -539,11 +454,7 @@ fn test_fit_and_predict_vs_fit_ols() {
 #[test]
 fn test_qr_linpack_wide_matrix() {
     // More columns than rows (not typical for OLS but should work)
-    let x = Matrix::new(
-        2,
-        3,
-        vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
-    );
+    let x = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
     let result = x.qr_linpack(None);
 
@@ -554,11 +465,7 @@ fn test_qr_linpack_wide_matrix() {
 #[test]
 fn test_qr_linpack_constant_column() {
     // Column with all same values
-    let x = Matrix::new(
-        4,
-        2,
-        vec![1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0, 4.0],
-    );
+    let x = Matrix::new(4, 2, vec![1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0, 4.0]);
 
     let result = x.qr_linpack(None);
 
@@ -574,9 +481,12 @@ fn test_qr_linpack_very_small_values() {
         3,
         2,
         vec![
-            scale, 2.0 * scale,
-            2.0 * scale, 3.0 * scale,
-            3.0 * scale, 5.0 * scale,
+            scale,
+            2.0 * scale,
+            2.0 * scale,
+            3.0 * scale,
+            3.0 * scale,
+            5.0 * scale,
         ],
     );
 
@@ -593,9 +503,12 @@ fn test_qr_linpack_very_large_values() {
         3,
         2,
         vec![
-            scale, 2.0 * scale,
-            2.0 * scale, 3.0 * scale,
-            3.0 * scale, 5.0 * scale,
+            scale,
+            2.0 * scale,
+            2.0 * scale,
+            3.0 * scale,
+            3.0 * scale,
+            5.0 * scale,
         ],
     );
 
@@ -612,9 +525,9 @@ fn test_qr_solve_with_collinear_columns() {
         4,
         3,
         vec![
-            1.0, 2.0, 4.0,  // col2 = 2*col1
-            1.0, 3.0, 6.0,  // col2 = 2*col1
-            1.0, 4.0, 8.0,  // col2 = 2*col1
+            1.0, 2.0, 4.0, // col2 = 2*col1
+            1.0, 3.0, 6.0, // col2 = 2*col1
+            1.0, 4.0, 8.0, // col2 = 2*col1
             1.0, 5.0, 10.0, // col2 = 2*col1
         ],
     );
@@ -628,7 +541,10 @@ fn test_qr_solve_with_collinear_columns() {
 
     // One of the coefficients should be NaN
     let nan_count = coef.iter().filter(|c| c.is_nan()).count();
-    assert!(nan_count >= 1, "At least one coefficient should be NaN for collinear columns");
+    assert!(
+        nan_count >= 1,
+        "At least one coefficient should be NaN for collinear columns"
+    );
 }
 
 // ============================================================================
@@ -648,9 +564,8 @@ fn test_qr_linpack_large_tall_matrix() {
         data.push(1.0); // intercept column
         for j in 1..n {
             // Create varied values that don't create collinearity
-            let val = (i as f64) * (j as f64) * 0.1
-                + (j as f64).powi(2) * 0.01
-                + ((i * j) % 17) as f64;
+            let val =
+                (i as f64) * (j as f64) * 0.1 + (j as f64).powi(2) * 0.01 + ((i * j) % 17) as f64;
             data.push(val);
         }
     }
@@ -685,7 +600,10 @@ fn test_qr_linpack_large_square_matrix() {
     let result = x.qr_linpack(None);
 
     // Should be full rank
-    assert_eq!(result.rank, n, "50x50 diagonally dominant should be full rank");
+    assert_eq!(
+        result.rank, n,
+        "50x50 diagonally dominant should be full rank"
+    );
 }
 
 #[test]
@@ -794,7 +712,10 @@ fn test_qr_linpack_large_with_rank_deficiency() {
     let result = x.qr_linpack(None);
 
     // Should detect rank deficiency
-    assert_eq!(result.rank, 5, "80x10 matrix with 5 dependent columns should have rank 5");
+    assert_eq!(
+        result.rank, 5,
+        "80x10 matrix with 5 dependent columns should have rank 5"
+    );
 }
 
 #[test]
@@ -812,7 +733,10 @@ fn test_qr_linpack_large_scale_values() {
     let result = x.qr_linpack(None);
 
     // Should handle large scale
-    assert!(result.rank >= 1, "Large scale matrix should have positive rank");
+    assert!(
+        result.rank >= 1,
+        "Large scale matrix should have positive rank"
+    );
     assert_eq!(result.pivot.len(), n);
 }
 
@@ -831,7 +755,10 @@ fn test_qr_linpack_small_scale_values() {
     let result = x.qr_linpack(None);
 
     // Should handle small scale with appropriate tolerance
-    assert!(result.rank >= 1, "Small scale matrix should have positive rank");
+    assert!(
+        result.rank >= 1,
+        "Small scale matrix should have positive rank"
+    );
 }
 
 #[test]
@@ -856,9 +783,7 @@ fn test_qr_solve_linpack_large() {
 
     // Compute y = X * true_coef
     let y: Vec<f64> = (0..m)
-        .map(|i| {
-            (0..n).map(|j| x.get(i, j) * true_coef[j]).sum()
-        })
+        .map(|i| (0..n).map(|j| x.get(i, j) * true_coef[j]).sum())
         .collect();
 
     let qr_result = x.qr_linpack(None);
@@ -869,6 +794,11 @@ fn test_qr_solve_linpack_large() {
 
     // Verify recovered coefficients
     for j in 0..n {
-        assert_close(coef[j], true_coef[j], 1e-6, &format!("large solve coef[{}]", j));
+        assert_close(
+            coef[j],
+            true_coef[j],
+            1e-6,
+            &format!("large solve coef[{}]", j),
+        );
     }
 }

@@ -9,10 +9,10 @@
 // and performs a t-test that the mean of the (scaled) recursive residuals
 // is zero.
 
-use crate::error::{Error, Result};
-use crate::linalg::{Matrix, vec_mean};
-use super::types::DiagnosticTestResult;
 use super::helpers::{fit_ols, two_tailed_p_value};
+use super::types::DiagnosticTestResult;
+use crate::error::{Error, Result};
+use crate::linalg::{vec_mean, Matrix};
 
 /// Performs the Harvey-Collier test for linearity (functional form).
 ///
@@ -37,20 +37,20 @@ use super::helpers::{fit_ols, two_tailed_p_value};
 ///
 /// Returns [`Error::InsufficientData`] if n ≤ k + 2.
 #[allow(clippy::needless_range_loop)]
-pub fn harvey_collier_test(
-    y: &[f64],
-    x_vars: &[Vec<f64>],
-) -> Result<DiagnosticTestResult> {
+pub fn harvey_collier_test(y: &[f64], x_vars: &[Vec<f64>]) -> Result<DiagnosticTestResult> {
     let n = y.len();
-    let k = x_vars.len();   // number of *non-intercept* regressors
-    let p = k + 1;          // number of columns in design matrix, incl intercept (R's "k")
+    let k = x_vars.len(); // number of *non-intercept* regressors
+    let p = k + 1; // number of columns in design matrix, incl intercept (R's "k")
 
     // Validate inputs
     // Need at least p + 2 observations so that:
     // - recursive residuals length = n - p >= 2 (variance defined)
     // - df = n - p - 1 >= 1
     if n <= p + 1 {
-        return Err(Error::InsufficientData { required: p + 2, available: n });
+        return Err(Error::InsufficientData {
+            required: p + 2,
+            available: n,
+        });
     }
 
     // Validate dimensions and finite values using shared helper
@@ -75,7 +75,9 @@ pub fn harvey_collier_test(
     // Sort indices by fitted values
     let mut sorted_indices: Vec<usize> = (0..n).collect();
     sorted_indices.sort_by(|&a, &b| {
-        fitted[a].partial_cmp(&fitted[b]).unwrap_or(std::cmp::Ordering::Equal)
+        fitted[a]
+            .partial_cmp(&fitted[b])
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     // Reorder y and X by sorted indices
@@ -200,14 +202,19 @@ pub fn harvey_collier_test(
 
     let n_rr = w.len();
     if n_rr < 2 {
-        return Err(Error::InsufficientData { required: 2, available: n_rr });
+        return Err(Error::InsufficientData {
+            required: 2,
+            available: n_rr,
+        });
     }
 
     // Sample variance of w (R's var())
     let mean_w = vec_mean(&w);
     let var_w = w.iter().map(|&v| (v - mean_w).powi(2)).sum::<f64>() / ((n_rr - 1) as f64);
     if !var_w.is_finite() || var_w <= 0.0 {
-        return Err(Error::InvalidInput("Invalid variance in Harvey-Collier test".to_string()));
+        return Err(Error::InvalidInput(
+            "Invalid variance in Harvey-Collier test".to_string(),
+        ));
     }
 
     // In R, sigma simplifies to sqrt(var_w) because (length-1)/(n-p-1) cancels,
@@ -223,7 +230,9 @@ pub fn harvey_collier_test(
     let mean_resr = sum_resr / (n_rr as f64);
     let var_resr = resr.iter().map(|&v| (v - mean_resr).powi(2)).sum::<f64>() / ((n_rr - 1) as f64);
     if !var_resr.is_finite() || var_resr <= 0.0 {
-        return Err(Error::InvalidInput("Invalid scaled variance in Harvey-Collier test".to_string()));
+        return Err(Error::InvalidInput(
+            "Invalid scaled variance in Harvey-Collier test".to_string(),
+        ));
     }
 
     // n - k in R uses k = ncol(X) = p, so n - k = n - p = length(resr)

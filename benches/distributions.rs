@@ -10,8 +10,8 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use linreg_core::distributions::{
-    ln_gamma, inc_beta, student_t_cdf, student_t_inverse_cdf, fisher_snedecor_cdf,
-    chi_squared_survival, normal_cdf_cephes, normal_inverse_cdf,
+    chi_squared_survival, fisher_snedecor_cdf, inc_beta, ln_gamma, normal_cdf_cephes,
+    normal_inverse_cdf, student_t_cdf, student_t_inverse_cdf,
 };
 
 /// Benchmarks ln_gamma across different input ranges.
@@ -65,7 +65,9 @@ fn bench_inc_beta(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("params", format!("{:.2}_{}_{}", x, a, b)),
             &(x, a, b),
-            |bencher, &(x, a, b)| bencher.iter(|| inc_beta(black_box(x), black_box(a), black_box(b))),
+            |bencher, &(x, a, b)| {
+                bencher.iter(|| inc_beta(black_box(x), black_box(a), black_box(b)))
+            },
         );
     }
 
@@ -139,7 +141,9 @@ fn bench_f_cdf(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("params", format!("{:.2}_{}_{}", f, d1, d2)),
             &(f, d1, d2),
-            |b, &(f, d1, d2)| b.iter(|| fisher_snedecor_cdf(black_box(f), black_box(d1), black_box(d2))),
+            |b, &(f, d1, d2)| {
+                b.iter(|| fisher_snedecor_cdf(black_box(f), black_box(d1), black_box(d2)))
+            },
         );
     }
 
@@ -150,13 +154,13 @@ fn bench_f_cdf(c: &mut Criterion) {
 fn bench_chi_squared_survival(c: &mut Criterion) {
     // Format: (x, k)
     let cases = vec![
-        (3.84, 1.0),    // Critical value, df=1
-        (5.99, 2.0),    // Critical value, df=2
-        (10.0, 5.0),    // Typical
-        (20.0, 10.0),   // Medium
-        (50.0, 25.0),   // Larger
-        (100.0, 50.0),  // Large
-        (1.0, 1.0),     // Small chi-squared
+        (3.84, 1.0),   // Critical value, df=1
+        (5.99, 2.0),   // Critical value, df=2
+        (10.0, 5.0),   // Typical
+        (20.0, 10.0),  // Medium
+        (50.0, 25.0),  // Larger
+        (100.0, 50.0), // Large
+        (1.0, 1.0),    // Small chi-squared
     ];
 
     let mut group = c.benchmark_group("chi_squared_survival");
@@ -175,18 +179,16 @@ fn bench_chi_squared_survival(c: &mut Criterion) {
 /// Benchmarks normal CDF (Cephes implementation).
 fn bench_normal_cdf(c: &mut Criterion) {
     let z_values = vec![
-        -5.0, -4.0, -3.0, -2.5, -2.0, -1.96, -1.0, -0.5,
-        0.0, 0.5, 1.0, 1.96, 2.0, 2.5, 3.0, 4.0, 5.0
+        -5.0, -4.0, -3.0, -2.5, -2.0, -1.96, -1.0, -0.5, 0.0, 0.5, 1.0, 1.96, 2.0, 2.5, 3.0, 4.0,
+        5.0,
     ];
 
     let mut group = c.benchmark_group("normal_cdf_cephes");
 
     for &z in &z_values {
-        group.bench_with_input(
-            BenchmarkId::new("z", format!("{:.2}", z)),
-            &z,
-            |b, &z| b.iter(|| normal_cdf_cephes(black_box(z))),
-        );
+        group.bench_with_input(BenchmarkId::new("z", format!("{:.2}", z)), &z, |b, &z| {
+            b.iter(|| normal_cdf_cephes(black_box(z)))
+        });
     }
 
     group.finish();
@@ -195,17 +197,15 @@ fn bench_normal_cdf(c: &mut Criterion) {
 /// Benchmarks normal inverse CDF (probit function).
 fn bench_normal_inverse_cdf(c: &mut Criterion) {
     let p_values = vec![
-        0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 0.999
+        0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 0.999,
     ];
 
     let mut group = c.benchmark_group("normal_inverse_cdf");
 
     for &p in &p_values {
-        group.bench_with_input(
-            BenchmarkId::new("p", format!("{:.4}", p)),
-            &p,
-            |b, &p| b.iter(|| normal_inverse_cdf(black_box(p))),
-        );
+        group.bench_with_input(BenchmarkId::new("p", format!("{:.4}", p)), &p, |b, &p| {
+            b.iter(|| normal_inverse_cdf(black_box(p)))
+        });
     }
 
     group.finish();

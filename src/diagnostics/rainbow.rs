@@ -14,10 +14,10 @@
 // - Python: Uses statsmodels algorithm (direct formula)
 // - Both: Returns both R and Python results
 
+use super::helpers::{compute_rss, f_p_value, fit_ols};
+use super::types::{RainbowMethod, RainbowSingleResult, RainbowTestOutput};
 use crate::error::{Error, Result};
 use crate::linalg::Matrix;
-use super::types::{RainbowTestOutput, RainbowSingleResult, RainbowMethod};
-use super::helpers::{fit_ols, compute_rss, f_p_value};
 
 /// R's lmtest::raintest subset selection using Type 7 quantile
 ///
@@ -88,7 +88,7 @@ fn rainbow_test_internal(
     if subset_indices.len() < p {
         return Err(Error::InsufficientData {
             required: p,
-            available: subset_indices.len()
+            available: subset_indices.len(),
         });
     }
 
@@ -111,16 +111,27 @@ fn rainbow_test_internal(
     // FIX: Compute RSS of subset model on SUBSET data only (not full data)
     // This matches both R's lmtest::raintest and Python's statsmodels.linear_rainbow
     let predictions_subset = x_subset.mul_vec(&beta_subset);
-    let residuals_subset: Vec<f64> = y_subset.iter().zip(predictions_subset.iter())
-        .map(|(&yi, &yi_hat)| yi - yi_hat).collect();
+    let residuals_subset: Vec<f64> = y_subset
+        .iter()
+        .zip(predictions_subset.iter())
+        .map(|(&yi, &yi_hat)| yi - yi_hat)
+        .collect();
     let rss_subset = residuals_subset.iter().map(|&r| r * r).sum::<f64>();
 
     // DEBUG: Print RSS values to diagnose issues
     #[cfg(test)]
     {
-        eprintln!("DEBUG Rainbow: rss_full = {:.6}, rss_subset = {:.6}, diff = {:.6}",
-            rss_full, rss_subset, rss_subset - rss_full);
-        eprintln!("DEBUG Rainbow: subset_size = {}, n = {}", subset_indices.len(), n);
+        eprintln!(
+            "DEBUG Rainbow: rss_full = {:.6}, rss_subset = {:.6}, diff = {:.6}",
+            rss_full,
+            rss_subset,
+            rss_subset - rss_full
+        );
+        eprintln!(
+            "DEBUG Rainbow: subset_size = {}, n = {}",
+            subset_indices.len(),
+            n
+        );
         eprintln!("DEBUG Rainbow: method = {:?}", _method);
     }
 
@@ -137,7 +148,9 @@ fn rainbow_test_internal(
     let f_stat = if denominator > 1e-10 {
         numerator / denominator
     } else {
-        return Err(Error::InvalidInput("Invalid denominator in Rainbow test".to_string()));
+        return Err(Error::InvalidInput(
+            "Invalid denominator in Rainbow test".to_string(),
+        ));
     };
 
     // Calculate p-value
@@ -183,19 +196,26 @@ pub fn rainbow_test(
 
     // Validate inputs
     if n <= p + 1 {
-        return Err(Error::InsufficientData { required: p + 2, available: n });
+        return Err(Error::InsufficientData {
+            required: p + 2,
+            available: n,
+        });
     }
 
     // Validate dimensions and finite values using shared helper
     super::helpers::validate_regression_data(y, x_vars)?;
 
-    let fraction = if fraction <= 0.0 || fraction > 1.0 { 0.5 } else { fraction };
-    let center = 0.5;  // Default center value
+    let fraction = if fraction <= 0.0 || fraction > 1.0 {
+        0.5
+    } else {
+        fraction
+    };
+    let center = 0.5; // Default center value
 
     // Create design matrix
     let mut x_data = vec![0.0; n * p];
     for (row, _yi) in y.iter().enumerate() {
-        x_data[row * p] = 1.0;  // intercept
+        x_data[row * p] = 1.0; // intercept
         for (col, x_var) in x_vars.iter().enumerate() {
             x_data[row * p + col + 1] = x_var[row];
         }
@@ -210,7 +230,9 @@ pub fn rainbow_test(
     let fitted_full = x_full.mul_vec(&beta_full);
     let mut sorted_indices: Vec<usize> = (0..n).collect();
     sorted_indices.sort_by(|&a, &b| {
-        fitted_full[a].partial_cmp(&fitted_full[b]).unwrap_or(std::cmp::Ordering::Equal)
+        fitted_full[a]
+            .partial_cmp(&fitted_full[b])
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     // Calculate results based on method
@@ -219,7 +241,15 @@ pub fn rainbow_test(
             // R's lmtest::raintest with order.by=NULL uses ORIGINAL data order (NOT sorted)
             let original_indices: Vec<usize> = (0..n).collect();
             let range = raintest_subset_r(n, fraction, center);
-            match rainbow_test_internal(y, &x_data, &x_full, &beta_full, &original_indices, range, RainbowMethod::R) {
+            match rainbow_test_internal(
+                y,
+                &x_data,
+                &x_full,
+                &beta_full,
+                &original_indices,
+                range,
+                RainbowMethod::R,
+            ) {
                 Ok((f_stat, p_value)) => {
                     let alpha = 0.05;
                     Some(RainbowSingleResult {
@@ -228,10 +258,10 @@ pub fn rainbow_test(
                         p_value,
                         passed: p_value > alpha,
                     })
-                }
+                },
                 Err(_) => None,
             }
-        }
+        },
         _ => None,
     };
 
@@ -240,7 +270,15 @@ pub fn rainbow_test(
             // Python's statsmodels uses ORIGINAL data order (NOT sorted by fitted values)
             let original_indices: Vec<usize> = (0..n).collect();
             let range = raintest_subset_python(n, fraction);
-            match rainbow_test_internal(y, &x_data, &x_full, &beta_full, &original_indices, range, RainbowMethod::Python) {
+            match rainbow_test_internal(
+                y,
+                &x_data,
+                &x_full,
+                &beta_full,
+                &original_indices,
+                range,
+                RainbowMethod::Python,
+            ) {
                 Ok((f_stat, p_value)) => {
                     let alpha = 0.05;
                     Some(RainbowSingleResult {
@@ -249,10 +287,10 @@ pub fn rainbow_test(
                         p_value,
                         passed: p_value > alpha,
                     })
-                }
+                },
                 Err(_) => None,
             }
-        }
+        },
         _ => None,
     };
 
@@ -275,7 +313,7 @@ pub fn rainbow_test(
     } else {
         (
             "Unable to compute Rainbow test.".to_string(),
-            "Check your data and try again.".to_string()
+            "Check your data and try again.".to_string(),
         )
     };
 

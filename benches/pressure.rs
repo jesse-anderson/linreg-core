@@ -25,9 +25,9 @@ fn generate_pressure_data(n: usize, k: usize) -> (Vec<f64>, Vec<Vec<f64>>, Vec<S
     let mut x_vars: Vec<Vec<f64>> = (0..k).map(|_| Vec::with_capacity(n)).collect();
 
     // Use different frequencies for each predictor to avoid collinearity
-    let frequencies: Vec<f64> = (0..k).map(|j| {
-        1.0 + (j as f64) * 0.3 + ((j as f64) * 0.7).sqrt()
-    }).collect();
+    let frequencies: Vec<f64> = (0..k)
+        .map(|j| 1.0 + (j as f64) * 0.3 + ((j as f64) * 0.7).sqrt())
+        .collect();
 
     for i in 0..n {
         let t = (i as f64) / 100.0;
@@ -35,7 +35,9 @@ fn generate_pressure_data(n: usize, k: usize) -> (Vec<f64>, Vec<Vec<f64>>, Vec<S
 
         for j in 0..k {
             let freq = frequencies[j];
-            let x_val = (t * freq).sin() + 0.5 * (t * freq * 0.7).cos() + 0.1 * (i as f64 * (j + 1) as f64 * 0.01).sin();
+            let x_val = (t * freq).sin()
+                + 0.5 * (t * freq * 0.7).cos()
+                + 0.1 * (i as f64 * (j + 1) as f64 * 0.01).sin();
             x_vars[j].push(x_val);
             y_val += ((j + 1) as f64) * 0.1 * x_val;
         }
@@ -66,13 +68,9 @@ fn bench_pressure_observations(c: &mut Criterion) {
         let (y, x_vars, names) = generate_pressure_data(n, k);
 
         group.throughput(Throughput::Elements(n as u64));
-        group.bench_with_input(
-            BenchmarkId::from_parameter(n),
-            &n,
-            |b, _| {
-                b.iter(|| ols_regression(black_box(&y), black_box(&x_vars), black_box(&names)).unwrap())
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
+            b.iter(|| ols_regression(black_box(&y), black_box(&x_vars), black_box(&names)).unwrap())
+        });
     }
 
     group.finish();
@@ -90,13 +88,9 @@ fn bench_pressure_predictors(c: &mut Criterion) {
     for &k in &k_values {
         let (y, x_vars, names) = generate_pressure_data(n, k);
 
-        group.bench_with_input(
-            BenchmarkId::from_parameter(k),
-            &k,
-            |b, _| {
-                b.iter(|| ols_regression(black_box(&y), black_box(&x_vars), black_box(&names)).unwrap())
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(k), &k, |b, _| {
+            b.iter(|| ols_regression(black_box(&y), black_box(&x_vars), black_box(&names)).unwrap())
+        });
     }
 
     group.finish();
@@ -105,11 +99,7 @@ fn bench_pressure_predictors(c: &mut Criterion) {
 /// Pressure test: Large matrix operations.
 fn bench_pressure_matrix_ops(c: &mut Criterion) {
     // QR decomposition is the bottleneck for large matrices
-    let sizes = vec![
-        (10_000, 100),
-        (10_000, 500),
-        (10_000, 1_000),
-    ];
+    let sizes = vec![(10_000, 100), (10_000, 500), (10_000, 1_000)];
 
     let mut group = c.benchmark_group("pressure_qr");
     group.warm_up_time(Duration::from_secs(5));
@@ -187,11 +177,7 @@ fn bench_memory_allocation(c: &mut Criterion) {
     let mut group = c.benchmark_group("memory_allocation");
     group.sample_size(10);
 
-    let sizes = vec![
-        (1_000, 100),
-        (5_000, 500),
-        (10_000, 1_000),
-    ];
+    let sizes = vec![(1_000, 100), (5_000, 500), (10_000, 1_000)];
 
     for &(n, k) in &sizes {
         group.bench_with_input(

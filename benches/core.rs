@@ -22,9 +22,9 @@ fn generate_data(n: usize, k: usize) -> (Vec<f64>, Vec<Vec<f64>>, Vec<String>) {
     let mut x_vars: Vec<Vec<f64>> = (0..k).map(|_| Vec::with_capacity(n)).collect();
 
     // Use different frequencies to avoid perfect collinearity
-    let frequencies: Vec<f64> = (0..k).map(|j| {
-        1.0 + (j as f64) * 0.3 + ((j as f64) * 0.7).sqrt()
-    }).collect();
+    let frequencies: Vec<f64> = (0..k)
+        .map(|j| 1.0 + (j as f64) * 0.3 + ((j as f64) * 0.7).sqrt())
+        .collect();
 
     // Generate synthetic data: y = 1.0 + sum(coef_j * x_j) + noise
     for i in 0..n {
@@ -35,7 +35,9 @@ fn generate_data(n: usize, k: usize) -> (Vec<f64>, Vec<Vec<f64>>, Vec<String>) {
         for j in 0..k {
             // Mix of sin, cos, and linear terms for diversity
             let freq = frequencies[j];
-            let x_val = (t * freq).sin() + 0.5 * (t * freq * 0.7).cos() + 0.1 * (i as f64 * (j + 1) as f64 * 0.01).sin();
+            let x_val = (t * freq).sin()
+                + 0.5 * (t * freq * 0.7).cos()
+                + 0.1 * (i as f64 * (j + 1) as f64 * 0.01).sin();
             x_vars[j].push(x_val);
             y_val += (j + 1) as f64 * 0.5 * x_val;
         }
@@ -74,7 +76,9 @@ fn bench_ols_sizes(c: &mut Criterion) {
             BenchmarkId::new("size", format!("{}_{}", n, k)),
             &(y, x_vars, names),
             |b, (y, x_vars, names)| {
-                b.iter(|| ols_regression(black_box(y), black_box(x_vars), black_box(names)).unwrap())
+                b.iter(|| {
+                    ols_regression(black_box(y), black_box(x_vars), black_box(names)).unwrap()
+                })
             },
         );
         group.finish();
@@ -91,13 +95,9 @@ fn bench_ols_predictors(c: &mut Criterion) {
     for k in k_values {
         let (y, x_vars, names) = generate_data(n, k);
 
-        group.bench_with_input(
-            BenchmarkId::from_parameter(k),
-            &k,
-            |b, _| {
-                b.iter(|| ols_regression(black_box(&y), black_box(&x_vars), black_box(&names)).unwrap())
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(k), &k, |b, _| {
+            b.iter(|| ols_regression(black_box(&y), black_box(&x_vars), black_box(&names)).unwrap())
+        });
     }
 
     group.finish();
@@ -114,17 +114,18 @@ fn bench_ols_observations(c: &mut Criterion) {
         let (y, x_vars, names) = generate_data(n, k);
 
         group.throughput(Throughput::Elements(n as u64));
-        group.bench_with_input(
-            BenchmarkId::from_parameter(n),
-            &n,
-            |b, _| {
-                b.iter(|| ols_regression(black_box(&y), black_box(&x_vars), black_box(&names)).unwrap())
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
+            b.iter(|| ols_regression(black_box(&y), black_box(&x_vars), black_box(&names)).unwrap())
+        });
     }
 
     group.finish();
 }
 
-criterion_group!(regression, bench_ols_sizes, bench_ols_predictors, bench_ols_observations);
+criterion_group!(
+    regression,
+    bench_ols_sizes,
+    bench_ols_predictors,
+    bench_ols_observations
+);
 criterion_main!(regression);

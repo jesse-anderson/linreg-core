@@ -6,8 +6,8 @@
 // including input validation, statistical properties, and edge cases.
 
 use linreg_core::linalg::Matrix;
-use linreg_core::regularized::{lasso_fit, ridge_fit, LassoFitOptions, RidgeFitOptions};
 use linreg_core::regularized::lasso::soft_threshold;
+use linreg_core::regularized::{lasso_fit, ridge_fit, LassoFitOptions, RidgeFitOptions};
 use linreg_core::Error;
 use proptest::prelude::*;
 
@@ -25,7 +25,11 @@ fn assert_close(a: f64, b: f64, tolerance: f64, context: &str) {
     assert!(
         diff <= tolerance,
         "{}: {} != {}, diff = {} (tolerance = {})",
-        context, a, b, diff, tolerance
+        context,
+        a,
+        b,
+        diff,
+        tolerance
     );
 }
 
@@ -85,9 +89,15 @@ fn test_lasso_rejects_negative_lambda() {
 
     match result {
         Err(Error::InvalidInput(msg)) => {
-            assert!(msg.contains("non-negative"), "Error message should mention non-negative lambda");
-        }
-        _ => panic!("Expected InvalidInput error for negative lambda, got {:?}", result),
+            assert!(
+                msg.contains("non-negative"),
+                "Error message should mention non-negative lambda"
+            );
+        },
+        _ => panic!(
+            "Expected InvalidInput error for negative lambda, got {:?}",
+            result
+        ),
     }
 }
 
@@ -102,8 +112,11 @@ fn test_lasso_rejects_dimension_mismatch() {
 
     match result {
         Err(Error::DimensionMismatch(msg)) => {
-            assert!(msg.contains("must match"), "Error should mention dimension mismatch");
-        }
+            assert!(
+                msg.contains("must match"),
+                "Error should mention dimension mismatch"
+            );
+        },
         _ => panic!("Expected DimensionMismatch error, got {:?}", result),
     }
 }
@@ -122,10 +135,10 @@ fn test_lasso_handles_nan_in_y() {
         Ok(fit) => {
             // If it succeeds, predictions should contain NaN
             assert!(fit.fitted_values.iter().any(|v| v.is_nan()));
-        }
+        },
         Err(_) => {
             // Also acceptable to return an error
-        }
+        },
     }
 }
 
@@ -142,10 +155,10 @@ fn test_lasso_handles_infinity_in_y() {
     match result {
         Ok(fit) => {
             assert!(fit.fitted_values.iter().any(|v| v.is_infinite()));
-        }
+        },
         Err(_) => {
             // Also acceptable to return an error
-        }
+        },
     }
 }
 
@@ -167,9 +180,15 @@ fn test_ridge_rejects_negative_lambda() {
 
     match result {
         Err(Error::InvalidInput(msg)) => {
-            assert!(msg.contains("non-negative"), "Error message should mention non-negative lambda");
-        }
-        _ => panic!("Expected InvalidInput error for negative lambda, got {:?}", result),
+            assert!(
+                msg.contains("non-negative"),
+                "Error message should mention non-negative lambda"
+            );
+        },
+        _ => panic!(
+            "Expected InvalidInput error for negative lambda, got {:?}",
+            result
+        ),
     }
 }
 
@@ -184,8 +203,11 @@ fn test_ridge_rejects_dimension_mismatch() {
 
     match result {
         Err(Error::DimensionMismatch(msg)) => {
-            assert!(msg.contains("must match"), "Error should mention dimension mismatch");
-        }
+            assert!(
+                msg.contains("must match"),
+                "Error should mention dimension mismatch"
+            );
+        },
         _ => panic!("Expected DimensionMismatch error, got {:?}", result),
     }
 }
@@ -203,10 +225,10 @@ fn test_ridge_handles_nan_in_y() {
     match result {
         Ok(fit) => {
             assert!(fit.fitted_values.iter().any(|v| v.is_nan()));
-        }
+        },
         Err(_) => {
             // Also acceptable to return an error
-        }
+        },
     }
 }
 
@@ -292,14 +314,20 @@ fn test_lasso_perfect_linear_fit() {
     let fit = lasso_fit(&x, &y, &options).unwrap();
 
     assert!(fit.converged, "Lasso should converge");
-    assert!(fit.n_nonzero >= 1, "Should have at least 1 non-zero coefficient");
+    assert!(
+        fit.n_nonzero >= 1,
+        "Should have at least 1 non-zero coefficient"
+    );
     assert_close(fit.coefficients[0], 2.0, 0.5, "slope coefficient");
 }
 
 #[test]
 fn test_lasso_with_intercept() {
     let x = create_design_matrix(&[1.0, 2.0, 3.0, 4.0]);
-    let y: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0].iter().map(|&v| 5.0 + 2.0 * v).collect();
+    let y: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0]
+        .iter()
+        .map(|&v| 5.0 + 2.0 * v)
+        .collect();
 
     let options = LassoFitOptions {
         lambda: 0.001,
@@ -377,8 +405,14 @@ fn test_lasso_large_lambda_produces_sparsity() {
     let fit = lasso_fit(&x, &y, &options).unwrap();
 
     // With large lambda, coefficient should be zero
-    assert_eq!(fit.n_nonzero, 0, "All coefficients should be zero with large lambda");
-    assert!(fit.coefficients[0].abs() < 1e-10, "Coefficient should be zero");
+    assert_eq!(
+        fit.n_nonzero, 0,
+        "All coefficients should be zero with large lambda"
+    );
+    assert!(
+        fit.coefficients[0].abs() < 1e-10,
+        "Coefficient should be zero"
+    );
 }
 
 #[test]
@@ -548,7 +582,10 @@ fn test_lasso_penalty_factor_excludes_variable() {
     let fit = lasso_fit(&x, &y, &options).unwrap();
 
     // x1 should be zero due to infinite penalty
-    assert!(fit.coefficients[0].abs() < 1e-10, "x1 should be penalized to zero");
+    assert!(
+        fit.coefficients[0].abs() < 1e-10,
+        "x1 should be penalized to zero"
+    );
 }
 
 #[test]
@@ -602,7 +639,10 @@ fn test_ridge_perfect_linear_fit() {
 #[test]
 fn test_ridge_with_intercept() {
     let x = create_design_matrix(&[1.0, 2.0, 3.0, 4.0]);
-    let y: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0].iter().map(|&v| 5.0 + 2.0 * v).collect();
+    let y: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0]
+        .iter()
+        .map(|&v| 5.0 + 2.0 * v)
+        .collect();
 
     let options = RidgeFitOptions {
         lambda: 0.001,
@@ -683,7 +723,8 @@ fn test_ridge_coefficient_shrinkage_with_lambda() {
         assert!(
             coef_abs <= prev_coef_abs + 1e-6,
             "Coefficient should shrink with lambda: {} at lambda={}",
-            coef_abs, lambda
+            coef_abs,
+            lambda
         );
         prev_coef_abs = coef_abs;
     }
@@ -695,7 +736,10 @@ fn test_ridge_coefficient_shrinkage_with_lambda() {
         standardize: true,
     };
     let fit_large = ridge_fit(&x, &y, &options_large).unwrap();
-    assert!(fit_large.coefficients[0].abs() < 0.5, "Coefficient should be small with large lambda");
+    assert!(
+        fit_large.coefficients[0].abs() < 0.5,
+        "Coefficient should be small with large lambda"
+    );
 }
 
 #[test]
@@ -725,7 +769,8 @@ fn test_ridge_shrinkage_towards_zero() {
     assert!(
         ridge_coef.abs() < ols_coef.abs(),
         "Ridge coefficient ({}) should be smaller than OLS ({})",
-        ridge_coef, ols_coef
+        ridge_coef,
+        ols_coef
     );
 }
 
@@ -751,7 +796,10 @@ fn test_ridge_handles_perfect_multicollinearity() {
     let fit = ridge_fit(&x, &y, &options).unwrap();
 
     // Should get a solution (not necessarily unique due to multicollinearity)
-    assert!(fit.r_squared > 0.5, "Should have reasonable R² despite multicollinearity");
+    assert!(
+        fit.r_squared > 0.5,
+        "Should have reasonable R² despite multicollinearity"
+    );
 }
 
 #[test]
@@ -816,7 +864,7 @@ fn test_lasso_standardization_affects_coefficients() {
             fit_std.fitted_values[i],
             fit_no_std.fitted_values[i],
             50.0, // Allow some difference due to regularization
-            "predictions should be similar"
+            "predictions should be similar",
         );
     }
 }
@@ -848,7 +896,7 @@ fn test_ridge_standardization_affects_coefficients() {
             fit_std.fitted_values[i],
             fit_no_std.fitted_values[i],
             1.0,
-            "predictions should be similar"
+            "predictions should be similar",
         );
     }
 }
@@ -963,7 +1011,12 @@ fn test_lasso_residuals_sum_property() {
 
     // Residuals should approximately sum to zero with intercept
     let residual_sum: f64 = fit.residuals.iter().sum();
-    assert_close(residual_sum, 0.0, 0.1, "residuals should sum to ~0 with intercept");
+    assert_close(
+        residual_sum,
+        0.0,
+        0.1,
+        "residuals should sum to ~0 with intercept",
+    );
 }
 
 // ============================================================================
@@ -1076,7 +1129,12 @@ fn test_ridge_residuals_sum_property() {
 
     // Residuals should approximately sum to zero with intercept
     let residual_sum: f64 = fit.residuals.iter().sum();
-    assert_close(residual_sum, 0.0, 0.1, "residuals should sum to ~0 with intercept");
+    assert_close(
+        residual_sum,
+        0.0,
+        0.1,
+        "residuals should sum to ~0 with intercept",
+    );
 }
 
 #[test]
@@ -1090,7 +1148,12 @@ fn test_ridge_effective_degrees_of_freedom() {
         ..Default::default()
     };
     let fit_ols = ridge_fit(&x, &y, &options_ols).unwrap();
-    assert_close(fit_ols.df, 2.0, 0.1, "OLS df should equal number of parameters");
+    assert_close(
+        fit_ols.df,
+        2.0,
+        0.1,
+        "OLS df should equal number of parameters",
+    );
 
     // Ridge (lambda > 0): df should be less than OLS
     let options_ridge = RidgeFitOptions {
@@ -1126,7 +1189,12 @@ fn test_lasso_predictions_match_fitted_values() {
     // Predictions on training data should equal fitted values
     for i in 0..y.len() {
         let pred = fit.intercept + fit.coefficients[0] * x.get(i, 1);
-        assert_close(pred, fit.fitted_values[i], TOLERANCE, "prediction should match fitted value");
+        assert_close(
+            pred,
+            fit.fitted_values[i],
+            TOLERANCE,
+            "prediction should match fitted value",
+        );
     }
 }
 
@@ -1146,7 +1214,12 @@ fn test_ridge_predictions_match_fitted_values() {
     // Predictions on training data should equal fitted values
     for i in 0..y.len() {
         let pred = fit.intercept + fit.coefficients[0] * x.get(i, 1);
-        assert_close(pred, fit.fitted_values[i], TOLERANCE, "prediction should match fitted value");
+        assert_close(
+            pred,
+            fit.fitted_values[i],
+            TOLERANCE,
+            "prediction should match fitted value",
+        );
     }
 }
 
@@ -1209,7 +1282,9 @@ fn test_lasso_multiple_predictors() {
     let x3 = vec![0.5, 1.5, 2.5, 3.5, 4.5];
     let x = create_design_matrix_multi(&[x1.clone(), x2.clone(), x3.clone()]);
 
-    let y: Vec<f64> = (0..5).map(|i| 1.0 + 2.0 * x1[i] + 0.5 * x2[i] + x3[i]).collect();
+    let y: Vec<f64> = (0..5)
+        .map(|i| 1.0 + 2.0 * x1[i] + 0.5 * x2[i] + x3[i])
+        .collect();
 
     let options = LassoFitOptions {
         lambda: 0.001,
@@ -1222,7 +1297,11 @@ fn test_lasso_multiple_predictors() {
     assert!(fit.converged);
     assert!(fit.r_squared > 0.9, "Should have high R²");
     // coefficients contains the slope coefficients (excluding intercept which is separate)
-    assert_eq!(fit.coefficients.len(), 3, "Should have 3 slope coefficients");
+    assert_eq!(
+        fit.coefficients.len(),
+        3,
+        "Should have 3 slope coefficients"
+    );
 }
 
 #[test]
@@ -1232,7 +1311,9 @@ fn test_ridge_multiple_predictors() {
     let x3 = vec![0.5, 1.5, 2.5, 3.5, 4.5];
     let x = create_design_matrix_multi(&[x1.clone(), x2.clone(), x3.clone()]);
 
-    let y: Vec<f64> = (0..5).map(|i| 1.0 + 2.0 * x1[i] + 0.5 * x2[i] + x3[i]).collect();
+    let y: Vec<f64> = (0..5)
+        .map(|i| 1.0 + 2.0 * x1[i] + 0.5 * x2[i] + x3[i])
+        .collect();
 
     let options = RidgeFitOptions {
         lambda: 0.001,
@@ -1244,7 +1325,11 @@ fn test_ridge_multiple_predictors() {
 
     assert!(fit.r_squared > 0.9, "Should have high R²");
     // coefficients contains the slope coefficients (excluding intercept which is separate)
-    assert_eq!(fit.coefficients.len(), 3, "Should have 3 slope coefficients");
+    assert_eq!(
+        fit.coefficients.len(),
+        3,
+        "Should have 3 slope coefficients"
+    );
 }
 
 // ============================================================================
@@ -1281,7 +1366,10 @@ fn test_ridge_with_constant_y() {
     let fit = ridge_fit(&x, &y, &options).unwrap();
 
     // All slope coefficients should be near zero
-    assert!(fit.coefficients[0].abs() < 1.0, "Coefficient should be near zero for constant y");
+    assert!(
+        fit.coefficients[0].abs() < 1.0,
+        "Coefficient should be near zero for constant y"
+    );
     assert_close(fit.intercept, 5.0, 0.5, "intercept should be mean of y");
 }
 

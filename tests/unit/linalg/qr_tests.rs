@@ -5,8 +5,8 @@
 // Tests for QR decomposition including edge cases, numerical precision,
 // and special matrix types.
 
+use super::common::{assert_close, assert_matrix_eq, QR_TOLERANCE};
 use linreg_core::linalg::Matrix;
-use super::common::{QR_TOLERANCE, assert_close, assert_matrix_eq};
 
 // ============================================================================
 // Core QR Decomposition Tests
@@ -36,7 +36,12 @@ fn test_qr_q_orthogonal() {
     for i in 0..4 {
         for j in 0..4 {
             let expected = if i == j { 1.0 } else { 0.0 };
-            assert_close(qt_q.get(i, j), expected, QR_TOLERANCE, &format!("Q^T*Q[{},{}]", i, j));
+            assert_close(
+                qt_q.get(i, j),
+                expected,
+                QR_TOLERANCE,
+                &format!("Q^T*Q[{},{}]", i, j),
+            );
         }
     }
 }
@@ -91,8 +96,7 @@ fn test_qr_tall_matrix() {
         5,
         3,
         vec![
-            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0,
-            14.0, 15.0,
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
         ],
     );
 
@@ -118,8 +122,7 @@ fn test_qr_wide_matrix() {
         3,
         5,
         vec![
-            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0,
-            14.0, 15.0,
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
         ],
     );
 
@@ -159,9 +162,7 @@ fn test_qr_near_singular() {
     let a = Matrix::new(
         3,
         2,
-        vec![
-            1.0, 2.0, 1.0 + 1e-8, 2.0 + 2e-8, 1.0 + 2e-8, 2.0 + 4e-8,
-        ],
+        vec![1.0, 2.0, 1.0 + 1e-8, 2.0 + 2e-8, 1.0 + 2e-8, 2.0 + 4e-8],
     );
 
     let (q, r) = a.qr();
@@ -184,9 +185,7 @@ fn test_qr_square_matrix() {
         3,
         3,
         vec![
-            1.0, 2.0, 3.0,
-            4.0, 5.0, 6.0,
-            7.0, 8.0, 10.0,  // Changed from 9.0 for full rank
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, // Changed from 9.0 for full rank
         ],
     );
 
@@ -204,7 +203,12 @@ fn test_qr_square_matrix() {
     // R should be upper triangular
     for i in 1..3 {
         for j in 0..i {
-            assert_close(r.get(i, j), 0.0, QR_TOLERANCE, &format!("square R lower[{},{}]", i, j));
+            assert_close(
+                r.get(i, j),
+                0.0,
+                QR_TOLERANCE,
+                &format!("square R lower[{},{}]", i, j),
+            );
         }
     }
 
@@ -231,7 +235,12 @@ fn test_qr_single_element_matrix() {
 
     // Reconstruction should work
     let reconstructed = q.matmul(&r);
-    assert_close(reconstructed.get(0, 0), a.get(0, 0), 1e-10, "1x1 reconstruction");
+    assert_close(
+        reconstructed.get(0, 0),
+        a.get(0, 0),
+        1e-10,
+        "1x1 reconstruction",
+    );
 }
 
 #[test]
@@ -250,7 +259,12 @@ fn test_qr_row_vector() {
     // Reconstruction should work
     let reconstructed = q.matmul(&r);
     for j in 0..4 {
-        assert_close(reconstructed.get(0, j), a.get(0, j), 1e-10, &format!("row vector reconstruction[0,{}]", j));
+        assert_close(
+            reconstructed.get(0, j),
+            a.get(0, j),
+            1e-10,
+            &format!("row vector reconstruction[0,{}]", j),
+        );
     }
 }
 
@@ -266,51 +280,53 @@ fn test_qr_column_vector() {
     for i in 0..5 {
         for j in 0..5 {
             let expected = if i == j { 1.0 } else { 0.0 };
-            assert_close(qt_q.get(i, j), expected, 1e-10, &format!("column Q orthogonality[{},{}]", i, j));
+            assert_close(
+                qt_q.get(i, j),
+                expected,
+                1e-10,
+                &format!("column Q orthogonality[{},{}]", i, j),
+            );
         }
     }
 
     // R should be 5x1 upper triangular (only R[0,0] non-zero in first column)
     // Note: R[0,0] = ±‖x‖ depending on Householder sign (both are valid)
-    let expected_norm = (1.0_f64*1.0 + 2.0*2.0 + 3.0*3.0 + 4.0*4.0 + 5.0*5.0).sqrt();
-    assert!(r.get(0, 0).abs() - expected_norm < 1e-10, "R[0,0] should have norm magnitude");
+    let expected_norm = (1.0_f64 * 1.0 + 2.0 * 2.0 + 3.0 * 3.0 + 4.0 * 4.0 + 5.0 * 5.0).sqrt();
+    assert!(
+        r.get(0, 0).abs() - expected_norm < 1e-10,
+        "R[0,0] should have norm magnitude"
+    );
     for i in 1..5 {
-        assert_close(r.get(i, 0), 0.0, QR_TOLERANCE, &format!("R[{},0] should be 0", i));
+        assert_close(
+            r.get(i, 0),
+            0.0,
+            QR_TOLERANCE,
+            &format!("R[{},0] should be 0", i),
+        );
     }
 }
 
 #[test]
 fn test_qr_all_zeros_column() {
     // QR with a zero column (singular case)
-    let a = Matrix::new(
-        3,
-        2,
-        vec![
-            1.0, 0.0,
-            2.0, 0.0,
-            3.0, 0.0,
-        ],
-    );
+    let a = Matrix::new(3, 2, vec![1.0, 0.0, 2.0, 0.0, 3.0, 0.0]);
 
     let (q, r) = a.qr();
     let reconstructed = q.matmul(&r);
 
     // Should still reconstruct correctly
-    assert_matrix_eq(&a, &reconstructed, QR_TOLERANCE, "zero column reconstruction");
+    assert_matrix_eq(
+        &a,
+        &reconstructed,
+        QR_TOLERANCE,
+        "zero column reconstruction",
+    );
 }
 
 #[test]
 fn test_qr_negative_values() {
     // QR with all negative values
-    let a = Matrix::new(
-        3,
-        2,
-        vec![
-            -1.0, -4.0,
-            -2.0, -5.0,
-            -3.0, -6.0,
-        ],
-    );
+    let a = Matrix::new(3, 2, vec![-1.0, -4.0, -2.0, -5.0, -3.0, -6.0]);
 
     let (q, r) = a.qr();
 
@@ -320,27 +336,29 @@ fn test_qr_negative_values() {
     for i in 0..3 {
         for j in 0..3 {
             let expected = if i == j { 1.0 } else { 0.0 };
-            assert_close(qt_q.get(i, j), expected, QR_TOLERANCE, &format!("negative Q orthogonality[{},{}]", i, j));
+            assert_close(
+                qt_q.get(i, j),
+                expected,
+                QR_TOLERANCE,
+                &format!("negative Q orthogonality[{},{}]", i, j),
+            );
         }
     }
 
     // Reconstruction should work
     let reconstructed = q.matmul(&r);
-    assert_matrix_eq(&a, &reconstructed, QR_TOLERANCE, "negative values reconstruction");
+    assert_matrix_eq(
+        &a,
+        &reconstructed,
+        QR_TOLERANCE,
+        "negative values reconstruction",
+    );
 }
 
 #[test]
 fn test_qr_already_upper_triangular() {
     // QR of an already upper triangular matrix
-    let a = Matrix::new(
-        3,
-        3,
-        vec![
-            2.0, 3.0, 4.0,
-            0.0, 5.0, 6.0,
-            0.0, 0.0, 7.0,
-        ],
-    );
+    let a = Matrix::new(3, 3, vec![2.0, 3.0, 4.0, 0.0, 5.0, 6.0, 0.0, 0.0, 7.0]);
 
     let (q, _r) = a.qr();
 
@@ -351,7 +369,12 @@ fn test_qr_already_upper_triangular() {
     for i in 0..3 {
         for j in 0..3 {
             let expected = if i == j { 1.0 } else { 0.0 };
-            assert_close(qt_q.get(i, j), expected, QR_TOLERANCE, &format!("triangular Q orthogonality[{},{}]", i, j));
+            assert_close(
+                qt_q.get(i, j),
+                expected,
+                QR_TOLERANCE,
+                &format!("triangular Q orthogonality[{},{}]", i, j),
+            );
         }
     }
 }
@@ -360,18 +383,11 @@ fn test_qr_already_upper_triangular() {
 fn test_qr_orthogonal_matrix() {
     // QR of an orthogonal matrix (Q should equal input, R should equal I)
     // Create a simple rotation matrix
-    let theta = std::f64::consts::PI / 4.0;  // 45 degrees
+    let theta = std::f64::consts::PI / 4.0; // 45 degrees
     let cos_t = theta.cos();
     let sin_t = theta.sin();
 
-    let a = Matrix::new(
-        2,
-        2,
-        vec![
-            cos_t, -sin_t,
-            sin_t, cos_t,
-        ],
-    );
+    let a = Matrix::new(2, 2, vec![cos_t, -sin_t, sin_t, cos_t]);
 
     let (q, _r) = a.qr();
 
@@ -381,7 +397,12 @@ fn test_qr_orthogonal_matrix() {
     for i in 0..2 {
         for j in 0..2 {
             let expected = if i == j { 1.0 } else { 0.0 };
-            assert_close(qt_q.get(i, j), expected, 1e-10, &format!("rotation Q orthogonality[{},{}]", i, j));
+            assert_close(
+                qt_q.get(i, j),
+                expected,
+                1e-10,
+                &format!("rotation Q orthogonality[{},{}]", i, j),
+            );
         }
     }
 }
@@ -389,15 +410,7 @@ fn test_qr_orthogonal_matrix() {
 #[test]
 fn test_qr_symmetric_positive_definite() {
     // QR of a symmetric positive definite matrix
-    let a = Matrix::new(
-        3,
-        3,
-        vec![
-            4.0, 1.0, 0.5,
-            1.0, 5.0, 1.0,
-            0.5, 1.0, 6.0,
-        ],
-    );
+    let a = Matrix::new(3, 3, vec![4.0, 1.0, 0.5, 1.0, 5.0, 1.0, 0.5, 1.0, 6.0]);
 
     let (q, r) = a.qr();
 
@@ -407,14 +420,24 @@ fn test_qr_symmetric_positive_definite() {
     for i in 0..3 {
         for j in 0..3 {
             let expected = if i == j { 1.0 } else { 0.0 };
-            assert_close(qt_q.get(i, j), expected, QR_TOLERANCE, &format!("SPD Q orthogonality[{},{}]", i, j));
+            assert_close(
+                qt_q.get(i, j),
+                expected,
+                QR_TOLERANCE,
+                &format!("SPD Q orthogonality[{},{}]", i, j),
+            );
         }
     }
 
     // R should be upper triangular
     for i in 1..3 {
         for j in 0..i {
-            assert_close(r.get(i, j), 0.0, QR_TOLERANCE, &format!("SPD R lower[{},{}]", i, j));
+            assert_close(
+                r.get(i, j),
+                0.0,
+                QR_TOLERANCE,
+                &format!("SPD R lower[{},{}]", i, j),
+            );
         }
     }
 }
@@ -430,10 +453,7 @@ fn test_qr_large_scale_matrix() {
         4,
         3,
         vec![
-            1e8, 2e8, 3e8,
-            4e8, 5e8, 6e8,
-            7e8, 8e8, 9e8,
-            1e9, 1.1e9, 1.2e9,
+            1e8, 2e8, 3e8, 4e8, 5e8, 6e8, 7e8, 8e8, 9e8, 1e9, 1.1e9, 1.2e9,
         ],
     );
 
@@ -452,21 +472,29 @@ fn test_qr_large_scale_matrix() {
             assert!(
                 diff < tolerance,
                 "Large scale Q orthogonality error at [{},{}]: got {}, expected {}, diff = {}",
-                i, j, qt_q.get(i, j), expected, diff
+                i,
+                j,
+                qt_q.get(i, j),
+                expected,
+                diff
             );
         }
     }
 
     // Verify reconstruction: A = Q * R
     let reconstructed = q.matmul(&r);
-    let rec_tolerance = 1e-4 * 1e9;  // Relative to 1e9 scale
+    let rec_tolerance = 1e-4 * 1e9; // Relative to 1e9 scale
     for i in 0..4 {
         for j in 0..3 {
             let diff = (reconstructed.get(i, j) - a.get(i, j)).abs();
             assert!(
                 diff < rec_tolerance,
                 "Large scale QR reconstruction error at [{},{}]: got {}, expected {}, diff = {}",
-                i, j, reconstructed.get(i, j), a.get(i, j), diff
+                i,
+                j,
+                reconstructed.get(i, j),
+                a.get(i, j),
+                diff
             );
         }
     }
@@ -478,11 +506,7 @@ fn test_qr_with_mixed_magnitudes() {
     let a = Matrix::new(
         3,
         3,
-        vec![
-            1e10, 1e-5, 1.0,
-            2e10, 2e-5, 2.0,
-            3e10, 3e-5, 3.0,
-        ],
+        vec![1e10, 1e-5, 1.0, 2e10, 2e-5, 2.0, 3e10, 3e-5, 3.0],
     );
 
     let (q, _r) = a.qr();
@@ -493,7 +517,12 @@ fn test_qr_with_mixed_magnitudes() {
     for i in 0..3 {
         for j in 0..3 {
             let expected = if i == j { 1.0 } else { 0.0 };
-            assert_close(qt_q.get(i, j), expected, 1e-6, &format!("mixed magnitude Q orthogonality[{},{}]", i, j));
+            assert_close(
+                qt_q.get(i, j),
+                expected,
+                1e-6,
+                &format!("mixed magnitude Q orthogonality[{},{}]", i, j),
+            );
         }
     }
 }
@@ -501,15 +530,8 @@ fn test_qr_with_mixed_magnitudes() {
 #[test]
 fn test_with_max_f64_values() {
     // Test with values near f64::MAX
-    let scale = 1e100;  // Large but not near MAX
-    let a = Matrix::new(
-        2,
-        2,
-        vec![
-            scale, 2.0 * scale,
-            3.0 * scale, 4.0 * scale,
-        ],
-    );
+    let scale = 1e100; // Large but not near MAX
+    let a = Matrix::new(2, 2, vec![scale, 2.0 * scale, 3.0 * scale, 4.0 * scale]);
 
     let (q, r) = a.qr();
     let reconstructed = q.matmul(&r);
@@ -521,7 +543,10 @@ fn test_with_max_f64_values() {
             let diff = (reconstructed.get(i, j) - a.get(i, j)).abs();
             assert!(
                 diff < rel_tolerance,
-                "Large value reconstruction[{},{}]: diff = {}", i, j, diff
+                "Large value reconstruction[{},{}]: diff = {}",
+                i,
+                j,
+                diff
             );
         }
     }

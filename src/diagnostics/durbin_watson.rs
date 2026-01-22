@@ -32,9 +32,9 @@
 // The diagnostic interpretation is identical (DW ≈ 1.86 indicates "no
 // significant autocorrelation" in all three implementations).
 
+use super::helpers::fit_ols;
 use crate::error::{Error, Result};
 use crate::linalg::Matrix;
-use super::helpers::fit_ols;
 use serde::Serialize;
 
 /// Result of the Durbin-Watson test
@@ -96,17 +96,17 @@ pub struct DurbinWatsonResult {
 ///
 /// For formal hypothesis testing, use statistical tables or software that provides
 /// exact p-values (e.g., R's lmtest::dwtest).
-pub fn durbin_watson_test(
-    y: &[f64],
-    x_vars: &[Vec<f64>],
-) -> Result<DurbinWatsonResult> {
+pub fn durbin_watson_test(y: &[f64], x_vars: &[Vec<f64>]) -> Result<DurbinWatsonResult> {
     let n = y.len();
     let k = x_vars.len();
     let p = k + 1;
 
     // Validate inputs
     if n <= p + 1 {
-        return Err(Error::InsufficientData { required: p + 2, available: n });
+        return Err(Error::InsufficientData {
+            required: p + 2,
+            available: n,
+        });
     }
 
     // Validate dimensions and finite values using shared helper
@@ -115,7 +115,7 @@ pub fn durbin_watson_test(
     // Create design matrix
     let mut x_data = vec![0.0; n * p];
     for (row, _yi) in y.iter().enumerate() {
-        x_data[row * p] = 1.0;  // intercept
+        x_data[row * p] = 1.0; // intercept
         for (col, x_var) in x_vars.iter().enumerate() {
             x_data[row * p + col + 1] = x_var[row];
         }
@@ -128,7 +128,9 @@ pub fn durbin_watson_test(
     let predictions = x.mul_vec(&beta);
 
     // Compute residuals
-    let residuals: Vec<f64> = y.iter().zip(predictions.iter())
+    let residuals: Vec<f64> = y
+        .iter()
+        .zip(predictions.iter())
         .map(|(&yi, &yi_hat)| yi - yi_hat)
         .collect();
 
@@ -136,10 +138,13 @@ pub fn durbin_watson_test(
     let sum_residuals_squared: f64 = residuals.iter().map(|&r| r * r).sum();
 
     if sum_residuals_squared < 1e-10 {
-        return Err(Error::InvalidInput("Residuals are too close to zero".to_string()));
+        return Err(Error::InvalidInput(
+            "Residuals are too close to zero".to_string(),
+        ));
     }
 
-    let sum_diff_squared: f64 = residuals.windows(2)
+    let sum_diff_squared: f64 = residuals
+        .windows(2)
         .map(|w| (w[1] - w[0]) * (w[1] - w[0]))
         .sum();
 
@@ -180,14 +185,22 @@ fn interpret_dw(dw: f64, rho: f64) -> (String, String) {
             dw, rho, direction
         )
     } else if dw < 1.5 {
-        let strength = if dw < 1.0 { "strong" } else { "moderate to strong" };
+        let strength = if dw < 1.0 {
+            "strong"
+        } else {
+            "moderate to strong"
+        };
         format!(
             "Durbin-Watson statistic = {:.4} (ρ ≈ {:.3}). This indicates {} positive autocorrelation.",
             dw, rho, strength
         )
     } else {
         // dw > 2.5
-        let strength = if dw > 3.0 { "strong" } else { "moderate to strong" };
+        let strength = if dw > 3.0 {
+            "strong"
+        } else {
+            "moderate to strong"
+        };
         format!(
             "Durbin-Watson statistic = {:.4} (ρ ≈ {:.3}). This indicates {} negative autocorrelation.",
             dw, rho, strength
@@ -282,19 +295,26 @@ mod tests {
     #[test]
     fn test_statistic_bounds() {
         let y = vec![
-            100.0, 102.0, 98.0, 105.0, 103.0, 107.0, 101.0, 104.0,
-            106.0, 103.0, 108.0, 105.0, 102.0, 109.0, 107.0, 104.0
+            100.0, 102.0, 98.0, 105.0, 103.0, 107.0, 101.0, 104.0, 106.0, 103.0, 108.0, 105.0,
+            102.0, 109.0, 107.0, 104.0,
         ];
         let x1 = vec![
-            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0,
-            9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
         ];
 
         let result = durbin_watson_test(&y, &[x1]).unwrap();
 
         // DW must be between 0 and 4
-        assert!(result.statistic >= 0.0, "DW should be >= 0, got {}", result.statistic);
-        assert!(result.statistic <= 4.0, "DW should be <= 4, got {}", result.statistic);
+        assert!(
+            result.statistic >= 0.0,
+            "DW should be >= 0, got {}",
+            result.statistic
+        );
+        assert!(
+            result.statistic <= 4.0,
+            "DW should be <= 4, got {}",
+            result.statistic
+        );
 
         // Autocorrelation should be between -1 and 1
         assert!(result.autocorrelation >= -1.0);
@@ -310,73 +330,58 @@ mod tests {
         // mtcars dataset: mpg as response, all other columns as predictors
         // Reference values from R/Python: DW = 1.860893
         let y = vec![
-            21.0, 21.0, 22.8, 21.4, 18.7, 18.1, 14.3, 24.4, 22.8, 19.2,
-            17.8, 16.4, 17.3, 15.2, 10.4, 10.4, 14.7, 32.4, 30.4, 33.9,
-            21.5, 15.5, 15.2, 13.3, 19.2, 27.3, 26.0, 30.4, 15.8, 19.7,
-            15.0, 21.4
+            21.0, 21.0, 22.8, 21.4, 18.7, 18.1, 14.3, 24.4, 22.8, 19.2, 17.8, 16.4, 17.3, 15.2,
+            10.4, 10.4, 14.7, 32.4, 30.4, 33.9, 21.5, 15.5, 15.2, 13.3, 19.2, 27.3, 26.0, 30.4,
+            15.8, 19.7, 15.0, 21.4,
         ];
         let cyl = vec![
-            6.0, 6.0, 4.0, 6.0, 8.0, 6.0, 8.0, 4.0, 4.0, 6.0,
-            6.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 4.0, 4.0, 4.0,
-            4.0, 8.0, 8.0, 8.0, 8.0, 4.0, 4.0, 4.0, 8.0, 8.0,
-            8.0, 4.0
+            6.0, 6.0, 4.0, 6.0, 8.0, 6.0, 8.0, 4.0, 4.0, 6.0, 6.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0,
+            4.0, 4.0, 4.0, 4.0, 8.0, 8.0, 8.0, 8.0, 4.0, 4.0, 4.0, 8.0, 8.0, 8.0, 4.0,
         ];
         let disp = vec![
-            160.0, 160.0, 108.0, 258.0, 360.0, 225.0, 360.0, 146.7, 140.8, 167.6,
-            167.6, 275.8, 275.8, 275.8, 472.0, 460.0, 440.0, 78.7, 75.7, 71.1,
-            120.1, 318.0, 304.0, 350.0, 400.0, 79.0, 120.3, 95.1, 351.0, 145.0,
-            301.0, 121.0
+            160.0, 160.0, 108.0, 258.0, 360.0, 225.0, 360.0, 146.7, 140.8, 167.6, 167.6, 275.8,
+            275.8, 275.8, 472.0, 460.0, 440.0, 78.7, 75.7, 71.1, 120.1, 318.0, 304.0, 350.0, 400.0,
+            79.0, 120.3, 95.1, 351.0, 145.0, 301.0, 121.0,
         ];
         let hp = vec![
-            110.0, 110.0, 93.0, 110.0, 175.0, 105.0, 245.0, 62.0, 95.0, 123.0,
-            123.0, 180.0, 180.0, 180.0, 205.0, 215.0, 230.0, 66.0, 52.0, 65.0,
-            97.0, 150.0, 150.0, 245.0, 175.0, 66.0, 91.0, 113.0, 264.0, 175.0,
-            335.0, 109.0
+            110.0, 110.0, 93.0, 110.0, 175.0, 105.0, 245.0, 62.0, 95.0, 123.0, 123.0, 180.0, 180.0,
+            180.0, 205.0, 215.0, 230.0, 66.0, 52.0, 65.0, 97.0, 150.0, 150.0, 245.0, 175.0, 66.0,
+            91.0, 113.0, 264.0, 175.0, 335.0, 109.0,
         ];
         let drat = vec![
-            3.90, 3.90, 3.85, 3.08, 3.15, 2.76, 3.21, 3.69, 3.92, 3.92,
-            3.92, 3.07, 3.07, 3.07, 2.93, 3.00, 3.23, 4.08, 4.93, 4.22,
-            3.70, 2.76, 3.15, 3.73, 3.08, 4.08, 4.43, 3.77, 4.22, 3.62,
-            3.54, 4.11
+            3.90, 3.90, 3.85, 3.08, 3.15, 2.76, 3.21, 3.69, 3.92, 3.92, 3.92, 3.07, 3.07, 3.07,
+            2.93, 3.00, 3.23, 4.08, 4.93, 4.22, 3.70, 2.76, 3.15, 3.73, 3.08, 4.08, 4.43, 3.77,
+            4.22, 3.62, 3.54, 4.11,
         ];
         let wt = vec![
-            2.620, 2.875, 2.320, 3.215, 3.440, 3.460, 3.570, 3.190, 3.150, 3.440,
-            3.440, 4.070, 3.730, 3.780, 5.250, 5.424, 5.345, 2.200, 1.615, 1.835,
-            2.465, 3.520, 3.435, 3.840, 3.845, 1.935, 2.140, 1.513, 3.170, 2.770,
-            3.570, 2.780
+            2.620, 2.875, 2.320, 3.215, 3.440, 3.460, 3.570, 3.190, 3.150, 3.440, 3.440, 4.070,
+            3.730, 3.780, 5.250, 5.424, 5.345, 2.200, 1.615, 1.835, 2.465, 3.520, 3.435, 3.840,
+            3.845, 1.935, 2.140, 1.513, 3.170, 2.770, 3.570, 2.780,
         ];
         let qsec = vec![
-            16.46, 17.02, 18.61, 19.44, 17.02, 20.22, 15.84, 20.00, 22.90, 18.30,
-            18.90, 17.40, 17.60, 18.00, 17.98, 17.82, 17.42, 19.47, 18.52, 19.90,
-            20.01, 16.87, 17.30, 15.41, 17.05, 18.90, 16.70, 16.90, 14.50, 15.50,
-            16.90, 18.60
+            16.46, 17.02, 18.61, 19.44, 17.02, 20.22, 15.84, 20.00, 22.90, 18.30, 18.90, 17.40,
+            17.60, 18.00, 17.98, 17.82, 17.42, 19.47, 18.52, 19.90, 20.01, 16.87, 17.30, 15.41,
+            17.05, 18.90, 16.70, 16.90, 14.50, 15.50, 16.90, 18.60,
         ];
         let vs = vec![
-            0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0,
-            1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
-            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0,
-            0.0, 1.0
+            0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0,
         ];
         let am = vec![
-            1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
-            0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-            1.0, 1.0
+            1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
         ];
         let gear = vec![
-            4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
-            4.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
-            3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0,
-            5.0, 4.0
+            4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0,
+            4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0, 5.0, 4.0,
         ];
         let carb = vec![
-            4.0, 4.0, 1.0, 1.0, 2.0, 1.0, 4.0, 2.0, 2.0, 4.0,
-            4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 1.0, 2.0, 1.0,
-            1.0, 2.0, 2.0, 4.0, 2.0, 1.0, 2.0, 2.0, 4.0, 6.0,
-            8.0, 2.0
+            4.0, 4.0, 1.0, 1.0, 2.0, 1.0, 4.0, 2.0, 2.0, 4.0, 4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
+            1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 4.0, 2.0, 1.0, 2.0, 2.0, 4.0, 6.0, 8.0, 2.0,
         ];
 
-        let result = durbin_watson_test(&y, &[cyl, disp, hp, drat, wt, qsec, vs, am, gear, carb]).unwrap();
+        let result =
+            durbin_watson_test(&y, &[cyl, disp, hp, drat, wt, qsec, vs, am, gear, carb]).unwrap();
 
         // R's lmtest::dwtest and Python's statsmodels both give 1.860893
         // Our implementation gives 1.866364812282547 (difference ~0.0055, ~0.29%)
@@ -386,13 +391,21 @@ mod tests {
         // Both produce valid results; the DW statistic is stable and interpretation is identical.
         let expected_dw = 1.860893;
         let tolerance = 0.01; // 1% tolerance for cross-implementation differences
-        assert!((result.statistic - expected_dw).abs() < tolerance,
-            "Expected DW ≈ {}, got {}", expected_dw, result.statistic);
+        assert!(
+            (result.statistic - expected_dw).abs() < tolerance,
+            "Expected DW ≈ {}, got {}",
+            expected_dw,
+            result.statistic
+        );
 
         // Autocorrelation ≈ 1 - DW/2 = 1 - 1.860893/2 = 0.0695...
         // Our result: 1 - 1.866364812282547/2 = 0.0668...
         let expected_rho = 1.0 - expected_dw / 2.0;
-        assert!((result.autocorrelation - expected_rho).abs() < tolerance,
-            "Expected rho ≈ {}, got {}", expected_rho, result.autocorrelation);
+        assert!(
+            (result.autocorrelation - expected_rho).abs() < tolerance,
+            "Expected rho ≈ {}, got {}",
+            expected_rho,
+            result.autocorrelation
+        );
     }
 }

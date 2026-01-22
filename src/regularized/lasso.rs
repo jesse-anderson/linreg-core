@@ -218,9 +218,11 @@ pub fn lasso_fit(x: &Matrix, y: &[f64], options: &LassoFitOptions) -> Result<Las
     let p = x.cols;
 
     if y.len() != n {
-        return Err(Error::DimensionMismatch(
-            format!("Length of y ({}) must match number of rows in X ({})", y.len(), n)
-        ));
+        return Err(Error::DimensionMismatch(format!(
+            "Length of y ({}) must match number of rows in X ({})",
+            y.len(),
+            n
+        )));
     }
 
     // Handle zero lambda: just do OLS
@@ -263,7 +265,11 @@ pub fn lasso_fit(x: &Matrix, y: &[f64], options: &LassoFitOptions) -> Result<Las
 
     // Compute fitted values and residuals
     let fitted = predict(x, intercept, &beta_orig);
-    let residuals: Vec<f64> = y.iter().zip(fitted.iter()).map(|(yi, yh)| yi - yh).collect();
+    let residuals: Vec<f64> = y
+        .iter()
+        .zip(fitted.iter())
+        .map(|(yi, yh)| yi - yh)
+        .collect();
 
     // Compute model fit statistics
     let y_mean: f64 = y.iter().sum::<f64>() / n as f64;
@@ -441,7 +447,11 @@ fn lasso_ols_fit(x: &Matrix, y: &[f64], options: &LassoFitOptions) -> Result<Las
 
     // Compute fitted values and residuals
     let fitted = predict(x, intercept, &beta_orig);
-    let residuals: Vec<f64> = y.iter().zip(fitted.iter()).map(|(yi, yh)| yi - yh).collect();
+    let residuals: Vec<f64> = y
+        .iter()
+        .zip(fitted.iter())
+        .map(|(yi, yh)| yi - yh)
+        .collect();
 
     // Count non-zero coefficients (beta_orig already excludes intercept col coefficient)
     let n_nonzero = beta_orig.iter().filter(|&&b| b.abs() > 0.0).count();
@@ -517,19 +527,14 @@ mod tests {
     #[test]
     fn test_lasso_fit_simple() {
         // Simple test: y = 2*x with perfect linear relationship
-        let x_data = vec![
-            1.0, 1.0,
-            1.0, 2.0,
-            1.0, 3.0,
-            1.0, 4.0,
-        ];
+        let x_data = vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0];
         let x = Matrix::new(4, 2, x_data);
         let y = vec![2.0, 4.0, 6.0, 8.0];
 
         let options = LassoFitOptions {
-            lambda: 0.01,  // Very small lambda for near-OLS solution
+            lambda: 0.01, // Very small lambda for near-OLS solution
             intercept: true,
-            standardize: true,  // Standardize for better convergence
+            standardize: true, // Standardize for better convergence
             ..Default::default()
         };
 
@@ -547,11 +552,7 @@ mod tests {
 
     #[test]
     fn test_lasso_with_large_lambda() {
-        let x_data = vec![
-            1.0, 1.0,
-            1.0, 2.0,
-            1.0, 3.0,
-        ];
+        let x_data = vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0];
         let x = Matrix::new(3, 2, x_data);
         let y = vec![2.0, 4.0, 6.0];
 
@@ -573,11 +574,7 @@ mod tests {
 
     #[test]
     fn test_lasso_zero_lambda_is_ols() {
-        let x_data = vec![
-            1.0, 1.0,
-            1.0, 2.0,
-            1.0, 3.0,
-        ];
+        let x_data = vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0];
         let x = Matrix::new(3, 2, x_data);
         let y = vec![2.0, 4.0, 6.0];
 
@@ -598,11 +595,7 @@ mod tests {
 
     #[test]
     fn test_predict_lasso() {
-        let x_data = vec![
-            1.0, 1.0,
-            1.0, 2.0,
-            1.0, 3.0,
-        ];
+        let x_data = vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0];
         let x = Matrix::new(3, 2, x_data);
         let y = vec![2.0, 4.0, 6.0];
 

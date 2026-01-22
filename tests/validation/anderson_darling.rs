@@ -26,12 +26,11 @@
 //
 // # Skipped Tests
 //
-// - `iris`: Contains string data (categorical species column) - cannot be loaded 
+// - `iris`: Contains string data (categorical species column) - cannot be loaded
 // - I need to fix categorical handling..
 
 use crate::common::{
-    load_dataset, load_r_diagnostic_result, load_python_diagnostic_result,
-    ALL_DATASETS,
+    load_dataset, load_python_diagnostic_result, load_r_diagnostic_result, ALL_DATASETS,
 };
 
 use linreg_core::diagnostics;
@@ -40,11 +39,10 @@ use linreg_core::diagnostics;
 /// For large A² values (> 10), use relative tolerance since small numerical
 /// differences in log CDF accumulate to larger absolute differences
 const AD_TOLERANCE_ABS: f64 = 0.001;
-const AD_TOLERANCE_REL: f64 = 0.10;  // 10% relative tolerance for large A²
+const AD_TOLERANCE_REL: f64 = 0.10; // 10% relative tolerance for large A²
 
 #[test]
 fn validate_anderson_darling_all_datasets() {
-
     println!("\n");
     println!("╔══════════════════════════════════════════════════════════════════════╗");
     println!("║  ANDERSON-DARLING TEST - COMPREHENSIVE MULTI-DATASET VALIDATION  ║");
@@ -80,10 +78,14 @@ fn validate_anderson_darling_all_datasets() {
                 println!("    Failed to load dataset: {}", e);
                 failed_tests.push((dataset_name.to_string(), "Load failed".to_string()));
                 continue;
-            }
+            },
         };
 
-        println!("    Loaded: n = {}, predictors = {}", dataset.y.len(), dataset.x_vars.len());
+        println!(
+            "    Loaded: n = {}, predictors = {}",
+            dataset.y.len(),
+            dataset.x_vars.len()
+        );
 
         // Run Anderson-Darling test
         let rust_result = match diagnostics::anderson_darling_test(&dataset.y, &dataset.x_vars) {
@@ -92,10 +94,13 @@ fn validate_anderson_darling_all_datasets() {
                 println!("      Anderson-Darling test failed: {}", e);
                 failed_tests.push((dataset_name.to_string(), format!("Test error: {}", e)));
                 continue;
-            }
+            },
         };
 
-        println!("    Rust: A² = {:.6}, p = {:.6}", rust_result.statistic, rust_result.p_value);
+        println!(
+            "    Rust: A² = {:.6}, p = {:.6}",
+            rust_result.statistic, rust_result.p_value
+        );
 
         // Validate against R
         let r_result_path = r_results_dir.join(format!("{}_anderson_darling.json", dataset_name));
@@ -118,24 +123,37 @@ fn validate_anderson_darling_all_datasets() {
             let pval_match = pval_diff <= AD_TOLERANCE_ABS;
 
             println!("    R:    A² = {:.6}, p = {:.6}", r_stat, r_pval);
-            println!("          Diff: stat = {:.2e}, p = {:.2e}", stat_diff, pval_diff);
+            println!(
+                "          Diff: stat = {:.2e}, p = {:.2e}",
+                stat_diff, pval_diff
+            );
 
             if stat_match && pval_match {
                 println!("      R validation: PASS");
                 passed_r += 1;
             } else {
                 println!("      R validation: FAIL");
-                failed_tests.push((dataset_name.to_string(), format!("R mismatch: stat diff={:.2e}", stat_diff)));
+                failed_tests.push((
+                    dataset_name.to_string(),
+                    format!("R mismatch: stat diff={:.2e}", stat_diff),
+                ));
             }
         } else {
-            println!("       R reference file not found: {}", r_result_path.display());
-            failed_tests.push((dataset_name.to_string(), "R reference file missing".to_string()));
+            println!(
+                "       R reference file not found: {}",
+                r_result_path.display()
+            );
+            failed_tests.push((
+                dataset_name.to_string(),
+                "R reference file missing".to_string(),
+            ));
         }
 
         println!();
 
         // Validate against Python
-        let python_result_path = python_results_dir.join(format!("{}_anderson_darling.json", dataset_name));
+        let python_result_path =
+            python_results_dir.join(format!("{}_anderson_darling.json", dataset_name));
         if let Some(py_ref) = load_python_diagnostic_result(&python_result_path) {
             total_tests += 1;
 
@@ -154,18 +172,30 @@ fn validate_anderson_darling_all_datasets() {
             let pval_match = pval_diff <= AD_TOLERANCE_ABS;
 
             println!("    Python: A² = {:.6}, p = {:.6}", py_stat, py_pval);
-            println!("          Diff: stat = {:.2e}, p = {:.2e}", stat_diff, pval_diff);
+            println!(
+                "          Diff: stat = {:.2e}, p = {:.2e}",
+                stat_diff, pval_diff
+            );
 
             if stat_match && pval_match {
                 println!("      Python validation: PASS");
                 passed_python += 1;
             } else {
                 println!("      Python validation: FAIL");
-                failed_tests.push((dataset_name.to_string(), format!("Python mismatch: stat diff={:.2e}", stat_diff)));
+                failed_tests.push((
+                    dataset_name.to_string(),
+                    format!("Python mismatch: stat diff={:.2e}", stat_diff),
+                ));
             }
         } else {
-            println!("       Python reference file not found: {}", python_result_path.display());
-            failed_tests.push((dataset_name.to_string(), "Python reference file missing".to_string()));
+            println!(
+                "       Python reference file not found: {}",
+                python_result_path.display()
+            );
+            failed_tests.push((
+                dataset_name.to_string(),
+                "Python reference file missing".to_string(),
+            ));
         }
 
         println!();
@@ -190,11 +220,15 @@ fn validate_anderson_darling_all_datasets() {
     }
 
     // Assert that we tested at least some datasets
-    assert!(total_tests > 0, "No validation tests were run. Check that result files exist.");
+    assert!(
+        total_tests > 0,
+        "No validation tests were run. Check that result files exist."
+    );
 
     // Assert that we have a reasonable pass rate (at least 90%)
     let pass_rate = (passed_r + passed_python) as f64 / total_tests as f64;
-    assert!(pass_rate >= 0.9,
+    assert!(
+        pass_rate >= 0.9,
         "Validation pass rate ({:.1}%) is below 90% threshold. See failed tests above.",
         pass_rate * 100.0
     );

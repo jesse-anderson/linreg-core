@@ -6,8 +6,8 @@
 // - invert_upper_triangular_with_tolerance()
 // - chol2inv_from_qr_with_tolerance()
 
+use super::common::{assert_close, assert_matrix_eq, EPSILON};
 use linreg_core::linalg::Matrix;
-use super::common::{EPSILON, assert_close, assert_matrix_eq};
 
 // ============================================================================
 // invert_upper_triangular_with_tolerance() Tests
@@ -15,11 +15,7 @@ use super::common::{EPSILON, assert_close, assert_matrix_eq};
 
 #[test]
 fn test_invert_upper_triangular_with_tolerance_basic() {
-    let a = Matrix::new(
-        3,
-        3,
-        vec![2.0, 3.0, 4.0, 0.0, 5.0, 6.0, 0.0, 0.0, 7.0],
-    );
+    let a = Matrix::new(3, 3, vec![2.0, 3.0, 4.0, 0.0, 5.0, 6.0, 0.0, 0.0, 7.0]);
 
     let inv = a
         .invert_upper_triangular_with_tolerance(1.0)
@@ -34,15 +30,9 @@ fn test_invert_upper_triangular_with_tolerance_basic() {
 #[test]
 fn test_invert_upper_triangular_with_tolerance_standard() {
     // Test that default and tolerance 1.0 give same result
-    let a = Matrix::new(
-        3,
-        3,
-        vec![2.0, 3.0, 4.0, 0.0, 5.0, 6.0, 0.0, 0.0, 7.0],
-    );
+    let a = Matrix::new(3, 3, vec![2.0, 3.0, 4.0, 0.0, 5.0, 6.0, 0.0, 0.0, 7.0]);
 
-    let inv_default = a
-        .invert_upper_triangular()
-        .expect("Default should work");
+    let inv_default = a.invert_upper_triangular().expect("Default should work");
     let inv_tol = a
         .invert_upper_triangular_with_tolerance(1.0)
         .expect("Tolerance 1.0 should work");
@@ -68,11 +58,7 @@ fn test_invert_upper_triangular_with_permissive_tolerance() {
     // around that boundary.
 
     // Element below SINGULAR_TOLERANCE floor - always rejected
-    let a_below = Matrix::new(
-        3,
-        3,
-        vec![1e-12, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0],
-    );
+    let a_below = Matrix::new(3, 3, vec![1e-12, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0]);
     let result_below = a_below.invert_upper_triangular_with_tolerance(1e-10);
     assert!(
         result_below.is_none(),
@@ -80,11 +66,7 @@ fn test_invert_upper_triangular_with_permissive_tolerance() {
     );
 
     // Element above SINGULAR_TOLERANCE floor - should be accepted
-    let a_above = Matrix::new(
-        3,
-        3,
-        vec![1e-8, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0],
-    );
+    let a_above = Matrix::new(3, 3, vec![1e-8, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0]);
     let result_above = a_above.invert_upper_triangular_with_tolerance(1e-10);
     assert!(
         result_above.is_some(),
@@ -94,11 +76,7 @@ fn test_invert_upper_triangular_with_permissive_tolerance() {
 
 #[test]
 fn test_invert_upper_triangular_with_strict_tolerance() {
-    let a = Matrix::new(
-        3,
-        3,
-        vec![1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 0.0, 0.0, 1.0],
-    );
+    let a = Matrix::new(3, 3, vec![1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 0.0, 0.0, 1.0]);
 
     // Strict tolerance should still work for well-conditioned matrix
     let inv = a
@@ -114,13 +92,7 @@ fn test_invert_upper_triangular_with_strict_tolerance() {
 #[test]
 fn test_invert_upper_triangular_with_tolerance_near_singular() {
     // Matrix with moderately small diagonal elements
-    let a = Matrix::new(
-        3,
-        3,
-        vec![
-            0.001, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
-        ],
-    );
+    let a = Matrix::new(3, 3, vec![0.001, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0]);
 
     // Might fail with strict tolerance
     let result_strict = a.invert_upper_triangular_with_tolerance(0.01);
@@ -140,11 +112,7 @@ fn test_invert_upper_triangular_with_tolerance_near_singular() {
 #[test]
 fn test_invert_upper_triangular_with_tolerance_large_scale() {
     // Large diagonal values
-    let a = Matrix::new(
-        3,
-        3,
-        vec![1e8, 2e8, 3e8, 0.0, 4e8, 5e8, 0.0, 0.0, 6e8],
-    );
+    let a = Matrix::new(3, 3, vec![1e8, 2e8, 3e8, 0.0, 4e8, 5e8, 0.0, 0.0, 6e8]);
 
     let inv = a
         .invert_upper_triangular_with_tolerance(1.0)
@@ -174,11 +142,7 @@ fn test_invert_upper_triangular_with_tolerance_large_scale() {
 #[test]
 fn test_invert_upper_triangular_with_tolerance_zero_diagonal() {
     // Exactly zero diagonal should always fail regardless of tolerance
-    let a = Matrix::new(
-        3,
-        3,
-        vec![0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0],
-    );
+    let a = Matrix::new(3, 3, vec![0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0]);
 
     // Even with very permissive tolerance, zero diagonal should fail
     // (division by zero would occur)
@@ -191,13 +155,7 @@ fn test_invert_upper_triangular_with_tolerance_zero_diagonal() {
 
 #[test]
 fn test_invert_upper_triangular_tolerance_multiplier_effect() {
-    let a = Matrix::new(
-        3,
-        3,
-        vec![
-            1e-8, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
-        ],
-    );
+    let a = Matrix::new(3, 3, vec![1e-8, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0]);
 
     // Small multiplier might fail
     let result_small = a.invert_upper_triangular_with_tolerance(1.0);
@@ -222,9 +180,7 @@ fn test_chol2inv_with_tolerance_basic() {
     let x = Matrix::new(
         4,
         3,
-        vec![
-            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, 2.0, 3.0, 4.0,
-        ],
+        vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, 2.0, 3.0, 4.0],
     );
 
     let result = x
@@ -241,11 +197,7 @@ fn test_chol2inv_with_tolerance_basic() {
 
 #[test]
 fn test_chol2inv_with_tolerance_matches_default() {
-    let x = Matrix::new(
-        4,
-        2,
-        vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 9.0],
-    );
+    let x = Matrix::new(4, 2, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 9.0]);
 
     let result_default = x.chol2inv_from_qr().expect("Default should work");
     let result_tol = x
@@ -259,11 +211,7 @@ fn test_chol2inv_with_tolerance_matches_default() {
 fn test_chol2inv_with_tolerance_near_rank_deficient() {
     // Nearly rank-deficient matrix
     let epsilon = 1e-8;
-    let x = Matrix::new(
-        3,
-        2,
-        vec![1.0, 2.0, 2.0, 4.0 + epsilon, 3.0, 6.0],
-    );
+    let x = Matrix::new(3, 2, vec![1.0, 2.0, 2.0, 4.0 + epsilon, 3.0, 6.0]);
 
     // Default tolerance might fail or succeed depending on the values
     let result_default = x.chol2inv_from_qr();
@@ -276,7 +224,12 @@ fn test_chol2inv_with_tolerance_near_rank_deficient() {
     // Verify the result is valid (if default also succeeded, compare)
     if let Some(default_result) = result_default {
         // Both succeeded - compare
-        assert_matrix_eq(&default_result, &result_permissive, 1e-5, "default vs permissive");
+        assert_matrix_eq(
+            &default_result,
+            &result_permissive,
+            1e-5,
+            "default vs permissive",
+        );
     } else {
         // Only permissive succeeded - verify it produces valid inverse
         let x_t = x.transpose();
@@ -293,9 +246,7 @@ fn test_chol2inv_with_tolerance_permissive_vs_strict() {
     let x = Matrix::new(
         4,
         3,
-        vec![
-            1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 3.0, 6.0, 9.0, 4.0, 8.0, 12.0,
-        ],
+        vec![1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 3.0, 6.0, 9.0, 4.0, 8.0, 12.0],
     );
 
     // This is exactly rank 1 (columns 2 and 3 are multiples of column 1)
@@ -306,7 +257,10 @@ fn test_chol2inv_with_tolerance_permissive_vs_strict() {
     // Both should fail for truly singular matrix
     assert!(result_strict.is_none(), "Strict should fail on singular");
     // Permissive might also fail or return garbage, but shouldn't crash
-    assert!(result_permissive.is_none(), "Permissive should also fail on truly singular");
+    assert!(
+        result_permissive.is_none(),
+        "Permissive should also fail on truly singular"
+    );
 }
 
 #[test]
@@ -401,11 +355,7 @@ fn test_chol2inv_with_tolerance_small_scale() {
 #[test]
 fn test_chol2inv_tolerance_levels_comparison() {
     // Create a matrix that's moderately ill-conditioned
-    let x = Matrix::new(
-        4,
-        2,
-        vec![1.0, 2.0, 2.0, 4.01, 3.0, 6.0, 4.0, 8.0],
-    );
+    let x = Matrix::new(4, 2, vec![1.0, 2.0, 2.0, 4.01, 3.0, 6.0, 4.0, 8.0]);
 
     // Try different tolerance levels
     let tol_1 = x.chol2inv_from_qr_with_tolerance(0.1);

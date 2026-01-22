@@ -14,9 +14,9 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use linreg_core::core::ols_regression;
 use linreg_core::diagnostics::{
-    rainbow_test, harvey_collier_test, breusch_pagan_test, white_test,
-    jarque_bera_test, durbin_watson_test, shapiro_wilk_test,
-    anderson_darling_test, cooks_distance_test, RainbowMethod, WhiteMethod,
+    anderson_darling_test, breusch_pagan_test, cooks_distance_test, durbin_watson_test,
+    harvey_collier_test, jarque_bera_test, rainbow_test, shapiro_wilk_test, white_test,
+    RainbowMethod, WhiteMethod,
 };
 
 /// Generates a synthetic dataset for diagnostic benchmarks.
@@ -26,9 +26,9 @@ fn generate_diagnostic_data(n: usize, k: usize) -> (Vec<f64>, Vec<Vec<f64>>) {
     let mut x_vars: Vec<Vec<f64>> = (0..k).map(|_| Vec::with_capacity(n)).collect();
 
     // Use different frequencies for each predictor
-    let frequencies: Vec<f64> = (0..k).map(|j| {
-        1.0 + (j as f64) * 0.3 + ((j as f64) * 0.7).sqrt()
-    }).collect();
+    let frequencies: Vec<f64> = (0..k)
+        .map(|j| 1.0 + (j as f64) * 0.3 + ((j as f64) * 0.7).sqrt())
+        .collect();
 
     for i in 0..n {
         let t = (i as f64) / 100.0;
@@ -36,7 +36,9 @@ fn generate_diagnostic_data(n: usize, k: usize) -> (Vec<f64>, Vec<Vec<f64>>) {
 
         for j in 0..k {
             let freq = frequencies[j];
-            let x_val = (t * freq).sin() + 0.5 * (t * freq * 0.7).cos() + 0.1 * (i as f64 * (j + 1) as f64 * 0.01).sin();
+            let x_val = (t * freq).sin()
+                + 0.5 * (t * freq * 0.7).cos()
+                + 0.1 * (i as f64 * (j + 1) as f64 * 0.01).sin();
             x_vars[j].push(x_val);
             y_val += (j + 1) as f64 * 0.5 * x_val;
         }
@@ -51,13 +53,7 @@ fn generate_diagnostic_data(n: usize, k: usize) -> (Vec<f64>, Vec<Vec<f64>>) {
 
 /// Benchmarks Rainbow test across dataset sizes.
 fn bench_rainbow_test(c: &mut Criterion) {
-    let sizes = vec![
-        (50, 3),
-        (100, 5),
-        (500, 10),
-        (1000, 20),
-        (5000, 50),
-    ];
+    let sizes = vec![(50, 3), (100, 5), (500, 10), (1000, 20), (5000, 50)];
 
     let mut group = c.benchmark_group("rainbow_test");
 
@@ -68,12 +64,15 @@ fn bench_rainbow_test(c: &mut Criterion) {
             BenchmarkId::new("size", format!("{}_{}", n, k)),
             &(n, k),
             |b, _| {
-                b.iter(|| rainbow_test(
-                    black_box(&y),
-                    black_box(&x_vars),
-                    black_box(0.5),
-                    black_box(RainbowMethod::R)
-                ).unwrap())
+                b.iter(|| {
+                    rainbow_test(
+                        black_box(&y),
+                        black_box(&x_vars),
+                        black_box(0.5),
+                        black_box(RainbowMethod::R),
+                    )
+                    .unwrap()
+                })
             },
         );
     }
@@ -90,13 +89,7 @@ fn bench_harvey_collier_test(c: &mut Criterion) {
 
 /// Benchmarks Breusch-Pagan test across dataset sizes.
 fn bench_breusch_pagan_test(c: &mut Criterion) {
-    let sizes = vec![
-        (50, 3),
-        (100, 5),
-        (500, 10),
-        (1000, 20),
-        (5000, 50),
-    ];
+    let sizes = vec![(50, 3), (100, 5), (500, 10), (1000, 20), (5000, 50)];
 
     let mut group = c.benchmark_group("breusch_pagan_test");
 
@@ -106,12 +99,7 @@ fn bench_breusch_pagan_test(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("size", format!("{}_{}", n, k)),
             &(n, k),
-            |b, _| {
-                b.iter(|| breusch_pagan_test(
-                    black_box(&y),
-                    black_box(&x_vars)
-                ).unwrap())
-            },
+            |b, _| b.iter(|| breusch_pagan_test(black_box(&y), black_box(&x_vars)).unwrap()),
         );
     }
 
@@ -120,12 +108,7 @@ fn bench_breusch_pagan_test(c: &mut Criterion) {
 
 /// Benchmarks White test across dataset sizes.
 fn bench_white_test(c: &mut Criterion) {
-    let sizes = vec![
-        (50, 3),
-        (100, 5),
-        (500, 10),
-        (1000, 20),
-    ];
+    let sizes = vec![(50, 3), (100, 5), (500, 10), (1000, 20)];
 
     let mut group = c.benchmark_group("white_test");
 
@@ -136,11 +119,10 @@ fn bench_white_test(c: &mut Criterion) {
             BenchmarkId::new("size", format!("{}_{}", n, k)),
             &(n, k),
             |b, _| {
-                b.iter(|| white_test(
-                    black_box(&y),
-                    black_box(&x_vars),
-                    black_box(WhiteMethod::R)
-                ).unwrap())
+                b.iter(|| {
+                    white_test(black_box(&y), black_box(&x_vars), black_box(WhiteMethod::R))
+                        .unwrap()
+                })
             },
         );
     }
@@ -150,13 +132,7 @@ fn bench_white_test(c: &mut Criterion) {
 
 /// Benchmarks Jarque-Bera test across dataset sizes.
 fn bench_jarque_bera_test(c: &mut Criterion) {
-    let sizes = vec![
-        (50, 3),
-        (100, 5),
-        (500, 10),
-        (1000, 20),
-        (5000, 50),
-    ];
+    let sizes = vec![(50, 3), (100, 5), (500, 10), (1000, 20), (5000, 50)];
 
     let mut group = c.benchmark_group("jarque_bera_test");
 
@@ -166,12 +142,7 @@ fn bench_jarque_bera_test(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("size", format!("{}_{}", n, k)),
             &(n, k),
-            |b, _| {
-                b.iter(|| jarque_bera_test(
-                    black_box(&y),
-                    black_box(&x_vars)
-                ).unwrap())
-            },
+            |b, _| b.iter(|| jarque_bera_test(black_box(&y), black_box(&x_vars)).unwrap()),
         );
     }
 
@@ -180,13 +151,7 @@ fn bench_jarque_bera_test(c: &mut Criterion) {
 
 /// Benchmarks Durbin-Watson test across dataset sizes.
 fn bench_durbin_watson_test(c: &mut Criterion) {
-    let sizes = vec![
-        (50, 3),
-        (100, 5),
-        (500, 10),
-        (1000, 20),
-        (5000, 50),
-    ];
+    let sizes = vec![(50, 3), (100, 5), (500, 10), (1000, 20), (5000, 50)];
 
     let mut group = c.benchmark_group("durbin_watson_test");
 
@@ -196,12 +161,7 @@ fn bench_durbin_watson_test(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("size", format!("{}_{}", n, k)),
             &(n, k),
-            |b, _| {
-                b.iter(|| durbin_watson_test(
-                    black_box(&y),
-                    black_box(&x_vars)
-                ).unwrap())
-            },
+            |b, _| b.iter(|| durbin_watson_test(black_box(&y), black_box(&x_vars)).unwrap()),
         );
     }
 
@@ -228,12 +188,7 @@ fn bench_shapiro_wilk_test(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("size", format!("{}_{}", n, k)),
             &(n, k),
-            |b, _| {
-                b.iter(|| shapiro_wilk_test(
-                    black_box(&y),
-                    black_box(&x_vars)
-                ).unwrap())
-            },
+            |b, _| b.iter(|| shapiro_wilk_test(black_box(&y), black_box(&x_vars)).unwrap()),
         );
     }
 
@@ -242,13 +197,7 @@ fn bench_shapiro_wilk_test(c: &mut Criterion) {
 
 /// Benchmarks Anderson-Darling test across dataset sizes.
 fn bench_anderson_darling_test(c: &mut Criterion) {
-    let sizes = vec![
-        (50, 3),
-        (100, 5),
-        (500, 10),
-        (1000, 20),
-        (5000, 50),
-    ];
+    let sizes = vec![(50, 3), (100, 5), (500, 10), (1000, 20), (5000, 50)];
 
     let mut group = c.benchmark_group("anderson_darling_test");
 
@@ -258,12 +207,7 @@ fn bench_anderson_darling_test(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("size", format!("{}_{}", n, k)),
             &(n, k),
-            |b, _| {
-                b.iter(|| anderson_darling_test(
-                    black_box(&y),
-                    black_box(&x_vars)
-                ).unwrap())
-            },
+            |b, _| b.iter(|| anderson_darling_test(black_box(&y), black_box(&x_vars)).unwrap()),
         );
     }
 
@@ -272,13 +216,7 @@ fn bench_anderson_darling_test(c: &mut Criterion) {
 
 /// Benchmarks Cook's Distance across dataset sizes.
 fn bench_cooks_distance_test(c: &mut Criterion) {
-    let sizes = vec![
-        (50, 3),
-        (100, 5),
-        (500, 10),
-        (1000, 20),
-        (5000, 50),
-    ];
+    let sizes = vec![(50, 3), (100, 5), (500, 10), (1000, 20), (5000, 50)];
 
     let mut group = c.benchmark_group("cooks_distance_test");
 
@@ -288,12 +226,7 @@ fn bench_cooks_distance_test(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("size", format!("{}_{}", n, k)),
             &(n, k),
-            |b, _| {
-                b.iter(|| cooks_distance_test(
-                    black_box(&y),
-                    black_box(&x_vars)
-                ).unwrap())
-            },
+            |b, _| b.iter(|| cooks_distance_test(black_box(&y), black_box(&x_vars)).unwrap()),
         );
     }
 
@@ -302,11 +235,7 @@ fn bench_cooks_distance_test(c: &mut Criterion) {
 
 /// Benchmarks running all diagnostics on a dataset (full pipeline).
 fn bench_full_diagnostics(c: &mut Criterion) {
-    let sizes = vec![
-        (100, 5),
-        (500, 10),
-        (1000, 20),
-    ];
+    let sizes = vec![(100, 5), (500, 10), (1000, 20)];
 
     let mut group = c.benchmark_group("full_diagnostics");
 
@@ -319,11 +248,14 @@ fn bench_full_diagnostics(c: &mut Criterion) {
             |b, _| {
                 b.iter(|| {
                     // Run all diagnostic tests (except Harvey-Collier which fails on synthetic data)
-                    let _ = black_box(&ols_regression(
-                        black_box(&y),
-                        black_box(&x_vars),
-                        &vec!["Intercept".into(); k + 1]
-                    ).unwrap());
+                    let _ = black_box(
+                        &ols_regression(
+                            black_box(&y),
+                            black_box(&x_vars),
+                            &vec!["Intercept".into(); k + 1],
+                        )
+                        .unwrap(),
+                    );
 
                     let _ = black_box(&rainbow_test(&y, &x_vars, 0.5, RainbowMethod::R).unwrap());
                     // Skip harvey_collier_test - sensitive to synthetic data patterns

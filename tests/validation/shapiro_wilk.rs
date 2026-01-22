@@ -24,7 +24,7 @@
 //   These datasets are excluded from Shapiro-Wilk validation.
 
 use crate::common::{
-    load_dataset, load_r_shapiro_wilk_result, load_python_shapiro_wilk_result,
+    load_dataset, load_python_shapiro_wilk_result, load_r_shapiro_wilk_result,
     SHAPIRO_WILK_DATASETS, STAT_TOLERANCE,
 };
 
@@ -32,7 +32,6 @@ use linreg_core::diagnostics;
 
 #[test]
 fn validate_shapiro_wilk_all_datasets() {
-
     println!("\n");
     println!("╔══════════════════════════════════════════════════════════════════════╗");
     println!("║  SHAPIRO-WILK TEST - COMPREHENSIVE MULTI-DATASET VALIDATION       ║");
@@ -68,10 +67,14 @@ fn validate_shapiro_wilk_all_datasets() {
                 println!("     Failed to load dataset: {}", e);
                 failed_tests.push((dataset_name.to_string(), "Load failed".to_string()));
                 continue;
-            }
+            },
         };
 
-        println!("    Loaded: n = {}, predictors = {}", dataset.y.len(), dataset.x_vars.len());
+        println!(
+            "    Loaded: n = {}, predictors = {}",
+            dataset.y.len(),
+            dataset.x_vars.len()
+        );
 
         // Run Shapiro-Wilk test
         let rust_result = match diagnostics::shapiro_wilk_test(&dataset.y, &dataset.x_vars) {
@@ -80,10 +83,13 @@ fn validate_shapiro_wilk_all_datasets() {
                 println!("     Shapiro-Wilk test failed: {}", e);
                 failed_tests.push((dataset_name.to_string(), format!("Test error: {}", e)));
                 continue;
-            }
+            },
         };
 
-        println!("    Rust: W = {:.6}, p = {:.6}", rust_result.statistic, rust_result.p_value);
+        println!(
+            "    Rust: W = {:.6}, p = {:.6}",
+            rust_result.statistic, rust_result.p_value
+        );
 
         // Validate against R
         let r_result_path = r_results_dir.join(format!("{}_shapiro_wilk.json", dataset_name));
@@ -100,24 +106,37 @@ fn validate_shapiro_wilk_all_datasets() {
             let pval_match = pval_diff <= STAT_TOLERANCE;
 
             println!("    R:    W = {:.6}, p = {:.6}", r_stat, r_pval);
-            println!("          Diff: stat = {:.2e}, p = {:.2e}", stat_diff, pval_diff);
+            println!(
+                "          Diff: stat = {:.2e}, p = {:.2e}",
+                stat_diff, pval_diff
+            );
 
             if stat_match && pval_match {
                 println!("     R validation: PASS");
                 passed_r += 1;
             } else {
                 println!("     R validation: FAIL");
-                failed_tests.push((dataset_name.to_string(), format!("R mismatch: stat diff={:.2e}", stat_diff)));
+                failed_tests.push((
+                    dataset_name.to_string(),
+                    format!("R mismatch: stat diff={:.2e}", stat_diff),
+                ));
             }
         } else {
-            println!("      R reference file not found: {}", r_result_path.display());
-            failed_tests.push((dataset_name.to_string(), "R reference file missing".to_string()));
+            println!(
+                "      R reference file not found: {}",
+                r_result_path.display()
+            );
+            failed_tests.push((
+                dataset_name.to_string(),
+                "R reference file missing".to_string(),
+            ));
         }
 
         println!();
 
         // Validate against Python
-        let python_result_path = python_results_dir.join(format!("{}_shapiro_wilk.json", dataset_name));
+        let python_result_path =
+            python_results_dir.join(format!("{}_shapiro_wilk.json", dataset_name));
         if let Some(py_ref) = load_python_shapiro_wilk_result(&python_result_path) {
             total_tests += 1;
 
@@ -131,7 +150,10 @@ fn validate_shapiro_wilk_all_datasets() {
             let pval_match = pval_diff <= STAT_TOLERANCE;
 
             println!("    Python: W = {:.6}, p = {:.6}", py_stat, py_pval);
-            println!("          Diff: stat = {:.2e}, p = {:.2e}", stat_diff, pval_diff);
+            println!(
+                "          Diff: stat = {:.2e}, p = {:.2e}",
+                stat_diff, pval_diff
+            );
 
             if stat_match && pval_match {
                 println!("     Python validation: PASS");
@@ -140,13 +162,25 @@ fn validate_shapiro_wilk_all_datasets() {
                 // Note: We follow R's shapiro.test. Python's scipy.stats.shapiro differs.
                 println!("      Python validation: KNOWN DIFFERENCE (R convention followed)");
                 println!("       Python: W = {:.6}, p = {:.6}", py_stat, py_pval);
-                println!("       Rust/R:  W = {:.6}, p = {:.6}", rust_result.statistic, rust_result.p_value);
-                println!("       Difference: stat = {:.2e}, p = {:.2e}", stat_diff, pval_diff);
+                println!(
+                    "       Rust/R:  W = {:.6}, p = {:.6}",
+                    rust_result.statistic, rust_result.p_value
+                );
+                println!(
+                    "       Difference: stat = {:.2e}, p = {:.2e}",
+                    stat_diff, pval_diff
+                );
                 println!("       Note: We follow R's shapiro.test. Python's scipy.stats.shapiro differs.");
             }
         } else {
-            println!("      Python reference file not found: {}", python_result_path.display());
-            failed_tests.push((dataset_name.to_string(), "Python reference file missing".to_string()));
+            println!(
+                "      Python reference file not found: {}",
+                python_result_path.display()
+            );
+            failed_tests.push((
+                dataset_name.to_string(),
+                "Python reference file missing".to_string(),
+            ));
         }
 
         println!();
@@ -171,11 +205,15 @@ fn validate_shapiro_wilk_all_datasets() {
     }
 
     // Assert that we tested at least some datasets
-    assert!(total_tests > 0, "No validation tests were run. Check that result files exist.");
+    assert!(
+        total_tests > 0,
+        "No validation tests were run. Check that result files exist."
+    );
 
     // Assert that we have a reasonable pass rate (at least 90%)
     let pass_rate = (passed_r + passed_python) as f64 / total_tests as f64;
-    assert!(pass_rate >= 0.9,
+    assert!(
+        pass_rate >= 0.9,
         "Validation pass rate ({:.1}%) is below 90% threshold. See failed tests above.",
         pass_rate * 100.0
     );

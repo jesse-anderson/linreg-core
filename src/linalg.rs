@@ -192,7 +192,10 @@ impl Matrix {
     /// assert_eq!(c.get(0, 0), 22.0); // 1*1 + 2*3 + 3*5
     /// ```
     pub fn matmul(&self, other: &Matrix) -> Matrix {
-        assert_eq!(self.cols, other.rows, "Dimension mismatch for multiplication");
+        assert_eq!(
+            self.cols, other.rows,
+            "Dimension mismatch for multiplication"
+        );
         let mut result = Matrix::zeros(self.rows, other.cols);
 
         for r in 0..self.rows {
@@ -231,7 +234,11 @@ impl Matrix {
     /// ```
     #[allow(clippy::needless_range_loop)]
     pub fn mul_vec(&self, vec: &[f64]) -> Vec<f64> {
-        assert_eq!(self.cols, vec.len(), "Dimension mismatch for matrix-vector multiplication");
+        assert_eq!(
+            self.cols,
+            vec.len(),
+            "Dimension mismatch for matrix-vector multiplication"
+        );
         let mut result = vec![0.0; self.rows];
 
         for r in 0..self.rows {
@@ -259,7 +266,11 @@ impl Matrix {
     #[allow(clippy::needless_range_loop)]
     pub fn col_dot(&self, col: usize, v: &[f64]) -> f64 {
         assert!(col < self.cols, "Column index out of bounds");
-        assert_eq!(self.rows, v.len(), "Vector length must match number of rows");
+        assert_eq!(
+            self.rows,
+            v.len(),
+            "Vector length must match number of rows"
+        );
 
         let mut sum = 0.0;
         for row in 0..self.rows {
@@ -285,7 +296,11 @@ impl Matrix {
     #[allow(clippy::needless_range_loop)]
     pub fn col_axpy_inplace(&self, col: usize, alpha: f64, v: &mut [f64]) {
         assert!(col < self.cols, "Column index out of bounds");
-        assert_eq!(self.rows, v.len(), "Vector length must match number of rows");
+        assert_eq!(
+            self.rows,
+            v.len(),
+            "Vector length must match number of rows"
+        );
 
         for row in 0..self.rows {
             v[row] += alpha * self.get(row, col);
@@ -381,7 +396,9 @@ impl Matrix {
 
             // Norm of x
             let norm_x: f64 = x.iter().map(|&v| v * v).sum::<f64>().sqrt();
-            if norm_x < QR_ZERO_TOLERANCE { continue; } // Already zero
+            if norm_x < QR_ZERO_TOLERANCE {
+                continue;
+            } // Already zero
 
             // Create vector v = x + sign(x[0]) * ||x|| * e1
             //
@@ -394,27 +411,29 @@ impl Matrix {
             // Equivalently: u₁ = x₁ + sgn(x₁)‖x‖
             //
             // Current implementation uses this formula (the "correct" choice for stability):
-            let sign = if x[0] >= 0.0 { 1.0 } else { -1.0 };  // sgn(x₀) as defined (sgn(0) = +1)
+            let sign = if x[0] >= 0.0 { 1.0 } else { -1.0 }; // sgn(x₀) as defined (sgn(0) = +1)
             let u1 = x[0] + sign * norm_x;
-            
+
             // Normalize v to get Householder vector
             let mut v = x; // Re-use storage
             v[0] = u1;
 
             let norm_v: f64 = v.iter().map(|&val| val * val).sum::<f64>().sqrt();
-            for val in &mut v { *val /= norm_v; }
+            for val in &mut v {
+                *val /= norm_v;
+            }
 
             // Apply Householder transformation to R: R = H * R = (I - 2vv^T)R = R - 2v(v^T R)
             // Focus on submatrix R[k:, k:]
             for j in k..n {
                 let mut dot = 0.0;
-                for i in 0..m-k {
-                    dot += v[i] * r.get(k+i, j);
+                for i in 0..m - k {
+                    dot += v[i] * r.get(k + i, j);
                 }
-                
-                for i in 0..m-k {
-                    let val = r.get(k+i, j) - 2.0 * v[i] * dot;
-                    r.set(k+i, j, val);
+
+                for i in 0..m - k {
+                    let val = r.get(k + i, j) - 2.0 * v[i] * dot;
+                    r.set(k + i, j, val);
                 }
             }
 
@@ -422,13 +441,13 @@ impl Matrix {
             // Focus on Q[:, k:]
             for i in 0..m {
                 let mut dot = 0.0;
-                for l in 0..m-k {
-                    dot += q.get(i, k+l) * v[l];
+                for l in 0..m - k {
+                    dot += q.get(i, k + l) * v[l];
                 }
-                
-                for l in 0..m-k {
-                    let val = q.get(i, k+l) - 2.0 * dot * v[l];
-                    q.set(i, k+l, val);
+
+                for l in 0..m - k {
+                    let val = q.get(i, k + l) - 2.0 * dot * v[l];
+                    q.set(i, k + l, val);
                 }
             }
         }
@@ -500,7 +519,7 @@ impl Matrix {
 
         // Use a relative tolerance based on the maximum diagonal element
         // This is similar to LAPACK's dlamch machine epsilon approach
-        let epsilon = 2.0_f64 * f64::EPSILON;  // ~4.4e-16 for f64
+        let epsilon = 2.0_f64 * f64::EPSILON; // ~4.4e-16 for f64
         let relative_tolerance = max_diag * epsilon * n as f64;
         let tolerance = SINGULAR_TOLERANCE.max(relative_tolerance);
 
@@ -517,7 +536,7 @@ impl Matrix {
 
             for j in (0..i).rev() {
                 let mut sum = 0.0;
-                for k in j+1..=i {
+                for k in j + 1..=i {
                     sum += self.get(j, k) * inv.get(k, i);
                 }
                 inv.set(j, i, -sum / self.get(j, j));
@@ -562,7 +581,7 @@ impl Matrix {
 
             for j in (0..i).rev() {
                 let mut sum = 0.0;
-                for k in j+1..=i {
+                for k in j + 1..=i {
                     sum += self.get(j, k) * inv.get(k, i);
                 }
                 inv.set(j, i, -sum / self.get(j, j));
@@ -714,7 +733,9 @@ impl Matrix {
 ///
 /// * `v` - Slice of values
 pub fn vec_mean(v: &[f64]) -> f64 {
-    if v.is_empty() { return 0.0; }
+    if v.is_empty() {
+        return 0.0;
+    }
     v.iter().sum::<f64>() / v.len() as f64
 }
 
@@ -808,7 +829,11 @@ pub fn vec_add(a: &[f64], b: &[f64]) -> Vec<f64> {
 ///
 /// Panics if slices have different lengths.
 pub fn vec_axpy_inplace(dst: &mut [f64], alpha: f64, src: &[f64]) {
-    assert_eq!(dst.len(), src.len(), "vec_axpy_inplace: slice lengths must match");
+    assert_eq!(
+        dst.len(),
+        src.len(),
+        "vec_axpy_inplace: slice lengths must match"
+    );
     for (d, &s) in dst.iter_mut().zip(src.iter()) {
         *d += alpha * s;
     }
@@ -1211,11 +1236,13 @@ impl Matrix {
         for row in (0..k).rev() {
             let r_diag = qr_result.qr.get(row, row);
             // Use relative tolerance for singularity check
-            let max_abs = (0..k).map(|i| qr_result.qr.get(i, i).abs()).fold(0.0_f64, f64::max);
+            let max_abs = (0..k)
+                .map(|i| qr_result.qr.get(i, i).abs())
+                .fold(0.0_f64, f64::max);
             let tolerance = 1e-14 * max_abs.max(1.0);
 
             if r_diag.abs() < tolerance {
-                return None;  // Singular
+                return None; // Singular
             }
 
             let mut sum = qty[row];
@@ -1229,7 +1256,7 @@ impl Matrix {
         // pivot[j] is 1-based, indicating which original column is now in position j
         let mut result = vec![0.0; p];
         for j in 0..p {
-            let original_col = qr_result.pivot[j] - 1;  // Convert to 0-based
+            let original_col = qr_result.pivot[j] - 1; // Convert to 0-based
             result[original_col] = coef_permuted[j];
         }
 
@@ -1318,7 +1345,7 @@ pub fn fit_and_predict_linpack(y: &[f64], x: &Matrix) -> Option<Vec<f64>> {
         for j in 0..p {
             let b_val = beta_permuted[j];
             if b_val.is_nan() {
-                continue;  // Skip collinear columns (matches R's NA coefficient behavior)
+                continue; // Skip collinear columns (matches R's NA coefficient behavior)
             }
             sum += x.get(row, j) * b_val;
         }

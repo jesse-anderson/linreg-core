@@ -20,14 +20,14 @@
 pub mod common;
 
 mod basic_tests;
-mod ops_tests;
-mod qr_tests;
-mod inversion_tests;
-mod property_tests;
-mod nalgebra_comparison;
 mod column_ops_tests;
-mod vector_functions_tests;
-mod tolerance_tests;
-mod linpack_qr_tests;
 mod edge_case_tests;
+mod inversion_tests;
+mod linpack_qr_tests;
+mod nalgebra_comparison;
 mod numerical_accuracy_tests;
+mod ops_tests;
+mod property_tests;
+mod qr_tests;
+mod tolerance_tests;
+mod vector_functions_tests;

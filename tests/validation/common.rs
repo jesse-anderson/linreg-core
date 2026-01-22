@@ -10,9 +10,9 @@
 // - Tolerance constants for statistical comparisons
 // - Helper functions for assertions and output formatting
 
+use serde::Deserialize;
 use std::fs;
 use std::path::Path;
-use serde::Deserialize;
 
 // ============================================================================
 // Tolerance Constants
@@ -25,7 +25,7 @@ pub const STAT_TOLERANCE: f64 = 0.001;
 pub const TIGHT_TOLERANCE: f64 = 1e-4;
 
 /// Harvey-Collier test uses more lenient tolerance due to known numerical issues
-/// with high multicollinearity data 
+/// with high multicollinearity data
 pub const HARVEY_COLLIER_TOLERANCE: f64 = 0.1;
 
 /// Durbin-Watson test uses more lenient tolerance due to different QR algorithms
@@ -374,24 +374,21 @@ pub struct Dataset {
 /// Housing regression data (same as used in R/Python validation scripts)
 pub fn get_housing_data() -> (Vec<f64>, Vec<Vec<f64>>) {
     let y = vec![
-        245.5, 312.8, 198.4, 425.6, 278.9, 356.2, 189.5, 512.3, 234.7, 298.1,
-        445.8, 167.9, 367.4, 289.6, 198.2, 478.5, 256.3, 334.7, 178.5, 398.9,
-        223.4, 312.5, 156.8, 423.7, 267.9
+        245.5, 312.8, 198.4, 425.6, 278.9, 356.2, 189.5, 512.3, 234.7, 298.1, 445.8, 167.9, 367.4,
+        289.6, 198.2, 478.5, 256.3, 334.7, 178.5, 398.9, 223.4, 312.5, 156.8, 423.7, 267.9,
     ];
     let square_feet = vec![
-        1200.0, 1800.0, 950.0, 2400.0, 1450.0, 2000.0, 1100.0, 2800.0, 1350.0, 1650.0,
-        2200.0, 900.0, 1950.0, 1500.0, 1050.0, 2600.0, 1300.0, 1850.0, 1000.0, 2100.0,
-        1250.0, 1700.0, 850.0, 2350.0, 1400.0
+        1200.0, 1800.0, 950.0, 2400.0, 1450.0, 2000.0, 1100.0, 2800.0, 1350.0, 1650.0, 2200.0,
+        900.0, 1950.0, 1500.0, 1050.0, 2600.0, 1300.0, 1850.0, 1000.0, 2100.0, 1250.0, 1700.0,
+        850.0, 2350.0, 1400.0,
     ];
     let bedrooms = vec![
-        3.0, 4.0, 2.0, 4.0, 3.0, 4.0, 2.0, 5.0, 3.0, 3.0,
-        4.0, 2.0, 4.0, 3.0, 2.0, 5.0, 3.0, 4.0, 2.0, 4.0,
-        3.0, 3.0, 2.0, 4.0, 3.0
+        3.0, 4.0, 2.0, 4.0, 3.0, 4.0, 2.0, 5.0, 3.0, 3.0, 4.0, 2.0, 4.0, 3.0, 2.0, 5.0, 3.0, 4.0,
+        2.0, 4.0, 3.0, 3.0, 2.0, 4.0, 3.0,
     ];
     let age = vec![
-        15.0, 10.0, 25.0, 5.0, 8.0, 12.0, 20.0, 2.0, 18.0, 7.0,
-        3.0, 30.0, 6.0, 14.0, 22.0, 1.0, 16.0, 9.0, 28.0, 4.0,
-        19.0, 11.0, 35.0, 3.0, 13.0
+        15.0, 10.0, 25.0, 5.0, 8.0, 12.0, 20.0, 2.0, 18.0, 7.0, 3.0, 30.0, 6.0, 14.0, 22.0, 1.0,
+        16.0, 9.0, 28.0, 4.0, 19.0, 11.0, 35.0, 3.0, 13.0,
     ];
     (y, vec![square_feet, bedrooms, age])
 }
@@ -410,7 +407,8 @@ pub fn load_validation_results(json_path: &Path) -> RegressionResult {
 /// Load a dataset from a CSV file with categorical encoding support
 /// Similar to Python's pd.factorize() or R's factor() for categorical variables
 pub fn load_dataset(csv_path: &Path) -> Result<Dataset, Box<dyn std::error::Error>> {
-    let dataset_name = csv_path.file_stem()
+    let dataset_name = csv_path
+        .file_stem()
         .unwrap_or_default()
         .to_string_lossy()
         .to_string();
@@ -422,10 +420,7 @@ pub fn load_dataset(csv_path: &Path) -> Result<Dataset, Box<dyn std::error::Erro
     let headers = rdr.headers()?.clone();
 
     // First column is y (dependent variable), rest are x_vars
-    let x_names: Vec<String> = headers.iter()
-        .skip(1)
-        .map(|s| s.to_string())
-        .collect();
+    let x_names: Vec<String> = headers.iter().skip(1).map(|s| s.to_string()).collect();
 
     // First pass: collect all raw string values for each column
     let mut raw_y_values: Vec<String> = Vec::new();
@@ -456,36 +451,35 @@ pub fn load_dataset(csv_path: &Path) -> Result<Dataset, Box<dyn std::error::Erro
         vec![std::collections::HashMap::new(); x_names.len()];
 
     // Build y encoding (if needed)
-    let y_needs_encoding = raw_y_values.iter()
-        .any(|v| v.parse::<f64>().is_err());
+    let y_needs_encoding = raw_y_values.iter().any(|v| v.parse::<f64>().is_err());
     if y_needs_encoding {
-        let mut unique_vals: Vec<String> = raw_y_values.iter()
-            .map(|s| s.clone())
-            .collect();
+        let mut unique_vals: Vec<String> = raw_y_values.iter().map(|s| s.clone()).collect();
         unique_vals.sort();
         unique_vals.dedup();
         for (idx, val) in unique_vals.iter().enumerate() {
             y_encoding.insert(val.clone(), idx as f64);
         }
-        eprintln!("    INFO: y column is categorical, {} categories encoded as 0, 1, 2, ...",
-            unique_vals.len());
+        eprintln!(
+            "    INFO: y column is categorical, {} categories encoded as 0, 1, 2, ...",
+            unique_vals.len()
+        );
     }
 
     // Build x encodings (if needed)
     for (col_idx, col_values) in raw_x_values.iter().enumerate() {
-        let needs_encoding = col_values.iter()
-            .any(|v| v.parse::<f64>().is_err());
+        let needs_encoding = col_values.iter().any(|v| v.parse::<f64>().is_err());
         if needs_encoding {
-            let mut unique_vals: Vec<String> = col_values.iter()
-                .map(|s| s.clone())
-                .collect();
+            let mut unique_vals: Vec<String> = col_values.iter().map(|s| s.clone()).collect();
             unique_vals.sort();
             unique_vals.dedup();
             for (idx, val) in unique_vals.iter().enumerate() {
                 x_encodings[col_idx].insert(val.clone(), idx as f64);
             }
-            eprintln!("    INFO: {} is categorical, {} categories encoded as 0, 1, 2, ...",
-                x_names[col_idx], unique_vals.len());
+            eprintln!(
+                "    INFO: {} is categorical, {} categories encoded as 0, 1, 2, ...",
+                x_names[col_idx],
+                unique_vals.len()
+            );
         }
     }
 
@@ -715,14 +709,23 @@ pub fn print_comparison_python(label: &str, rust_val: f64, py_val: f64, indent: 
 
 /// All datasets available for validation
 pub const ALL_DATASETS: &[&str] = &[
-    "bodyfat", "iris", "longley", "mtcars", "prostate",
-    "synthetic_simple_linear", "synthetic_multiple", "synthetic_collinear",
-    "synthetic_heteroscedastic", "synthetic_nonlinear", "synthetic_nonnormal",
-    "synthetic_autocorrelated", "synthetic_high_vif", "synthetic_outliers",
-    "synthetic_small", "synthetic_interaction",
+    "bodyfat",
+    "iris",
+    "longley",
+    "mtcars",
+    "prostate",
+    "synthetic_simple_linear",
+    "synthetic_multiple",
+    "synthetic_collinear",
+    "synthetic_heteroscedastic",
+    "synthetic_nonlinear",
+    "synthetic_nonnormal",
+    "synthetic_autocorrelated",
+    "synthetic_high_vif",
+    "synthetic_outliers",
+    "synthetic_small",
+    "synthetic_interaction",
 ];
 
 /// Datasets for Shapiro-Wilk validation (excludes synthetic due to column ordering)
-pub const SHAPIRO_WILK_DATASETS: &[&str] = &[
-    "bodyfat", "longley", "mtcars", "prostate",
-];
+pub const SHAPIRO_WILK_DATASETS: &[&str] = &["bodyfat", "longley", "mtcars", "prostate"];

@@ -170,9 +170,11 @@ pub fn ridge_fit(x: &Matrix, y: &[f64], options: &RidgeFitOptions) -> Result<Rid
     let p = x.cols;
 
     if y.len() != n {
-        return Err(Error::DimensionMismatch(
-            format!("Length of y ({}) must match number of rows in X ({})", y.len(), n)
-        ));
+        return Err(Error::DimensionMismatch(format!(
+            "Length of y ({}) must match number of rows in X ({})",
+            y.len(),
+            n
+        )));
     }
 
     // Handle zero lambda: just do OLS
@@ -236,7 +238,11 @@ pub fn ridge_fit(x: &Matrix, y: &[f64], options: &RidgeFitOptions) -> Result<Rid
 
     // Compute fitted values and residuals on original scale
     let fitted = predict(x, intercept, &beta_orig);
-    let residuals: Vec<f64> = y.iter().zip(fitted.iter()).map(|(yi, yh)| yi - yh).collect();
+    let residuals: Vec<f64> = y
+        .iter()
+        .zip(fitted.iter())
+        .map(|(yi, yh)| yi - yh)
+        .collect();
 
     // Compute effective degrees of freedom
     // For ridge: df = trace(X(X'X + lambda*I)^(-1)X')
@@ -342,7 +348,11 @@ fn ridge_ols_fit(x: &Matrix, y: &[f64], options: &RidgeFitOptions) -> Result<Rid
 
     // Compute fitted values and residuals
     let fitted = predict(x, intercept, &beta_orig);
-    let residuals: Vec<f64> = y.iter().zip(fitted.iter()).map(|(yi, yh)| yi - yh).collect();
+    let residuals: Vec<f64> = y
+        .iter()
+        .zip(fitted.iter())
+        .map(|(yi, yh)| yi - yh)
+        .collect();
 
     // For OLS, df = p (or n - 1 if considering adjusted df)
     let df = p as f64;
@@ -452,12 +462,7 @@ mod tests {
     #[test]
     fn test_ridge_fit_simple() {
         // Simple test: perfect linear relationship
-        let x_data = vec![
-            1.0, 1.0,
-            1.0, 2.0,
-            1.0, 3.0,
-            1.0, 4.0,
-        ];
+        let x_data = vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0];
         let x = Matrix::new(4, 2, x_data);
         let y = vec![2.0, 4.0, 6.0, 8.0]; // y = 2 * x (with intercept 0)
 
@@ -479,12 +484,7 @@ mod tests {
 
     #[test]
     fn test_ridge_fit_with_standardization() {
-        let x_data = vec![
-            1.0, 100.0,
-            1.0, 200.0,
-            1.0, 300.0,
-            1.0, 400.0,
-        ];
+        let x_data = vec![1.0, 100.0, 1.0, 200.0, 1.0, 300.0, 1.0, 400.0];
         let x = Matrix::new(4, 2, x_data);
         let y = vec![2.0, 4.0, 6.0, 8.0];
 
@@ -504,11 +504,7 @@ mod tests {
 
     #[test]
     fn test_ridge_zero_lambda_is_ols() {
-        let x_data = vec![
-            1.0, 1.0,
-            1.0, 2.0,
-            1.0, 3.0,
-        ];
+        let x_data = vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0];
         let x = Matrix::new(3, 2, x_data);
         let y = vec![2.0, 4.0, 6.0];
 
@@ -543,11 +539,7 @@ mod tests {
 
     #[test]
     fn test_predict_ridge() {
-        let x_data = vec![
-            1.0, 1.0,
-            1.0, 2.0,
-            1.0, 3.0,
-        ];
+        let x_data = vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0];
         let x = Matrix::new(3, 2, x_data);
         let y = vec![2.0, 4.0, 6.0];
 

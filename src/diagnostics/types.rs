@@ -31,7 +31,7 @@ pub struct DiagnosticTestResult {
     pub statistic: f64,
     pub p_value: f64,
     #[serde(rename = "is_passed")]
-    pub passed: bool,  // true = null hypothesis NOT rejected (assumption met)
+    pub passed: bool, // true = null hypothesis NOT rejected (assumption met)
     pub interpretation: String,
     pub guidance: String,
 }

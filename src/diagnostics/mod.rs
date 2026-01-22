@@ -44,40 +44,34 @@
 //!   observations that may affect regression results
 
 // Submodules
-mod types;
-mod helpers;
-mod rainbow;
-mod harvey_collier;
-mod breusch_pagan;
-mod white;
-mod jarque_bera;
-mod durbin_watson;
-mod shapiro_wilk;
 mod anderson_darling;
+mod breusch_pagan;
 mod cooks_distance;
+mod durbin_watson;
+mod harvey_collier;
+mod helpers;
+mod jarque_bera;
+mod rainbow;
+mod shapiro_wilk;
+mod types;
+mod white;
 
 // Re-export types
 pub use types::{
-    DiagnosticTestResult,
-    RainbowSingleResult,
-    RainbowTestOutput,
-    RainbowMethod,
-    WhiteSingleResult,
-    WhiteTestOutput,
-    WhiteMethod,
-    CooksDistanceResult,
+    CooksDistanceResult, DiagnosticTestResult, RainbowMethod, RainbowSingleResult,
+    RainbowTestOutput, WhiteMethod, WhiteSingleResult, WhiteTestOutput,
 };
 
 // Re-export test functions
-pub use rainbow::rainbow_test;
-pub use harvey_collier::harvey_collier_test;
-pub use breusch_pagan::breusch_pagan_test;
-pub use white::{white_test, r_white_method, python_white_method};
-pub use jarque_bera::jarque_bera_test;
-pub use durbin_watson::{durbin_watson_test, DurbinWatsonResult};
-pub use shapiro_wilk::{shapiro_wilk_test, shapiro_wilk_test_raw};
 pub use anderson_darling::{anderson_darling_test, anderson_darling_test_raw};
+pub use breusch_pagan::breusch_pagan_test;
 pub use cooks_distance::cooks_distance_test;
+pub use durbin_watson::{durbin_watson_test, DurbinWatsonResult};
+pub use harvey_collier::harvey_collier_test;
+pub use jarque_bera::jarque_bera_test;
+pub use rainbow::rainbow_test;
+pub use shapiro_wilk::{shapiro_wilk_test, shapiro_wilk_test_raw};
+pub use white::{python_white_method, r_white_method, white_test};
 
 // Re-export helper functions that are used elsewhere
-pub use helpers::{two_tailed_p_value, f_p_value, validate_regression_data};
+pub use helpers::{f_p_value, two_tailed_p_value, validate_regression_data};

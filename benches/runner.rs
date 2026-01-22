@@ -83,11 +83,16 @@ impl BenchmarkResults {
         BenchmarkResults {
             version: extract_version(),
             timestamp: humantime::format_rfc3339_seconds(SystemTime::now()).to_string(),
-            rustc_version: rustc_version::version().map(|v| v.to_string()).unwrap_or_else(|_| "unknown".to_string()),
-            target: std::env::var("TARGET").unwrap_or_else(|_| {
-                format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS)
-            }),
-            opt_level: if cfg!(debug_assertions) { "0".to_string() } else { "3".to_string() },
+            rustc_version: rustc_version::version()
+                .map(|v| v.to_string())
+                .unwrap_or_else(|_| "unknown".to_string()),
+            target: std::env::var("TARGET")
+                .unwrap_or_else(|_| format!("{}-{}", std::env::consts::ARCH, std::env::consts::OS)),
+            opt_level: if cfg!(debug_assertions) {
+                "0".to_string()
+            } else {
+                "3".to_string()
+            },
             os: std::env::consts::OS.to_string(),
             arch: std::env::consts::ARCH.to_string(),
             benches: HashMap::new(),
@@ -120,7 +125,9 @@ fn find_benchmark_json_files(dir: &Path) -> Vec<PathBuf> {
 }
 
 /// Parses a Criterion benchmark.json file
-fn parse_benchmark_json(path: &Path) -> Result<(String, CriterionBenchmark), Box<dyn std::error::Error>> {
+fn parse_benchmark_json(
+    path: &Path,
+) -> Result<(String, CriterionBenchmark), Box<dyn std::error::Error>> {
     let content = fs::read_to_string(path)?;
     let json: serde_json::Value = serde_json::from_str(&content)?;
 
@@ -146,15 +153,18 @@ fn parse_benchmark_json(path: &Path) -> Result<(String, CriterionBenchmark), Box
         bytes: t["Bytes"].as_u64(),
     });
 
-    Ok((name, CriterionBenchmark {
-        mean,
-        stddev,
-        median,
-        mad,
-        unit,
-        throughput,
-        unit_name,
-    }))
+    Ok((
+        name,
+        CriterionBenchmark {
+            mean,
+            stddev,
+            median,
+            mad,
+            unit,
+            throughput,
+            unit_name,
+        },
+    ))
 }
 
 /// Aggregates all Criterion benchmark results
@@ -174,10 +184,10 @@ fn aggregate_criterion_results(project_dir: &Path) -> HashMap<String, CriterionB
         match parse_benchmark_json(&path) {
             Ok((name, data)) => {
                 results.insert(name, data);
-            }
+            },
             Err(e) => {
                 eprintln!("Failed to parse {:?}: {}", path, e);
-            }
+            },
         }
     }
 
@@ -190,8 +200,17 @@ fn main() {
     println!("╚════════════════════════════════════════════════════════╝");
     println!();
     println!("Version: {}", extract_version());
-    println!("Target: {}-{}", std::env::consts::ARCH, std::env::consts::OS);
-    println!("Rustc:   {}", rustc_version::version().map(|v| v.to_string()).unwrap_or_else(|_| "unknown".to_string()));
+    println!(
+        "Target: {}-{}",
+        std::env::consts::ARCH,
+        std::env::consts::OS
+    );
+    println!(
+        "Rustc:   {}",
+        rustc_version::version()
+            .map(|v| v.to_string())
+            .unwrap_or_else(|_| "unknown".to_string())
+    );
     println!();
 
     let project_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -213,7 +232,7 @@ fn main() {
         match status {
             Ok(output) if output.status.success() => {
                 println!("✓");
-            }
+            },
             Ok(output) => {
                 println!("✗ (code: {:?})", output.status.code());
                 if !output.stderr.is_empty() {
@@ -222,10 +241,10 @@ fn main() {
                         println!("    {}", line);
                     }
                 }
-            }
+            },
             Err(e) => {
                 println!("✗ ({})", e);
-            }
+            },
         }
     }
 
@@ -248,11 +267,11 @@ fn main() {
             println!();
             println!("Results saved to:");
             println!("  {}", output_path.display());
-        }
+        },
         Err(e) => {
             println!();
             println!("Failed to serialize results: {}", e);
-        }
+        },
     }
 
     // Print summary
@@ -262,6 +281,9 @@ fn main() {
     println!("  Version:          {}", results.version);
     println!("  Timestamp:        {}", results.timestamp);
     println!("  Total benchmarks: {}", results.benches.len());
-    println!("  Output file:      benches/results/benches-{}.json", results.version);
+    println!(
+        "  Output file:      benches/results/benches-{}.json",
+        results.version
+    );
     println!();
 }

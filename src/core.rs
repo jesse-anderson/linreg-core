@@ -22,10 +22,10 @@
 //! # Ok::<(), Error>(())
 //! ```
 
+use crate::distributions::{fisher_snedecor_cdf, student_t_cdf, student_t_inverse_cdf};
 use crate::error::{Error, Result};
-use crate::linalg::{Matrix, vec_mean, vec_sub, vec_dot};
+use crate::linalg::{vec_dot, vec_mean, vec_sub, Matrix};
 use serde::Serialize;
-use crate::distributions::{student_t_cdf, student_t_inverse_cdf, fisher_snedecor_cdf};
 
 // ============================================================================
 // Numerical Constants
@@ -174,7 +174,11 @@ pub fn two_tailed_p_value(t: f64, df: f64) -> f64 {
     }
 
     let cdf = student_t_cdf(t, df);
-    if t >= 0.0 { 2.0 * (1.0 - cdf) } else { 2.0 * cdf }
+    if t >= 0.0 {
+        2.0 * (1.0 - cdf)
+    } else {
+        2.0 * cdf
+    }
 }
 
 /// Computes the critical t-value for a given significance level and degrees of freedom.
@@ -242,13 +246,13 @@ pub fn compute_leverage(x: &Matrix, xtx_inv: &Matrix) -> Vec<f64> {
         // x_row is (1, cols)
         // temp = x_row * xtx_inv (1, cols)
         // lev = temp * x_row^T (1, 1)
-        
+
         // Manual row extraction and multiplication
         let mut row_vec = vec![0.0; x.cols];
         for j in 0..x.cols {
             row_vec[j] = x.get(i, j);
         }
-        
+
         let mut temp_vec = vec![0.0; x.cols];
         for c in 0..x.cols {
             let mut sum = 0.0;
@@ -257,7 +261,7 @@ pub fn compute_leverage(x: &Matrix, xtx_inv: &Matrix) -> Vec<f64> {
             }
             temp_vec[c] = sum;
         }
-        
+
         leverage[i] = vec_dot(&temp_vec, &row_vec);
     }
     leverage
@@ -312,12 +316,16 @@ pub fn calculate_vif(x_vars: &[Vec<f64>], names: &[String], n: usize) -> Vec<Vif
 
         // Handle constant variables
         if std_dev.abs() < 1e-10 {
-            return names.iter().skip(1).map(|name| VifResult {
-                variable: name.clone(),
-                vif: f64::INFINITY,
-                rsquared: 1.0,
-                interpretation: "Constant variable (undefined correlation)".to_string()
-            }).collect();
+            return names
+                .iter()
+                .skip(1)
+                .map(|name| VifResult {
+                    variable: name.clone(),
+                    vif: f64::INFINITY,
+                    rsquared: 1.0,
+                    interpretation: "Constant variable (undefined correlation)".to_string(),
+                })
+                .collect();
         }
 
         for i in 0..n {
@@ -330,7 +338,7 @@ pub fn calculate_vif(x_vars: &[Vec<f64>], names: &[String], n: usize) -> Vec<Vif
     // Correlation Matrix R = (1/(n-1)) * Z^T * Z
     let z_t = z.transpose();
     let zt_z = z_t.matmul(&z);
-    
+
     // Scale by 1/(n-1)
     let mut r_corr = zt_z; // Copy
     let factor = 1.0 / ((n - 1) as f64);
@@ -342,19 +350,23 @@ pub fn calculate_vif(x_vars: &[Vec<f64>], names: &[String], n: usize) -> Vec<Vif
     // Or just generic inversion. We implemented generic inversion for Upper Triangular.
     // Let's use QR: A = QR => A^-1 = R^-1 Q^T
     let (q_corr, r_corr_tri) = r_corr.qr();
-    
+
     let r_inv_opt = r_corr_tri.invert_upper_triangular();
-    
+
     let r_inv = match r_inv_opt {
         Some(inv) => inv.matmul(&q_corr.transpose()),
         None => {
-             return names.iter().skip(1).map(|name| VifResult {
-                variable: name.clone(),
-                vif: f64::INFINITY,
-                rsquared: 1.0,
-                interpretation: "Perfect multicollinearity (singular matrix)".to_string()
-            }).collect();
-        }
+            return names
+                .iter()
+                .skip(1)
+                .map(|name| VifResult {
+                    variable: name.clone(),
+                    vif: f64::INFINITY,
+                    rsquared: 1.0,
+                    interpretation: "Perfect multicollinearity (singular matrix)".to_string(),
+                })
+                .collect();
+        },
     };
 
     // Extract diagonals
@@ -443,7 +455,10 @@ pub fn ols_regression(
 
     // Validate inputs
     if n <= k + 1 {
-        return Err(Error::InsufficientData { required: k + 2, available: n });
+        return Err(Error::InsufficientData {
+            required: k + 2,
+            available: n,
+        });
     }
 
     // Validate dimensions and finite values using shared helper
@@ -458,7 +473,7 @@ pub fn ols_regression(
     // Create design matrix
     let mut x_data = vec![0.0; n * p];
     for (row, _yi) in y.iter().enumerate() {
-        x_data[row * p] = 1.0;  // intercept
+        x_data[row * p] = 1.0; // intercept
         for (col, x_var) in x_vars.iter().enumerate() {
             x_data[row * p + col + 1] = x_var[row];
         }
@@ -481,7 +496,7 @@ pub fn ols_regression(
     // Q^T * y
     let q_t = q.transpose();
     let qty = q_t.mul_vec(y);
-    
+
     // Take first p elements of qty
     let rhs_vec = qty[0..p].to_vec();
     let rhs_mat = Matrix::new(p, 1, rhs_vec); // column vector
@@ -536,31 +551,55 @@ pub fn ols_regression(
     for i in 0..=k {
         std_errors[i] = (xtx_inv.get(i, i) * mse).sqrt();
         if std_errors[i].is_nan() {
-            return Err(Error::InvalidInput(format!("Standard error for coefficient {} is NaN", i)));
+            return Err(Error::InvalidInput(format!(
+                "Standard error for coefficient {} is NaN",
+                i
+            )));
         }
     }
 
     // T-statistics and p-values
-    let t_stats: Vec<f64> = beta.iter().zip(&std_errors).map(|(&b, &se)| b / se).collect();
-    let p_values: Vec<f64> = t_stats.iter().map(|&t| two_tailed_p_value(t, df as f64)).collect();
+    let t_stats: Vec<f64> = beta
+        .iter()
+        .zip(&std_errors)
+        .map(|(&b, &se)| b / se)
+        .collect();
+    let p_values: Vec<f64> = t_stats
+        .iter()
+        .map(|&t| two_tailed_p_value(t, df as f64))
+        .collect();
 
     // Confidence intervals
     let alpha = 0.05;
     let t_critical = t_critical_quantile(df as f64, alpha);
 
-    let conf_int_lower: Vec<f64> = beta.iter().zip(&std_errors).map(|(&b, &se)| b - t_critical * se).collect();
-    let conf_int_upper: Vec<f64> = beta.iter().zip(&std_errors).map(|(&b, &se)| b + t_critical * se).collect();
+    let conf_int_lower: Vec<f64> = beta
+        .iter()
+        .zip(&std_errors)
+        .map(|(&b, &se)| b - t_critical * se)
+        .collect();
+    let conf_int_upper: Vec<f64> = beta
+        .iter()
+        .zip(&std_errors)
+        .map(|(&b, &se)| b + t_critical * se)
+        .collect();
 
     // Leverage
     let leverage = compute_leverage(&x_matrix, &xtx_inv);
 
     // Standardized residuals
     let residuals_vec = residuals.clone();
-    let standardized_residuals: Vec<f64> = residuals_vec.iter().zip(&leverage)
+    let standardized_residuals: Vec<f64> = residuals_vec
+        .iter()
+        .zip(&leverage)
         .map(|(&r, &h)| {
             let factor = (1.0 - h).max(MIN_LEVERAGE_DENOM).sqrt();
             let denom = std_error * factor;
-            if denom > MIN_LEVERAGE_DENOM { r / denom } else { 0.0 }
+            if denom > MIN_LEVERAGE_DENOM {
+                r / denom
+            } else {
+                0.0
+            }
         })
         .collect();
 

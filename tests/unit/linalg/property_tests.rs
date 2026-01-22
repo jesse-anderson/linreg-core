@@ -5,7 +5,7 @@
 // Property-based tests using the proptest crate to verify mathematical
 // properties hold for random inputs.
 
-use linreg_core::linalg::{Matrix, vec_dot, vec_l2_norm, vec_scale};
+use linreg_core::linalg::{vec_dot, vec_l2_norm, vec_scale, Matrix};
 use proptest::prelude::*;
 
 proptest! {

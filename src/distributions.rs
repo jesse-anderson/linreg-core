@@ -52,7 +52,6 @@ pub fn ln_gamma(z: f64) -> f64 {
         return PI.ln() - s.abs().ln() - ln_gamma(1.0 - z);
     }
 
-
     let c = [
         76.18009172947146,
         -86.50532032941677,
@@ -69,7 +68,7 @@ pub fn ln_gamma(z: f64) -> f64 {
 
     let tmp = z + 5.5;
     let tmp = (z + 0.5) * tmp.ln() - tmp;
-    
+
     tmp + (2.5066282746310005 * sum / z).ln()
 }
 
@@ -100,8 +99,12 @@ pub fn inc_beta(x: f64, a: f64, b: f64) -> f64 {
     if a <= 0.0 || b <= 0.0 {
         return f64::NAN;
     }
-    if x == 0.0 { return 0.0; }
-    if x == 1.0 { return 1.0; }
+    if x == 0.0 {
+        return 0.0;
+    }
+    if x == 1.0 {
+        return 1.0;
+    }
 
     // Symmetry relation to optimize convergence
     if x > (a + 1.0) / (a + b + 2.0) {
@@ -117,7 +120,7 @@ pub fn inc_beta(x: f64, a: f64, b: f64) -> f64 {
     //
     // NOTE: The return form here uses `front / (a * f)` which corresponds to the
     // particular continued-fraction normalization implied by the `aa`/`bb` terms below.
-    
+
     let max_iter = 300;
     let epsilon = 1e-14;
     let tiny = 1e-30;
@@ -128,20 +131,25 @@ pub fn inc_beta(x: f64, a: f64, b: f64) -> f64 {
 
     for m in 0..max_iter {
         let m_f = m as f64;
-        
+
         // Odd step: d_{2m+1} (aa)
         // d1, d3, ...
         let aa = -(a + m_f) * (a + b + m_f) * x / ((a + 2.0 * m_f) * (a + 2.0 * m_f + 1.0));
         let mut delta = evaluate_fraction_step(aa, &mut d, &mut c, tiny);
         f *= delta;
-        if (delta - 1.0).abs() < epsilon { break; }
+        if (delta - 1.0).abs() < epsilon {
+            break;
+        }
 
         // Even step: d_{2m+2} (bb)
         // d2, d4, ...
-        let bb = (m_f + 1.0) * (b - m_f - 1.0) * x / ((a + 2.0 * m_f + 1.0) * (a + 2.0 * m_f + 2.0));
+        let bb =
+            (m_f + 1.0) * (b - m_f - 1.0) * x / ((a + 2.0 * m_f + 1.0) * (a + 2.0 * m_f + 2.0));
         delta = evaluate_fraction_step(bb, &mut d, &mut c, tiny);
         f *= delta;
-        if (delta - 1.0).abs() < epsilon { break; }
+        if (delta - 1.0).abs() < epsilon {
+            break;
+        }
     }
 
     // Result is front * (1/f) / a
@@ -149,15 +157,23 @@ pub fn inc_beta(x: f64, a: f64, b: f64) -> f64 {
 }
 
 fn evaluate_fraction_step(val: f64, d: &mut f64, c: &mut f64, tiny: f64) -> f64 {
-    if d.abs() < tiny { *d = tiny; }
+    if d.abs() < tiny {
+        *d = tiny;
+    }
     *d = 1.0 + val * *d;
-    if d.abs() < tiny { *d = tiny; }
+    if d.abs() < tiny {
+        *d = tiny;
+    }
     *d = 1.0 / *d;
-    
-    if c.abs() < tiny { *c = tiny; }
+
+    if c.abs() < tiny {
+        *c = tiny;
+    }
     *c = 1.0 + val / *c;
-    if c.abs() < tiny { *c = tiny; }
-    
+    if c.abs() < tiny {
+        *c = tiny;
+    }
+
     *c * *d
 }
 
@@ -177,8 +193,10 @@ fn evaluate_fraction_step(val: f64, d: &mut f64, c: &mut f64, tiny: f64) -> f64 
 /// * `a` - Shape parameter
 /// * `x` - Upper limit of integration
 fn inc_gamma_series(a: f64, x: f64) -> f64 {
-    if x <= 0.0 { return 0.0; }
-    
+    if x <= 0.0 {
+        return 0.0;
+    }
+
     let gln = ln_gamma(a);
     let mut ap = a;
     let mut sum = 1.0 / a;
@@ -194,7 +212,7 @@ fn inc_gamma_series(a: f64, x: f64) -> f64 {
             return sum * (-x + a * x.ln() - gln).exp();
         }
     }
-    
+
     // Fallback if not converged (though should converge for x < a+1)
     sum * (-x + a * x.ln() - gln).exp()
 }
@@ -210,28 +228,34 @@ fn inc_gamma_series(a: f64, x: f64) -> f64 {
 fn inc_gamma_cf(a: f64, x: f64) -> f64 {
     let gln = ln_gamma(a);
     let tiny = 1e-30;
-    
+
     let max_iter = 300;
     let epsilon = 1e-14;
-    
+
     let mut b = x + 1.0 - a;
     let mut c = 1.0 / tiny;
     let mut d = 1.0 / b;
     let mut h = d;
-    
+
     for i in 1..=max_iter {
         let an = -(i as f64) * (i as f64 - a);
         b += 2.0;
         d = an * d + b;
-        if d.abs() < tiny { d = tiny; }
+        if d.abs() < tiny {
+            d = tiny;
+        }
         c = b + an / c;
-        if c.abs() < tiny { c = tiny; }
+        if c.abs() < tiny {
+            c = tiny;
+        }
         d = 1.0 / d;
         let del = d * c;
         h *= del;
-        if (del - 1.0).abs() < epsilon { break; }
+        if (del - 1.0).abs() < epsilon {
+            break;
+        }
     }
-    
+
     (-x + a * x.ln() - gln).exp() * h
 }
 
@@ -289,7 +313,6 @@ pub fn inc_gamma_upper(a: f64, x: f64) -> f64 {
     }
 }
 
-
 // ============================================================================
 // Statistical Distributions
 // ============================================================================
@@ -319,7 +342,7 @@ pub fn student_t_cdf(t: f64, df: f64) -> f64 {
     }
     let x = df / (df + t * t);
     let p = 0.5 * inc_beta(x, 0.5 * df, 0.5);
-    
+
     if t >= 0.0 {
         1.0 - p
     } else {
@@ -348,7 +371,9 @@ pub fn fisher_snedecor_cdf(f: f64, d1: f64, d2: f64) -> f64 {
     if !f.is_finite() || !d1.is_finite() || !d2.is_finite() || d1 <= 0.0 || d2 <= 0.0 {
         return f64::NAN;
     }
-    if f <= 0.0 { return 0.0; }
+    if f <= 0.0 {
+        return 0.0;
+    }
     let x = (d1 * f) / (d1 * f + d2);
     inc_beta(x, 0.5 * d1, 0.5 * d2)
 }
@@ -374,7 +399,9 @@ pub fn chi_squared_survival(x: f64, k: f64) -> f64 {
     if !x.is_finite() || !k.is_finite() || k <= 0.0 {
         return f64::NAN;
     }
-    if x <= 0.0 { return 1.0; }
+    if x <= 0.0 {
+        return 1.0;
+    }
     inc_gamma_upper(k / 2.0, x / 2.0)
 }
 
@@ -413,7 +440,7 @@ pub fn normal_cdf(z: f64) -> f64 {
 
     // For normal CDF, we need erf(z/sqrt(2)), not erf(z)
     let sign = if z < 0.0 { -1.0 } else { 1.0 };
-    let x_abs = z.abs() / 2.0_f64.sqrt();  // Divide by sqrt(2) for normal CDF
+    let x_abs = z.abs() / 2.0_f64.sqrt(); // Divide by sqrt(2) for normal CDF
 
     let t = 1.0 / (1.0 + P * x_abs);
     let y = 1.0 - (((((A5 * t + A4) * t) + A3) * t + A2) * t + A1) * t * (-x_abs * x_abs).exp();
@@ -484,7 +511,11 @@ pub fn normal_cdf_cephes(z: f64) -> f64 {
         // Using erfce: erfc(t) = exp(-t^2) * erfce(t)
         // Here t = |z|/sqrt(2) = ax, so exp(-t^2) = exp(-ax^2) = exp(-z^2/2).
         let tail = 0.5 * (-(ax * ax)).exp() * cephes_erfce(ax);
-        if z >= 0.0 { 1.0 - tail } else { tail }
+        if z >= 0.0 {
+            1.0 - tail
+        } else {
+            tail
+        }
     };
 
     // --------------------------------------------------------------------
@@ -526,8 +557,6 @@ pub fn normal_sf_cephes(z: f64) -> f64 {
 
     q.max(0.0).min(1.0)
 }
-
-
 
 /// Computes the error function erf(x) using Cephes rational approximation.
 ///
@@ -762,7 +791,6 @@ fn polevl(x: f64, coeffs: &[f64]) -> f64 {
     result
 }
 
-
 /// Evaluates a polynomial with an implicit leading coefficient 1.0 (Cephes p1evl).
 ///
 /// If coeffs = [c0, c1, ..., c_{n-1}], computes:
@@ -788,7 +816,6 @@ fn p1evl(x: f64, coeffs: &[f64]) -> f64 {
     result
 }
 
-
 /// Computes the inverse of the standard normal CDF (probit function).
 ///
 /// Uses Acklam's algorithm with highly accurate rational approximation.
@@ -812,24 +839,30 @@ fn p1evl(x: f64, coeffs: &[f64]) -> f64 {
 #[allow(clippy::excessive_precision)]
 #[allow(clippy::manual_clamp)]
 pub fn normal_inverse_cdf(p: f64) -> f64 {
-    if p <= 0.0 { return f64::NEG_INFINITY; }
-    if p >= 1.0 { return f64::INFINITY; }
-    if p == 0.5 { return 0.0; }
+    if p <= 0.0 {
+        return f64::NEG_INFINITY;
+    }
+    if p >= 1.0 {
+        return f64::INFINITY;
+    }
+    if p == 0.5 {
+        return 0.0;
+    }
 
     const A: [f64; 6] = [
         -3.969683028665376e+01,
-         2.209460984245205e+02,
+        2.209460984245205e+02,
         -2.759285104469687e+02,
-         1.383577518672690e+02,
+        1.383577518672690e+02,
         -3.066479806614716e+01,
-         2.506628277459239e+00,
+        2.506628277459239e+00,
     ];
 
     const B: [f64; 5] = [
         -5.447609879822406e+01,
-         1.615858368580409e+02,
+        1.615858368580409e+02,
         -1.556989798598866e+02,
-         6.680131188771972e+01,
+        6.680131188771972e+01,
         -1.328068155288572e+01,
     ];
 
@@ -838,15 +871,15 @@ pub fn normal_inverse_cdf(p: f64) -> f64 {
         -3.223964580411365e-01,
         -2.400758277161838e+00,
         -2.549732539343734e+00,
-         4.374664141464968e+00,
-         2.938163982698783e+00,
+        4.374664141464968e+00,
+        2.938163982698783e+00,
     ];
 
     const D: [f64; 4] = [
-         7.784695709041462e-03,
-         3.224671290700398e-01,
-         2.445134137142996e+00,
-         3.754408661907416e+00,
+        7.784695709041462e-03,
+        3.224671290700398e-01,
+        2.445134137142996e+00,
+        3.754408661907416e+00,
     ];
 
     const P_LOW: f64 = 0.02425;
@@ -874,7 +907,11 @@ pub fn normal_inverse_cdf(p: f64) -> f64 {
         let den = (((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0;
         let x = num / den;
 
-        if p < P_LOW { x } else { -x }
+        if p < P_LOW {
+            x
+        } else {
+            -x
+        }
     };
 
     // ------------------------------------------------------------------------
@@ -903,16 +940,12 @@ pub fn normal_inverse_cdf(p: f64) -> f64 {
                 if qz.is_finite() {
                     z += (qz - q_target) / pdf;
                 }
-
             }
         }
     }
 
     z
 }
-
-
-
 
 /// Computes the inverse Student's t-distribution function (quantile function).
 ///
@@ -940,9 +973,15 @@ pub fn student_t_inverse_cdf(p: f64, df: f64) -> f64 {
     if !df.is_finite() || df <= 0.0 {
         return f64::NAN;
     }
-    if p <= 0.0 { return f64::NEG_INFINITY; }
-    if p >= 1.0 { return f64::INFINITY; }
-    if p == 0.5 { return 0.0; }
+    if p <= 0.0 {
+        return f64::NEG_INFINITY;
+    }
+    if p >= 1.0 {
+        return f64::INFINITY;
+    }
+    if p == 0.5 {
+        return 0.0;
+    }
 
     // Initial guess using Normal approximation, clamped to reasonable range
     let mut x = normal_inverse_cdf(p).clamp(-10.0, 10.0);
@@ -951,22 +990,29 @@ pub fn student_t_inverse_cdf(p: f64, df: f64) -> f64 {
     for _ in 0..50 {
         let cdf = student_t_cdf(x, df);
         // PDF of t-distribution
-        let pdf = (ln_gamma((df + 1.0) / 2.0) - ln_gamma(df / 2.0)) .exp()
+        let pdf = (ln_gamma((df + 1.0) / 2.0) - ln_gamma(df / 2.0)).exp()
             / ((df * PI).sqrt() * (1.0 + x * x / df).powf((df + 1.0) / 2.0));
 
         let diff = cdf - p;
-        if diff.abs() < 1e-12 { break; }
-        if pdf < 1e-15 { break; } // Avoid division by near-zero
+        if diff.abs() < 1e-12 {
+            break;
+        }
+        if pdf < 1e-15 {
+            break;
+        } // Avoid division by near-zero
 
         // Limit step size to prevent divergence
         let step = (diff / pdf).clamp(-2.0, 2.0);
         x -= step;
 
         // Hard clamp to prevent runaway
-        if x < -20.0 { x = -20.0; }
-        if x > 20.0 { x = 20.0; }
+        if x < -20.0 {
+            x = -20.0;
+        }
+        if x > 20.0 {
+            x = 20.0;
+        }
     }
 
     x
 }
-

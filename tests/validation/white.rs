@@ -12,8 +12,8 @@
 // differences in how they construct the auxiliary regression.
 
 use crate::common::{
-    load_dataset, load_r_diagnostic_result, load_python_diagnostic_result,
-    ALL_DATASETS, STAT_TOLERANCE,
+    load_dataset, load_python_diagnostic_result, load_r_diagnostic_result, ALL_DATASETS,
+    STAT_TOLERANCE,
 };
 
 use linreg_core::diagnostics;
@@ -55,23 +55,35 @@ fn validate_white_all_datasets() {
                 println!("     Failed to load dataset: {}", e);
                 failed_tests.push((dataset_name.to_string(), "Load failed".to_string()));
                 continue;
-            }
+            },
         };
 
-        println!("    Loaded: n = {}, predictors = {}", dataset.y.len(), dataset.x_vars.len());
+        println!(
+            "    Loaded: n = {}, predictors = {}",
+            dataset.y.len(),
+            dataset.x_vars.len()
+        );
 
         // Run White test (R method)
-        let rust_result = match diagnostics::white_test(&dataset.y, &dataset.x_vars, diagnostics::WhiteMethod::R) {
-            Ok(r) => r,
-            Err(e) => {
-                println!("     White test failed: {}", e);
-                failed_tests.push((dataset_name.to_string(), format!("Test error: {}", e)));
-                continue;
-            }
-        };
+        let rust_result =
+            match diagnostics::white_test(&dataset.y, &dataset.x_vars, diagnostics::WhiteMethod::R)
+            {
+                Ok(r) => r,
+                Err(e) => {
+                    println!("     White test failed: {}", e);
+                    failed_tests.push((dataset_name.to_string(), format!("Test error: {}", e)));
+                    continue;
+                },
+            };
 
-        let rust_r_result = rust_result.r_result.as_ref().expect("R result should be present");
-        println!("    Rust: LM = {:.6}, p = {:.6}", rust_r_result.statistic, rust_r_result.p_value);
+        let rust_r_result = rust_result
+            .r_result
+            .as_ref()
+            .expect("R result should be present");
+        println!(
+            "    Rust: LM = {:.6}, p = {:.6}",
+            rust_r_result.statistic, rust_r_result.p_value
+        );
 
         // Validate against R
         let r_result_path = r_results_dir.join(format!("{}_white.json", dataset_name));
@@ -88,18 +100,30 @@ fn validate_white_all_datasets() {
             let pval_match = pval_diff <= STAT_TOLERANCE;
 
             println!("    R:    LM = {:.6}, p = {:.6}", r_stat, r_pval);
-            println!("          Diff: stat = {:.2e}, p = {:.2e}", stat_diff, pval_diff);
+            println!(
+                "          Diff: stat = {:.2e}, p = {:.2e}",
+                stat_diff, pval_diff
+            );
 
             if stat_match && pval_match {
                 println!("     R validation: PASS");
                 passed_r += 1;
             } else {
                 println!("     R validation: FAIL");
-                failed_tests.push((dataset_name.to_string(), format!("R mismatch: stat diff={:.2e}", stat_diff)));
+                failed_tests.push((
+                    dataset_name.to_string(),
+                    format!("R mismatch: stat diff={:.2e}", stat_diff),
+                ));
             }
         } else {
-            println!("      R reference file not found: {}", r_result_path.display());
-            failed_tests.push((dataset_name.to_string(), "R reference file missing".to_string()));
+            println!(
+                "      R reference file not found: {}",
+                r_result_path.display()
+            );
+            failed_tests.push((
+                dataset_name.to_string(),
+                "R reference file missing".to_string(),
+            ));
         }
 
         println!();
@@ -110,7 +134,11 @@ fn validate_white_all_datasets() {
             total_tests += 1;
 
             // Run White test with Python method for comparison
-            let rust_py_result = match diagnostics::white_test(&dataset.y, &dataset.x_vars, diagnostics::WhiteMethod::Python) {
+            let rust_py_result = match diagnostics::white_test(
+                &dataset.y,
+                &dataset.x_vars,
+                diagnostics::WhiteMethod::Python,
+            ) {
                 Ok(r) => r.python_result.expect("Python result should be present"),
                 Err(_) => rust_r_result.clone(), // Fallback to R method result
             };
@@ -125,19 +153,33 @@ fn validate_white_all_datasets() {
             let pval_match = pval_diff <= STAT_TOLERANCE;
 
             println!("    Python: LM = {:.6}, p = {:.6}", py_stat, py_pval);
-            println!("    Rust(Py): LM = {:.6}, p = {:.6}", rust_py_result.statistic, rust_py_result.p_value);
-            println!("          Diff: stat = {:.2e}, p = {:.2e}", stat_diff, pval_diff);
+            println!(
+                "    Rust(Py): LM = {:.6}, p = {:.6}",
+                rust_py_result.statistic, rust_py_result.p_value
+            );
+            println!(
+                "          Diff: stat = {:.2e}, p = {:.2e}",
+                stat_diff, pval_diff
+            );
 
             if stat_match && pval_match {
                 println!("     Python validation: PASS");
                 passed_python += 1;
             } else {
-                println!("     Python validation: FAIL (expected - R/Python implementations differ)");
+                println!(
+                    "     Python validation: FAIL (expected - R/Python implementations differ)"
+                );
                 // Don't add to failed_tests since R/Python differences are expected
             }
         } else {
-            println!("      Python reference file not found: {}", python_result_path.display());
-            failed_tests.push((dataset_name.to_string(), "Python reference file missing".to_string()));
+            println!(
+                "      Python reference file not found: {}",
+                python_result_path.display()
+            );
+            failed_tests.push((
+                dataset_name.to_string(),
+                "Python reference file missing".to_string(),
+            ));
         }
 
         println!();
@@ -155,10 +197,12 @@ fn validate_white_all_datasets() {
 
     // Filter out known limitations (collinear datasets have numerical precision issues)
     let known_limitations = ["synthetic_collinear"];
-    let actual_failures: Vec<_> = failed_tests.iter()
+    let actual_failures: Vec<_> = failed_tests
+        .iter()
         .filter(|(name, _)| !known_limitations.contains(&name.as_str()))
         .collect();
-    let warnings: Vec<_> = failed_tests.iter()
+    let warnings: Vec<_> = failed_tests
+        .iter()
         .filter(|(name, _)| known_limitations.contains(&name.as_str()))
         .collect();
 
@@ -174,7 +218,10 @@ fn validate_white_all_datasets() {
         for (dataset, reason) in &actual_failures {
             println!("     - {}: {}", dataset, reason);
         }
-        panic!("White test validation failed for {} datasets", actual_failures.len());
+        panic!(
+            "White test validation failed for {} datasets",
+            actual_failures.len()
+        );
     }
 
     println!();

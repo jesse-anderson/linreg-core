@@ -18,10 +18,10 @@
 // 6. Test statistic: LM = n * R²_auxiliary
 // 7. Under H0, LM follows chi-squared distribution with df = #predictors
 
-use crate::error::{Error, Result};
-use crate::linalg::{Matrix, vec_mean};
+use super::helpers::{chi_squared_p_value, fit_ols};
 use super::types::DiagnosticTestResult;
-use super::helpers::{fit_ols, chi_squared_p_value};
+use crate::error::{Error, Result};
+use crate::linalg::{vec_mean, Matrix};
 
 /// Performs the Breusch-Pagan test for heteroscedasticity.
 ///
@@ -48,17 +48,17 @@ use super::helpers::{fit_ols, chi_squared_p_value};
 ///   and Random Coefficient Variation". Econometrica, 47(5), 1287-1294.
 /// - Koenker, R. (1981). "A Note on Studentizing a Test for Heteroscedasticity".
 ///   Journal of Econometrics, 17(1), 107-112.
-pub fn breusch_pagan_test(
-    y: &[f64],
-    x_vars: &[Vec<f64>],
-) -> Result<DiagnosticTestResult> {
+pub fn breusch_pagan_test(y: &[f64], x_vars: &[Vec<f64>]) -> Result<DiagnosticTestResult> {
     let n = y.len();
-    let k = x_vars.len();  // number of non-intercept predictors
-    let p = k + 1;         // total parameters including intercept
+    let k = x_vars.len(); // number of non-intercept predictors
+    let p = k + 1; // total parameters including intercept
 
     // Validate inputs - need at least p + 1 observations
     if n <= p {
-        return Err(Error::InsufficientData { required: p + 1, available: n });
+        return Err(Error::InsufficientData {
+            required: p + 1,
+            available: n,
+        });
     }
 
     // Validate dimensions and finite values using shared helper
@@ -67,7 +67,7 @@ pub fn breusch_pagan_test(
     // Create design matrix with intercept
     let mut x_data = vec![1.0; n * p];
     for row in 0..n {
-        x_data[row * p] = 1.0;  // intercept
+        x_data[row * p] = 1.0; // intercept
         for (col, x_var) in x_vars.iter().enumerate() {
             x_data[row * p + col + 1] = x_var[row];
         }
@@ -79,7 +79,9 @@ pub fn breusch_pagan_test(
 
     // Compute residuals and RSS
     let predictions = x_full.mul_vec(&beta);
-    let residuals: Vec<f64> = y.iter().zip(predictions.iter())
+    let residuals: Vec<f64> = y
+        .iter()
+        .zip(predictions.iter())
         .map(|(&yi, &yi_hat)| yi - yi_hat)
         .collect();
 
@@ -96,7 +98,9 @@ pub fn breusch_pagan_test(
     let u_mean = vec_mean(&u);
 
     if u_mean <= 0.0 || !u_mean.is_finite() {
-        return Err(Error::InvalidInput("Invalid mean of normalized squared residuals".to_string()));
+        return Err(Error::InvalidInput(
+            "Invalid mean of normalized squared residuals".to_string(),
+        ));
     }
 
     // Auxiliary regression: (u_i / u_mean) on X

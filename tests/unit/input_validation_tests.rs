@@ -5,7 +5,7 @@
 // Tests for validating edge cases and invalid inputs across the library.
 // These tests ensure the library handles malformed data gracefully.
 
-use linreg_core::{Error, core::ols_regression, diagnostics::*};
+use linreg_core::{core::ols_regression, diagnostics::*, Error};
 
 // ============================================================================
 // NaN Value Tests
@@ -83,7 +83,10 @@ fn test_ols_rejects_negative_infinity_in_y() {
 
     let result = ols_regression(&y, &[x1], &["Intercept".to_string(), "X1".to_string()]);
 
-    assert!(result.is_err(), "OLS should reject negative infinite values in y");
+    assert!(
+        result.is_err(),
+        "OLS should reject negative infinite values in y"
+    );
 }
 
 #[test]
@@ -93,7 +96,10 @@ fn test_durbin_watson_rejects_infinity() {
 
     let result = durbin_watson_test(&y, &[x1]);
 
-    assert!(result.is_err(), "Durbin-Watson should reject infinite values");
+    assert!(
+        result.is_err(),
+        "Durbin-Watson should reject infinite values"
+    );
 }
 
 // ============================================================================
@@ -108,7 +114,10 @@ fn test_ols_rejects_mismatched_lengths() {
     let result = ols_regression(&y, &[x1], &["Intercept".to_string(), "X1".to_string()]);
 
     // May fail with IndexOutOfBounds during QR or with DimensionMismatch
-    assert!(result.is_err(), "OLS should reject mismatched vector lengths");
+    assert!(
+        result.is_err(),
+        "OLS should reject mismatched vector lengths"
+    );
 }
 
 #[test]
@@ -117,9 +126,16 @@ fn test_ols_rejects_multiple_x_with_mismatched_lengths() {
     let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
     let x2 = vec![2.0, 4.0, 6.0]; // Different length
 
-    let result = ols_regression(&y, &[x1, x2], &["Intercept".to_string(), "X1".to_string(), "X2".to_string()]);
+    let result = ols_regression(
+        &y,
+        &[x1, x2],
+        &["Intercept".to_string(), "X1".to_string(), "X2".to_string()],
+    );
 
-    assert!(result.is_err(), "OLS should reject mismatched x variable lengths");
+    assert!(
+        result.is_err(),
+        "OLS should reject mismatched x variable lengths"
+    );
 }
 
 #[test]
@@ -133,12 +149,18 @@ fn test_diagnostics_rejects_mismatched_lengths() {
     ];
 
     for result in test_results {
-        assert!(result.is_err(), "Diagnostic tests should reject mismatched lengths");
+        assert!(
+            result.is_err(),
+            "Diagnostic tests should reject mismatched lengths"
+        );
     }
 
     // Durbin-Watson returns a different result type, test separately
     let dw_result = durbin_watson_test(&y, &[x1]);
-    assert!(dw_result.is_err(), "Durbin-Watson should reject mismatched lengths");
+    assert!(
+        dw_result.is_err(),
+        "Durbin-Watson should reject mismatched lengths"
+    );
 }
 
 // ============================================================================
@@ -154,7 +176,10 @@ fn test_ols_rejects_empty_y() {
 
     match result {
         Err(Error::InsufficientData { .. }) => (),
-        _ => panic!("Expected InsufficientData error for empty y, got {:?}", result),
+        _ => panic!(
+            "Expected InsufficientData error for empty y, got {:?}",
+            result
+        ),
     }
 }
 
@@ -178,7 +203,10 @@ fn test_rainbow_rejects_insufficient_data() {
 
     let result = rainbow_test(&y, &[x1], 0.5, linreg_core::diagnostics::RainbowMethod::R);
 
-    assert!(result.is_err(), "Rainbow test should reject insufficient data");
+    assert!(
+        result.is_err(),
+        "Rainbow test should reject insufficient data"
+    );
 }
 
 // ============================================================================
@@ -193,7 +221,10 @@ fn test_ols_with_constant_y() {
     let result = ols_regression(&y, &[x1], &["Intercept".to_string(), "X1".to_string()]);
 
     // Should work - constant y with varying x gives flat regression
-    assert!(result.is_ok(), "OLS should handle constant y with varying x");
+    assert!(
+        result.is_ok(),
+        "OLS should handle constant y with varying x"
+    );
 
     let r = result.unwrap();
     // X1 coefficient should be near zero since y is constant
@@ -210,8 +241,8 @@ fn test_ols_with_constant_x() {
     // Constant x creates perfect multicollinearity with intercept
     // The library may use ridge fallback or return SingularMatrix error
     match result {
-        Ok(_) => {}  // Ridge fallback succeeded
-        Err(Error::SingularMatrix) => {}  // Correctly detected multicollinearity
+        Ok(_) => {},                      // Ridge fallback succeeded
+        Err(Error::SingularMatrix) => {}, // Correctly detected multicollinearity
         Err(other) => panic!("Unexpected error: {:?}", other),
     }
 }
@@ -222,7 +253,10 @@ fn test_shapiro_wilk_raw_rejects_constant_sample() {
 
     let result = shapiro_wilk_test_raw(&sample);
 
-    assert!(result.is_err(), "Shapiro-Wilk should reject constant sample");
+    assert!(
+        result.is_err(),
+        "Shapiro-Wilk should reject constant sample"
+    );
 }
 
 #[test]
@@ -231,7 +265,10 @@ fn test_anderson_darling_raw_rejects_constant_sample() {
 
     let result = anderson_darling_test_raw(&sample);
 
-    assert!(result.is_err(), "Anderson-Darling should reject constant sample");
+    assert!(
+        result.is_err(),
+        "Anderson-Darling should reject constant sample"
+    );
 }
 
 // ============================================================================
@@ -257,10 +294,13 @@ fn test_shapiro_wilk_below_minimum() {
     let result = shapiro_wilk_test_raw(&sample);
 
     match result {
-        Err(Error::InsufficientData { required, available }) => {
+        Err(Error::InsufficientData {
+            required,
+            available,
+        }) => {
             assert_eq!(required, 3);
             assert_eq!(available, 2);
-        }
+        },
         _ => panic!("Expected InsufficientData error for n=2"),
     }
 }
@@ -281,10 +321,13 @@ fn test_anderson_darling_below_minimum() {
     let result = anderson_darling_test_raw(&sample);
 
     match result {
-        Err(Error::InsufficientData { required, available }) => {
+        Err(Error::InsufficientData {
+            required,
+            available,
+        }) => {
             assert_eq!(required, 8);
             assert_eq!(available, 7);
-        }
+        },
         _ => panic!("Expected InsufficientData error for n=7"),
     }
 }
@@ -356,8 +399,8 @@ fn test_ols_handles_all_zeros_in_x() {
     // This should return SingularMatrix error (correct behavior)
     // The library may use ridge fallback, so we accept either outcome
     match result {
-        Ok(_) => {}  // Ridge fallback succeeded
-        Err(Error::SingularMatrix) => {}  // Correctly detected multicollinearity
+        Ok(_) => {},                      // Ridge fallback succeeded
+        Err(Error::SingularMatrix) => {}, // Correctly detected multicollinearity
         Err(other) => panic!("Unexpected error: {:?}", other),
     }
 }
@@ -386,18 +429,22 @@ fn test_ols_detects_perfect_multicollinearity() {
     let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
     let x2 = vec![2.0, 4.0, 6.0, 8.0, 10.0]; // Exactly 2 * x1
 
-    let result = ols_regression(&y, &[x1, x2], &["Intercept".to_string(), "X1".to_string(), "X2".to_string()]);
+    let result = ols_regression(
+        &y,
+        &[x1, x2],
+        &["Intercept".to_string(), "X1".to_string(), "X2".to_string()],
+    );
 
     // Should detect multicollinearity
     match result {
         Err(Error::SingularMatrix) => {
             // Expected - perfect multicollinearity
-        }
+        },
         Ok(r) => {
             // Some implementations may use ridge fallback
             // Check that VIF is high for collinear variables
             assert!(r.vif.iter().any(|v| v.vif > 100.0));
-        }
+        },
         _ => panic!("Unexpected result: {:?}", result),
     }
 }

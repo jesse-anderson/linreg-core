@@ -3,7 +3,7 @@
 //! Benchmarks matrix operations, QR decomposition, and linear solvers.
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use linreg_core::linalg::{Matrix, vec_mean, vec_dot, vec_l2_norm};
+use linreg_core::linalg::{vec_dot, vec_l2_norm, vec_mean, Matrix};
 
 /// Creates a random matrix of given dimensions.
 fn make_matrix(rows: usize, cols: usize) -> Matrix {
@@ -148,11 +148,9 @@ fn bench_invert_upper_triangular(c: &mut Criterion) {
         }
         let m = Matrix::new(n, n, data);
 
-        group.bench_with_input(
-            BenchmarkId::from_parameter(n),
-            &n,
-            |b, _| b.iter(|| black_box(&m).invert_upper_triangular()),
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
+            b.iter(|| black_box(&m).invert_upper_triangular())
+        });
     }
 
     group.finish();
@@ -167,11 +165,9 @@ fn bench_matrix_invert(c: &mut Criterion) {
     for &n in &sizes {
         let m = make_matrix(n, n);
 
-        group.bench_with_input(
-            BenchmarkId::from_parameter(n),
-            &n,
-            |b, _| b.iter(|| black_box(&m).invert()),
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
+            b.iter(|| black_box(&m).invert())
+        });
     }
 
     group.finish();

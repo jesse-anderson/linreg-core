@@ -21,8 +21,10 @@ fn main() {
                 let se = result.std_errors[i];
                 let t_stat = result.t_stats[i];
                 let p_val = result.p_values[i];
-                println!("  {:12}: {:.4} (SE: {:.4}, t: {:.4}, p: {:.4})",
-                    name, coef, se, t_stat, p_val);
+                println!(
+                    "  {:12}: {:.4} (SE: {:.4}, t: {:.4}, p: {:.4})",
+                    name, coef, se, t_stat, p_val
+                );
             }
 
             println!("\nModel Fit:");
@@ -36,8 +38,11 @@ fn main() {
             // Make a prediction
             let new_advertising = 10.0;
             let prediction = result.coefficients[0] + result.coefficients[1] * new_advertising;
-            println!("\nPrediction for advertising={} is {:.2}", new_advertising, prediction);
-        }
+            println!(
+                "\nPrediction for advertising={} is {:.2}",
+                new_advertising, prediction
+            );
+        },
         Err(e) => eprintln!("Error: {}", e),
     }
 }

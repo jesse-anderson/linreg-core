@@ -74,26 +74,36 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::SingularMatrix => {
-                write!(f, "Matrix is singular (perfect multicollinearity). Remove redundant variables.")
-            }
-            Error::InsufficientData { required, available } => {
-                write!(f, "Insufficient data: need at least {} observations, have {}", required, available)
-            }
+                write!(
+                    f,
+                    "Matrix is singular (perfect multicollinearity). Remove redundant variables."
+                )
+            },
+            Error::InsufficientData {
+                required,
+                available,
+            } => {
+                write!(
+                    f,
+                    "Insufficient data: need at least {} observations, have {}",
+                    required, available
+                )
+            },
             Error::InvalidInput(msg) => {
                 write!(f, "Invalid input: {}", msg)
-            }
+            },
             Error::DimensionMismatch(msg) => {
                 write!(f, "Dimension mismatch: {}", msg)
-            }
+            },
             Error::ComputationFailed(msg) => {
                 write!(f, "Computation failed: {}", msg)
-            }
+            },
             Error::ParseError(msg) => {
                 write!(f, "Parse error: {}", msg)
-            }
+            },
             Error::DomainCheck(msg) => {
                 write!(f, "Domain check failed: {}", msg)
-            }
+            },
         }
     }
 }

@@ -5,8 +5,10 @@
 // Tests for vector utility functions not already covered in ops_tests:
 // vec_add, vec_axpy_inplace, vec_scale_inplace, vec_scale, vec_l2_norm, vec_max_abs
 
-use linreg_core::linalg::{vec_add, vec_axpy_inplace, vec_scale_inplace, vec_scale, vec_l2_norm, vec_max_abs};
 use super::common::EPSILON;
+use linreg_core::linalg::{
+    vec_add, vec_axpy_inplace, vec_l2_norm, vec_max_abs, vec_scale, vec_scale_inplace,
+};
 
 // ============================================================================
 // vec_add() Tests

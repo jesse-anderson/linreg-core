@@ -20,9 +20,9 @@
 //!
 //! This ensures diagnostic tests work correctly even with multicollinear data.
 
+use crate::distributions::{chi_squared_survival, fisher_snedecor_cdf, student_t_cdf};
 use crate::error::{Error, Result};
-use crate::linalg::{Matrix, vec_sub};
-use crate::distributions::{student_t_cdf, fisher_snedecor_cdf, chi_squared_survival};
+use crate::linalg::{vec_sub, Matrix};
 
 /// Validates regression input data for dimensions and finite values.
 ///
@@ -65,9 +65,12 @@ pub fn validate_regression_data(y: &[f64], x_vars: &[Vec<f64>]) -> Result<()> {
     // Validate all x_vars have the same length as y
     for (i, x_var) in x_vars.iter().enumerate() {
         if x_var.len() != n {
-            return Err(Error::DimensionMismatch(
-                format!("X{} has {} observations but y has {}", i + 1, x_var.len(), n)
-            ));
+            return Err(Error::DimensionMismatch(format!(
+                "X{} has {} observations but y has {}",
+                i + 1,
+                x_var.len(),
+                n
+            )));
         }
     }
 
@@ -75,7 +78,8 @@ pub fn validate_regression_data(y: &[f64], x_vars: &[Vec<f64>]) -> Result<()> {
     for (i, &yi) in y.iter().enumerate() {
         if !yi.is_finite() {
             return Err(Error::InvalidInput(format!(
-                "y contains non-finite value at index {}: {}", i, yi
+                "y contains non-finite value at index {}: {}",
+                i, yi
             )));
         }
     }
@@ -85,7 +89,10 @@ pub fn validate_regression_data(y: &[f64], x_vars: &[Vec<f64>]) -> Result<()> {
         for (i, &xi) in x_var.iter().enumerate() {
             if !xi.is_finite() {
                 return Err(Error::InvalidInput(format!(
-                    "X{} contains non-finite value at index {}: {}", var_idx + 1, i, xi
+                    "X{} contains non-finite value at index {}: {}",
+                    var_idx + 1,
+                    i,
+                    xi
                 )));
             }
         }
@@ -125,7 +132,11 @@ pub fn two_tailed_p_value(t: f64, df: f64) -> f64 {
     }
 
     let cdf = student_t_cdf(t, df);
-    if t >= 0.0 { 2.0 * (1.0 - cdf) } else { 2.0 * cdf }
+    if t >= 0.0 {
+        2.0 * (1.0 - cdf)
+    } else {
+        2.0 * cdf
+    }
 }
 
 /// Computes a p-value from an F-statistic.

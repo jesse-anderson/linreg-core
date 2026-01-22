@@ -7,10 +7,7 @@
 //
 // Tests run against: mtcars, bodyfat, prostate, longley, synthetic_*, etc.
 
-use crate::common::{
-    load_dataset, load_ols_by_dataset_result,
-    TIGHT_TOLERANCE,
-};
+use crate::common::{load_dataset, load_ols_by_dataset_result, TIGHT_TOLERANCE};
 use linreg_core::core;
 
 const TEST_DATASETS: &[&str] = &[
@@ -41,17 +38,20 @@ fn validate_ols_r_dataset(dataset_name: &str) {
     let r_result_path = r_results_dir.join(format!("{}_ols.json", dataset_name));
 
     // Load dataset
-    let dataset = load_dataset(&csv_path)
-        .expect(&format!("Failed to load {} dataset", dataset_name));
+    let dataset =
+        load_dataset(&csv_path).expect(&format!("Failed to load {} dataset", dataset_name));
 
     // Load R reference
     let r_ref = match load_ols_by_dataset_result(&r_result_path) {
         Some(r) => r,
         None => {
-            println!("    R OLS result file not found: {}", r_result_path.display());
+            println!(
+                "    R OLS result file not found: {}",
+                r_result_path.display()
+            );
             println!("     Run: Rscript verification/scripts/runners/run_all_diagnostics_r.R");
             return;
-        }
+        },
     };
 
     // Build variable names
@@ -64,7 +64,7 @@ fn validate_ols_r_dataset(dataset_name: &str) {
         Err(e) => {
             println!("   OLS regression failed: {}", e);
             return;
-        }
+        },
     };
 
     // Validate coefficients
@@ -72,8 +72,10 @@ fn validate_ols_r_dataset(dataset_name: &str) {
     for i in 0..r_ref.coefficients.len() {
         let diff = (result.coefficients[i] - r_ref.coefficients[i]).abs();
         if diff > TIGHT_TOLERANCE {
-            println!("   coef[{}]: Rust = {:.8}, R = {:.8}, diff = {:.2e}",
-                i, result.coefficients[i], r_ref.coefficients[i], diff);
+            println!(
+                "   coef[{}]: Rust = {:.8}, R = {:.8}, diff = {:.2e}",
+                i, result.coefficients[i], r_ref.coefficients[i], diff
+            );
             all_passed = false;
         }
     }
@@ -81,16 +83,20 @@ fn validate_ols_r_dataset(dataset_name: &str) {
     // Validate R-squared
     let rsq_diff = (result.r_squared - r_ref.r_squared).abs();
     if rsq_diff > TIGHT_TOLERANCE {
-        println!("   R²: Rust = {:.8}, R = {:.8}, diff = {:.2e}",
-            result.r_squared, r_ref.r_squared, rsq_diff);
+        println!(
+            "   R²: Rust = {:.8}, R = {:.8}, diff = {:.2e}",
+            result.r_squared, r_ref.r_squared, rsq_diff
+        );
         all_passed = false;
     }
 
     // Validate F-statistic
     let f_diff = (result.f_statistic - r_ref.f_statistic).abs();
     if f_diff > TIGHT_TOLERANCE {
-        println!("   F: Rust = {:.8}, R = {:.8}, diff = {:.2e}",
-            result.f_statistic, r_ref.f_statistic, f_diff);
+        println!(
+            "   F: Rust = {:.8}, R = {:.8}, diff = {:.2e}",
+            result.f_statistic, r_ref.f_statistic, f_diff
+        );
         all_passed = false;
     }
 

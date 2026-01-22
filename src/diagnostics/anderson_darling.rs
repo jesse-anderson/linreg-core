@@ -32,11 +32,11 @@
 // - Marsaglia, G., & Marsaglia, J. (2004). "Evaluating the Anderson-Darling
 //   Distribution". Journal of Statistical Software, 9(2), 1-5.
 
-use crate::error::{Error, Result};
-use crate::linalg::{Matrix, vec_mean};
-use crate::distributions::normal_cdf;
-use super::types::DiagnosticTestResult;
 use super::helpers::fit_ols;
+use super::types::DiagnosticTestResult;
+use crate::distributions::normal_cdf;
+use crate::error::{Error, Result};
+use crate::linalg::{vec_mean, Matrix};
 
 /// Computes the natural logarithm of the standard normal CDF.
 ///
@@ -68,8 +68,8 @@ fn log_normal_cdf(z: f64) -> f64 {
         // For z < 0, Φ(z) is small. Use log(1 - Φ(-z)) = log1p(-Φ(-z))
         // But more accurately: log(Φ(z)) = log(1 - Φ(-z))
         let p_neg = normal_cdf(-z);
-        let log_p = (-p_neg).ln_1p();  // log(1 - p_neg) = log(Φ(z))
-        log_p.max(MIN_LOG)  // Clamp to avoid -inf
+        let log_p = (-p_neg).ln_1p(); // log(1 - p_neg) = log(Φ(z))
+        log_p.max(MIN_LOG) // Clamp to avoid -inf
     }
 }
 
@@ -118,17 +118,17 @@ fn log_normal_cdf_complement(z: f64) -> f64 {
 /// - Anderson, T. W., & Darling, D. A. (1954). "A Test of Goodness of Fit".
 ///   Journal of the American Statistical Association, 49(268), 765-769.
 /// - Stephens, M. A. (1974). "EDF Statistics for Goodness of Fit". JASA, 69, 730-737.
-pub fn anderson_darling_test(
-    y: &[f64],
-    x_vars: &[Vec<f64>],
-) -> Result<DiagnosticTestResult> {
+pub fn anderson_darling_test(y: &[f64], x_vars: &[Vec<f64>]) -> Result<DiagnosticTestResult> {
     let n = y.len();
     let k = x_vars.len();
     let p = k + 1;
 
     // Validate inputs - need at least 8 observations for meaningful AD test
     if n < 8 {
-        return Err(Error::InsufficientData { required: 8, available: n });
+        return Err(Error::InsufficientData {
+            required: 8,
+            available: n,
+        });
     }
 
     // Validate dimensions and finite values using shared helper
@@ -137,7 +137,7 @@ pub fn anderson_darling_test(
     // Create design matrix with intercept
     let mut x_data = vec![1.0; n * p];
     for row in 0..n {
-        x_data[row * p] = 1.0;  // intercept
+        x_data[row * p] = 1.0; // intercept
         for (col, x_var) in x_vars.iter().enumerate() {
             x_data[row * p + col + 1] = x_var[row];
         }
@@ -149,7 +149,9 @@ pub fn anderson_darling_test(
 
     // Compute residuals
     let predictions = x_full.mul_vec(&beta);
-    let mut residuals: Vec<f64> = y.iter().zip(predictions.iter())
+    let mut residuals: Vec<f64> = y
+        .iter()
+        .zip(predictions.iter())
         .map(|(&yi, &yi_hat)| yi - yi_hat)
         .collect();
 
@@ -161,15 +163,19 @@ pub fn anderson_darling_test(
     let mean = vec_mean(&residuals);
 
     // Compute variance using n-1 denominator (sample variance)
-    let variance: f64 = residuals.iter()
+    let variance: f64 = residuals
+        .iter()
         .map(|&r| {
             let diff = r - mean;
             diff * diff
         })
-        .sum::<f64>() / (n as f64 - 1.0);
+        .sum::<f64>()
+        / (n as f64 - 1.0);
 
     if variance <= 0.0 || !variance.is_finite() {
-        return Err(Error::InvalidInput("Invalid residual variance (all values identical)".to_string()));
+        return Err(Error::InvalidInput(
+            "Invalid residual variance (all values identical)".to_string(),
+        ));
     }
 
     let std_dev = variance.sqrt();
@@ -229,7 +235,7 @@ pub fn anderson_darling_test(
 
     Ok(DiagnosticTestResult {
         test_name: "Anderson-Darling Test for Normality".to_string(),
-        statistic: ad_stat,  // Return raw statistic to match R's nortest::ad.test (R returns A, not A*)
+        statistic: ad_stat, // Return raw statistic to match R's nortest::ad.test (R returns A, not A*)
         p_value,
         passed,
         interpretation,
@@ -288,14 +294,18 @@ pub fn anderson_darling_test_raw(sample: &[f64]) -> Result<DiagnosticTestResult>
     let n = sample.len();
 
     if n < 8 {
-        return Err(Error::InsufficientData { required: 8, available: n });
+        return Err(Error::InsufficientData {
+            required: 8,
+            available: n,
+        });
     }
 
     // Validate sample contains no NaN or infinite values
     for (i, &val) in sample.iter().enumerate() {
         if !val.is_finite() {
             return Err(Error::InvalidInput(format!(
-                "Sample contains non-finite value at index {}: {}", i, val
+                "Sample contains non-finite value at index {}: {}",
+                i, val
             )));
         }
     }
@@ -307,15 +317,19 @@ pub fn anderson_darling_test_raw(sample: &[f64]) -> Result<DiagnosticTestResult>
     // Compute sample mean and variance
     // Note: Use n-1 denominator to match R's sd() function
     let mean = vec_mean(&sorted);
-    let variance: f64 = sorted.iter()
+    let variance: f64 = sorted
+        .iter()
         .map(|&x| {
             let diff = x - mean;
             diff * diff
         })
-        .sum::<f64>() / (n as f64 - 1.0);
+        .sum::<f64>()
+        / (n as f64 - 1.0);
 
     if variance <= 0.0 || !variance.is_finite() {
-        return Err(Error::InvalidInput("Invalid sample variance (all values identical)".to_string()));
+        return Err(Error::InvalidInput(
+            "Invalid sample variance (all values identical)".to_string(),
+        ));
     }
 
     let std_dev = variance.sqrt();
@@ -351,7 +365,7 @@ pub fn anderson_darling_test_raw(sample: &[f64]) -> Result<DiagnosticTestResult>
                 "p-value = {:.4} is greater than {:.2}. Cannot reject H0.",
                 p_value, alpha
             ),
-            "No significant evidence that the sample deviates from normality."
+            "No significant evidence that the sample deviates from normality.",
         )
     } else {
         (
@@ -359,13 +373,13 @@ pub fn anderson_darling_test_raw(sample: &[f64]) -> Result<DiagnosticTestResult>
                 "p-value = {:.4} is less than or equal to {:.2}. Reject H0.",
                 p_value, alpha
             ),
-            "Significant evidence that the sample deviates from normality."
+            "Significant evidence that the sample deviates from normality.",
         )
     };
 
     Ok(DiagnosticTestResult {
         test_name: "Anderson-Darling Test for Normality".to_string(),
-        statistic: ad_stat,  // Return raw statistic to match R's nortest::ad.test (R returns A, not A*)
+        statistic: ad_stat, // Return raw statistic to match R's nortest::ad.test (R returns A, not A*)
         p_value,
         passed,
         interpretation,
@@ -433,9 +447,8 @@ mod tests {
     fn test_anderson_darling_normal_data() {
         // Normal data should have high p-value
         let normal_data = vec![
-            0.1, -0.5, 0.3, 1.2, -0.8, 0.4, -0.2, 0.9, -0.3, 0.6,
-            -0.1, 0.7, -0.4, 0.2, 1.1, -0.6, 0.8, -0.9, 0.5, -0.7,
-            0.0, 0.3, -0.4, 0.6, -0.2,
+            0.1, -0.5, 0.3, 1.2, -0.8, 0.4, -0.2, 0.9, -0.3, 0.6, -0.1, 0.7, -0.4, 0.2, 1.1, -0.6,
+            0.8, -0.9, 0.5, -0.7, 0.0, 0.3, -0.4, 0.6, -0.2,
         ];
 
         let result = anderson_darling_test_raw(&normal_data).unwrap();
@@ -481,12 +494,12 @@ mod tests {
     fn test_anderson_darling_with_regression() {
         // Test with actual regression data
         let y = vec![
-            10.5, 12.3, 11.8, 14.2, 13.5, 15.1, 14.8, 16.3, 15.9, 17.2,
-            16.8, 18.5, 18.1, 19.3, 19.0, 20.5, 20.1, 21.8, 21.3, 22.5,
+            10.5, 12.3, 11.8, 14.2, 13.5, 15.1, 14.8, 16.3, 15.9, 17.2, 16.8, 18.5, 18.1, 19.3,
+            19.0, 20.5, 20.1, 21.8, 21.3, 22.5,
         ];
         let x1 = vec![
-            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
-            11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
+            17.0, 18.0, 19.0, 20.0,
         ];
 
         let result = anderson_darling_test(&y, &[x1]);
