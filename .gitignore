@@ -65,7 +65,7 @@ blog-post*.md
 HANDOFF_TEST_COVERAGE_AUDIT.md
 COVERAGE_MATRIX.md
 AIC_BIC_TODO.md
-
+*TODO*.md
 # Large test data files
 test_data_*.csv
 
@@ -74,3 +74,5 @@ generate_test_data.py
 
 #benchmarking
 criterion*/
+flamegraph*/
+tests/proptest*/

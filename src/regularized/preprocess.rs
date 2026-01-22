@@ -126,14 +126,38 @@ pub fn standardize_xy(x: &Matrix, y: &[f64], options: &StandardizeOptions) -> (M
         0.0
     };
 
-    // Standardize y if requested
-    let y_scale = if options.standardize_y {
-        let y_centered: Vec<f64> = y.iter().map(|&yi| yi - y_mean).collect();
-        let y_var = y_centered.iter().map(|&yi| yi * yi).sum::<f64>() / n as f64;
+    // Always center y when there's an intercept (required for coordinate descent)
+    // Additionally scale y if standardize_y is requested
+    let y_scale = if options.intercept {
+        // Center y
+        for yi in y_std.iter_mut() {
+            *yi -= y_mean;
+        }
+
+        if options.standardize_y {
+            // Also scale y
+            let y_var = y_std.iter().map(|&yi| yi * yi).sum::<f64>() / n as f64;
+            let y_scale_val = y_var.sqrt();
+            if y_scale_val > 0.0 {
+                for yi in y_std.iter_mut() {
+                    *yi /= y_scale_val;
+                }
+            }
+            Some(y_scale_val)
+        } else {
+            None
+        }
+    } else if options.standardize_y {
+        // No intercept but standardize_y requested - center and scale
+        let y_mean_local = vec_mean(y);
+        for yi in y_std.iter_mut() {
+            *yi -= y_mean_local;
+        }
+        let y_var = y_std.iter().map(|&yi| yi * yi).sum::<f64>() / n as f64;
         let y_scale_val = y_var.sqrt();
         if y_scale_val > 0.0 {
             for yi in y_std.iter_mut() {
-                *yi = (*yi - y_mean) / y_scale_val;
+                *yi /= y_scale_val;
             }
         }
         Some(y_scale_val)
@@ -154,32 +178,31 @@ pub fn standardize_xy(x: &Matrix, y: &[f64], options: &StandardizeOptions) -> (M
         col_mean /= n as f64;
         x_mean[j] = col_mean;
 
-        if options.standardize_x {
-            // Center the column
+        // Always center the column (required for coordinate descent to work correctly)
+        for i in 0..n {
+            let val = x_std.get(i, j) - col_mean;
+            x_std.set(i, j, val);
+        }
+
+        // Always compute and apply scaling (coordinate descent assumes unit variance)
+        // The standardize_x option only affects how coefficients are returned
+        let mut col_scale_sq = 0.0;
+        for i in 0..n {
+            let val = x_std.get(i, j);
+            col_scale_sq += val * val;
+        }
+        let col_scale = (col_scale_sq / n as f64).sqrt();
+
+        if col_scale > 0.0 {
+            // Always scale internally for correct coordinate descent behavior
             for i in 0..n {
-                let val = x_std.get(i, j) - col_mean;
+                let val = x_std.get(i, j) / col_scale;
                 x_std.set(i, j, val);
             }
 
-            // Compute scale: sqrt(sum(x²) / n)
-            let mut col_scale_sq = 0.0;
-            for i in 0..n {
-                let val = x_std.get(i, j);
-                col_scale_sq += val * val;
-            }
-            let col_scale = (col_scale_sq / n as f64).sqrt();
-
-            if col_scale > 0.0 {
-                x_scale[j] = col_scale;
-                // Scale the column
-                for i in 0..n {
-                    let val = x_std.get(i, j) / col_scale;
-                    x_std.set(i, j, val);
-                }
-            }
-        } else {
-            // Just center, don't scale
-            x_scale[j] = 1.0;
+            // Always store actual scale factor for correct unstandardization
+            // (coefficients are always returned on original scale, matching glmnet)
+            x_scale[j] = col_scale;
         }
     }
 
@@ -214,9 +237,9 @@ pub fn standardize_xy(x: &Matrix, y: &[f64], options: &StandardizeOptions) -> (M
 ///
 /// # Returns
 ///
-/// A tuple `(beta0, beta_original)` where:
+/// A tuple `(beta0, beta_slopes)` where:
 /// - `beta0` is the intercept on the original scale
-/// - `beta_original` are the slope coefficients on the original scale
+/// - `beta_slopes` are the slope coefficients only (excluding intercept column coefficient)
 ///
 /// # Unstandardization Formula
 ///
@@ -237,41 +260,36 @@ pub fn standardize_xy(x: &Matrix, y: &[f64], options: &StandardizeOptions) -> (M
 ///
 /// If `intercept=true` in the info, `beta_std[0]` is assumed to be the intercept
 /// coefficient (which is already 0 in the standardized space since X was centered).
+/// The returned `beta_slopes` will NOT include this zeroed coefficient - only actual
+/// slope coefficients are returned.
 pub fn unstandardize_coefficients(beta_std: &[f64], info: &StandardizationInfo) -> (f64, Vec<f64>) {
     let p = beta_std.len();
-    let mut beta_original = vec![0.0; p];
     let y_scale = info.y_scale.unwrap_or(1.0);
 
-    // Handle intercept: if intercept was used, beta_std[0] is the intercept
-    // In standardized space with centered X, the intercept should be y_mean
-    // But we compute it properly from the formula
-
+    // Determine where slope coefficients start in beta_std
     let start_idx = if info.intercept { 1 } else { 0 };
+    let n_slopes = p - start_idx;
 
-    // Unstandardize non-intercept coefficients
+    // Unstandardize slope coefficients only (exclude intercept column coefficient)
+    let mut beta_slopes = vec![0.0; n_slopes];
     for j in start_idx..p {
-        beta_original[j] = (y_scale * beta_std[j]) / info.x_scale[j];
+        let slope_idx = j - start_idx;
+        beta_slopes[slope_idx] = (y_scale * beta_std[j]) / info.x_scale[j];
     }
 
     // Compute intercept on original scale
+    // beta0 = y_mean - sum(x_mean[j] * beta_slopes[j-1]) for j in 1..p
     let beta0 = if info.intercept {
         let mut sum = 0.0;
         for j in 1..p {
-            sum += info.x_mean[j] * beta_original[j];
+            sum += info.x_mean[j] * beta_slopes[j - 1];
         }
         info.y_mean - sum
     } else {
         0.0
     };
 
-    // If intercept was in beta_std, store it separately
-    let intercept_value = if info.intercept {
-        beta0
-    } else {
-        0.0
-    };
-
-    (intercept_value, beta_original)
+    (beta0, beta_slopes)
 }
 
 /// Computes predictions using unstandardized coefficients.
@@ -280,25 +298,31 @@ pub fn unstandardize_coefficients(beta_std: &[f64], info: &StandardizationInfo) 
 ///
 /// * `x_new` - New data matrix (n_new × p, with intercept column if applicable)
 /// * `beta0` - Intercept on original scale
-/// * `beta` - Slope coefficients on original scale
+/// * `beta` - Slope coefficients on original scale (does NOT include intercept column coefficient)
 ///
 /// # Returns
 ///
 /// Predictions for each row in x_new.
+///
+/// # Note
+///
+/// If `x_new` has an intercept column (first column of all ones), `beta` should have
+/// `p - 1` elements corresponding to the non-intercept columns. If `x_new` has no
+/// intercept column, `beta` should have `p` elements.
 pub fn predict(x_new: &Matrix, beta0: f64, beta: &[f64]) -> Vec<f64> {
     let n = x_new.rows;
     let p = x_new.cols;
 
     let mut predictions = vec![0.0; n];
 
-    // Determine if we have an intercept column (first column is typically all ones)
-    // If beta has one fewer element than columns, assume first column is intercept
+    // Determine if there's an intercept column based on beta length
+    // If beta has one fewer element than columns, first column is intercept
     let has_intercept_col = beta.len() == p - 1;
     let start_col = if has_intercept_col { 1 } else { 0 };
 
     for i in 0..n {
         let mut sum = beta0;
-        for (j, beta_j) in beta.iter().enumerate() {
+        for (j, &beta_j) in beta.iter().enumerate() {
             let col = start_col + j;
             if col < p {
                 sum += x_new.get(i, col) * beta_j;
@@ -338,9 +362,10 @@ mod tests {
         assert_eq!(x_std.get(1, 0), 1.0);
         assert_eq!(x_std.get(2, 0), 1.0);
 
-        // y should NOT be centered (standardize_y = false)
+        // y is now centered when intercept=true (required for coordinate descent)
+        let y_mean = 5.0; // mean of [3, 5, 7]
         for i in 0..3 {
-            assert!((y_std[i] - y[i]).abs() < 1e-10);
+            assert!((y_std[i] - (y[i] - y_mean)).abs() < 1e-10);
         }
 
         // x_mean should capture the column means
@@ -370,28 +395,32 @@ mod tests {
         // Coefficients in standardized space: [intercept=0, beta1=1, beta2=2]
         let beta_std = vec![0.0, 1.0, 2.0];
 
-        let (beta0, beta_orig) = unstandardize_coefficients(&beta_std, &info);
+        let (beta0, beta_slopes) = unstandardize_coefficients(&beta_std, &info);
 
-        // Check unstandardization
-        // beta_orig[1] = (y_scale * beta_std[1]) / x_scale[1] = (2 * 1) / 2 = 1
-        assert!((beta_orig[1] - 1.0).abs() < 1e-10);
-        // beta_orig[2] = (y_scale * beta_std[2]) / x_scale[2] = (2 * 2) / 3 = 4/3
-        assert!((beta_orig[2] - 4.0/3.0).abs() < 1e-10);
+        // Check unstandardization - beta_slopes now only contains slope coefficients
+        // beta_slopes[0] = (y_scale * beta_std[1]) / x_scale[1] = (2 * 1) / 2 = 1
+        assert!((beta_slopes[0] - 1.0).abs() < 1e-10);
+        // beta_slopes[1] = (y_scale * beta_std[2]) / x_scale[2] = (2 * 2) / 3 = 4/3
+        assert!((beta_slopes[1] - 4.0/3.0).abs() < 1e-10);
 
-        // beta0 = y_mean - sum(x_mean[j] * beta_orig[j])
+        // beta0 = y_mean - sum(x_mean[j] * beta_slopes[j-1])
         //      = 5 - (4 * 1 + 6 * 4/3) = 5 - 4 - 8 = -7
         assert!((beta0 - (-7.0)).abs() < 1e-10);
+
+        // Verify beta_slopes has the correct length (only slopes, not intercept col coef)
+        assert_eq!(beta_slopes.len(), 2);
     }
 
     #[test]
     fn test_predict() {
+        // X has intercept column (first col all 1s) plus 2 predictors
         let x_data = vec![
             1.0, 2.0, 3.0,
             1.0, 4.0, 6.0,
         ];
         let x = Matrix::new(2, 3, x_data);
 
-        // beta0 = 1, beta = [2.0, 3.0]
+        // beta0 = 1, beta = [2.0, 3.0] (slope coefficients only, no intercept col coef)
         let beta0 = 1.0;
         let beta = vec![2.0, 3.0];
 

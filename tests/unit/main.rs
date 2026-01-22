@@ -11,3 +11,4 @@ mod linalg;
 mod diagnostics_tests;
 mod distributions_tests;
 mod input_validation_tests;
+mod regularized_tests;

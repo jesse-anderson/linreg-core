@@ -120,6 +120,7 @@ fn validate_breusch_pagan_all_datasets() {
             }
         } else {
             println!("      R reference file not found: {}", r_result_path.display());
+            failed_tests.push((dataset_name.to_string(), "R reference file missing".to_string()));
         }
 
         println!();
@@ -162,6 +163,7 @@ fn validate_breusch_pagan_all_datasets() {
             }
         } else {
             println!("      Python reference file not found: {}", python_result_path.display());
+            failed_tests.push((dataset_name.to_string(), "Python reference file missing".to_string()));
         }
 
         println!();
@@ -188,10 +190,10 @@ fn validate_breusch_pagan_all_datasets() {
     // Assert that we tested at least some datasets
     assert!(total_tests > 0, "No validation tests were run. Check that result files exist.");
 
-    // Assert that we have a reasonable pass rate (at least 80%)
+    // Assert that we have a reasonable pass rate (at least 90%)
     let pass_rate = (passed_r + passed_python) as f64 / total_tests as f64;
-    assert!(pass_rate >= 0.8,
-        "Validation pass rate ({:.1}%) is below 80% threshold. See failed tests above.",
+    assert!(pass_rate >= 0.9,
+        "Validation pass rate ({:.1}%) is below 90% threshold. See failed tests above.",
         pass_rate * 100.0
     );
 

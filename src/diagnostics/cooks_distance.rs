@@ -157,23 +157,46 @@ pub fn cooks_distance_test(
 
     // Compute Cook's distance for each observation
     let mut distances = Vec::with_capacity(n);
-    for i in 0..n {
-        let r_i = residuals[i];
-        let h_i = leverage[i];
 
-        // Avoid division by zero for high leverage points
-        let one_minus_h = (1.0 - h_i).max(1e-10);
+    // Check for perfect fit or near-perfect collinearity
+    // When MSE is essentially zero, Cook's distance formula becomes unstable
+    // (0/0 type situation). In this case, all Cook's distances should be zero
+    // since the model fits perfectly and no observation has "influence".
+    let y_variance: f64 = y.iter().map(|&yi| {
+        let mean = y.iter().sum::<f64>() / y.len() as f64;
+        (yi - mean).powi(2)
+    }).sum::<f64>() / (y.len() - 1) as f64;
+    let mse_is_effectively_zero = mse < y_variance * f64::EPSILON.sqrt() || mse < 1e-20;
 
-        let numerator = r_i * r_i * h_i;
-        let denominator = (p as f64) * mse * one_minus_h * one_minus_h;
+    if mse_is_effectively_zero {
+        // Perfect fit: all Cook's distances are zero
+        distances = vec![0.0; n];
+    } else {
+        for i in 0..n {
+            let r_i = residuals[i];
+            let h_i = leverage[i];
 
-        let d_i = if denominator > 1e-10 {
-            numerator / denominator
-        } else {
-            0.0
-        };
+            // Avoid division by zero for high leverage points
+            let one_minus_h = (1.0 - h_i).max(f64::EPSILON);
 
-        distances.push(d_i);
+            let numerator = r_i * r_i * h_i;
+            let denominator = (p as f64) * mse * one_minus_h * one_minus_h;
+
+            // Compute Cook's distance directly.
+            // Only guard against actual numerical issues (non-finite, negative).
+            let d_i = if denominator > 0.0 {
+                let result = numerator / denominator;
+                if result.is_finite() && result >= 0.0 {
+                    result
+                } else {
+                    0.0
+                }
+            } else {
+                0.0
+            };
+
+            distances.push(d_i);
+        }
     }
 
     // Compute thresholds

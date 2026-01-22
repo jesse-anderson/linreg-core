@@ -57,6 +57,10 @@ use super::helpers::fit_ols;
 ///
 /// `log(Φ(z))` where Φ is the standard normal CDF
 fn log_normal_cdf(z: f64) -> f64 {
+    // Clamp extreme values to avoid -inf from ln(0)
+    // ln(f64::MIN_POSITIVE) ≈ -708, so we use -745 as a safe bound
+    const MIN_LOG: f64 = -745.0;
+
     // For z >= 0, Φ(z) >= 0.5, so log(Φ(z)) is well-behaved
     if z >= 0.0 {
         normal_cdf(z).ln()
@@ -64,7 +68,8 @@ fn log_normal_cdf(z: f64) -> f64 {
         // For z < 0, Φ(z) is small. Use log(1 - Φ(-z)) = log1p(-Φ(-z))
         // But more accurately: log(Φ(z)) = log(1 - Φ(-z))
         let p_neg = normal_cdf(-z);
-        (-p_neg).ln_1p()  // log(1 - p_neg) = log(Φ(z))
+        let log_p = (-p_neg).ln_1p();  // log(1 - p_neg) = log(Φ(z))
+        log_p.max(MIN_LOG)  // Clamp to avoid -inf
     }
 }
 
@@ -82,7 +87,9 @@ fn log_normal_cdf(z: f64) -> f64 {
 fn log_normal_cdf_complement(z: f64) -> f64 {
     // This is pnorm(-z, log.p=TRUE) in R
     // Which equals log(Φ(-z)) = log(1 - Φ(z))
-    log_normal_cdf(-z)
+    // Clamp extreme values to avoid -inf from ln(0)
+    const MIN_LOG: f64 = -745.0;
+    log_normal_cdf(-z).max(MIN_LOG)
 }
 
 /// Performs the Anderson-Darling test for normality of residuals.

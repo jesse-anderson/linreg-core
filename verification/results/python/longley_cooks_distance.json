@@ -1,0 +1,36 @@
+{
+  "test_name": "Cook's Distance (Python - statsmodels)",
+  "dataset": "longley",
+  "formula": "GNP.deflator ~ GNP + Unemployed + Armed Forces + Population + Year + Employed",
+  "distances": [
+    0.06486411793008785,
+    0.24984688172798683,
+    0.0009588205127364854,
+    0.23278249660091008,
+    0.1047580637084148,
+    0.010083981691623885,
+    0.12434139250895876,
+    0.0030589764963460065,
+    0.07881341713944455,
+    0.06845889948340325,
+    0.05830654678383011,
+    0.13866534892149354,
+    0.0155985011300882,
+    0.0028808338221085424,
+    0.008303997334998736,
+    0.3402165604542402
+  ],
+  "p": 7,
+  "mse": 1.4271113668658895,
+  "threshold_4_over_n": 0.25,
+  "threshold_4_over_df": 0.4444444444444444,
+  "threshold_1": 1.0,
+  "influential_4_over_n": [
+    16
+  ],
+  "influential_4_over_df": [],
+  "influential_1": [],
+  "max_distance": 0.3402165604542402,
+  "max_index": 16,
+  "description": "Measures influence of each observation on regression coefficients. Uses statsmodels.stats.outliers_influence.OLSInfluence.cooks_distance."
+}

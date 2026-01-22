@@ -142,6 +142,14 @@ pub struct PythonDiagnosticResult {
     pub passed: bool,
     #[allow(dead_code)]
     pub description: String,
+    /// Optional f_statistic field (some tests include this)
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub f_statistic: Option<f64>,
+    /// Optional f_p_value field (some tests include this)
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub f_p_value: Option<f64>,
 }
 
 // ============================================================================
@@ -225,6 +233,8 @@ pub struct PythonShapiroWilkResult {
 // ============================================================================
 
 /// R Cook's Distance result format
+/// Note: R JSON format wraps single values in arrays (e.g., "p": [4])
+/// but distances and influential_* fields are flat arrays, not nested
 #[derive(Debug, Deserialize)]
 pub struct RCooksDistanceResult {
     #[allow(dead_code)]
@@ -233,7 +243,7 @@ pub struct RCooksDistanceResult {
     pub dataset: Vec<String>,
     #[allow(dead_code)]
     pub formula: Vec<String>,
-    pub distances: Vec<Vec<f64>>,
+    pub distances: Vec<f64>,
     #[allow(dead_code)]
     pub p: Vec<usize>,
     #[allow(dead_code)]
@@ -245,11 +255,11 @@ pub struct RCooksDistanceResult {
     #[allow(dead_code)]
     pub threshold_1: Vec<f64>,
     #[allow(dead_code)]
-    pub influential_4_over_n: Vec<Vec<usize>>,
+    pub influential_4_over_n: Vec<usize>,
     #[allow(dead_code)]
-    pub influential_4_over_df: Vec<Vec<usize>>,
+    pub influential_4_over_df: Vec<usize>,
     #[allow(dead_code)]
-    pub influential_1: Vec<Vec<usize>>,
+    pub influential_1: Vec<usize>,
     pub max_distance: Vec<f64>,
     pub max_index: Vec<usize>,
     #[allow(dead_code)]

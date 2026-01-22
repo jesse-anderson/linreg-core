@@ -210,6 +210,19 @@ button {
     cursor: not-allowed;
 }
 
+/* Diagnostic Button Active State */
+.diagnostic-btn.active {
+    background: var(--accent-educational);
+    border-color: var(--accent-educational);
+    color: white;
+}
+
+.diagnostic-btn.active:hover {
+    background: #16a34a;
+    border-color: #16a34a;
+    color: white;
+}
+
 /* Primary Button */
 .btn-primary {
     background: var(--accent-educational);

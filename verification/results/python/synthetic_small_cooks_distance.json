@@ -1,0 +1,37 @@
+{
+  "test_name": "Cook's Distance (Python - statsmodels)",
+  "dataset": "synthetic_small",
+  "formula": "x ~ y",
+  "distances": [
+    0.0743424408082756,
+    3.359184444874308e-05,
+    0.02827399559738298,
+    0.006763682895079582,
+    0.22250185302376246,
+    0.00022494330015345454,
+    0.06216674627292508,
+    0.016746448132573158,
+    0.16481014931186475,
+    0.07544078550633797,
+    0.14829314430563934,
+    0.04885108490774727,
+    0.6272890663443395,
+    0.024905442719689155,
+    0.02185310348462865
+  ],
+  "p": 2,
+  "mse": 0.06626296189145184,
+  "threshold_4_over_n": 0.26666666666666666,
+  "threshold_4_over_df": 0.3076923076923077,
+  "threshold_1": 1.0,
+  "influential_4_over_n": [
+    13
+  ],
+  "influential_4_over_df": [
+    13
+  ],
+  "influential_1": [],
+  "max_distance": 0.6272890663443395,
+  "max_index": 13,
+  "description": "Measures influence of each observation on regression coefficients. Uses statsmodels.stats.outliers_influence.OLSInfluence.cooks_distance."
+}

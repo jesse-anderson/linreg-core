@@ -426,6 +426,8 @@ export function jarque_bera_test(y_json, x_vars_json) {
  * * `variable_names` - JSON array of variable names
  * * `lambda` - Regularization strength (>= 0, typical range 0.01 to 10)
  * * `standardize` - Whether to standardize predictors (recommended: true)
+ * * `max_iter` - Maximum coordinate descent iterations (default: 1000)
+ * * `tol` - Convergence tolerance (default: 1e-7)
  *
  * # Returns
  *
@@ -448,9 +450,11 @@ export function jarque_bera_test(y_json, x_vars_json) {
  * @param {string} _variable_names
  * @param {number} lambda
  * @param {boolean} standardize
+ * @param {number} max_iter
+ * @param {number} tol
  * @returns {string}
  */
-export function lasso_regression(y_json, x_vars_json, _variable_names, lambda, standardize) {
+export function lasso_regression(y_json, x_vars_json, _variable_names, lambda, standardize, max_iter, tol) {
     let deferred4_0;
     let deferred4_1;
     try {
@@ -460,7 +464,7 @@ export function lasso_regression(y_json, x_vars_json, _variable_names, lambda, s
         const len1 = WASM_VECTOR_LEN;
         const ptr2 = passStringToWasm0(_variable_names, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len2 = WASM_VECTOR_LEN;
-        const ret = wasm.lasso_regression(ptr0, len0, ptr1, len1, ptr2, len2, lambda, standardize);
+        const ret = wasm.lasso_regression(ptr0, len0, ptr1, len1, ptr2, len2, lambda, standardize, max_iter, tol);
         deferred4_0 = ret[0];
         deferred4_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);

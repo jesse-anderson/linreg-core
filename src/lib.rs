@@ -1029,6 +1029,8 @@ pub fn ridge_regression(
 /// * `variable_names` - JSON array of variable names
 /// * `lambda` - Regularization strength (>= 0, typical range 0.01 to 10)
 /// * `standardize` - Whether to standardize predictors (recommended: true)
+/// * `max_iter` - Maximum coordinate descent iterations (default: 1000)
+/// * `tol` - Convergence tolerance (default: 1e-7)
 ///
 /// # Returns
 ///
@@ -1052,6 +1054,8 @@ pub fn lasso_regression(
     _variable_names: &str,
     lambda: f64,
     standardize: bool,
+    max_iter: usize,
+    tol: f64,
 ) -> String {
     if let Err(e) = check_domain() {
         return error_to_json(&e);
@@ -1102,6 +1106,8 @@ pub fn lasso_regression(
         lambda,
         intercept: true,
         standardize,
+        max_iter,
+        tol,
         ..Default::default()
     };
 

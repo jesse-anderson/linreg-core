@@ -99,6 +99,7 @@ fn validate_white_all_datasets() {
             }
         } else {
             println!("      R reference file not found: {}", r_result_path.display());
+            failed_tests.push((dataset_name.to_string(), "R reference file missing".to_string()));
         }
 
         println!();
@@ -136,6 +137,7 @@ fn validate_white_all_datasets() {
             }
         } else {
             println!("      Python reference file not found: {}", python_result_path.display());
+            failed_tests.push((dataset_name.to_string(), "Python reference file missing".to_string()));
         }
 
         println!();

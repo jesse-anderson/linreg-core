@@ -211,6 +211,8 @@ export function jarque_bera_test(y_json: string, x_vars_json: string): string;
  * * `variable_names` - JSON array of variable names
  * * `lambda` - Regularization strength (>= 0, typical range 0.01 to 10)
  * * `standardize` - Whether to standardize predictors (recommended: true)
+ * * `max_iter` - Maximum coordinate descent iterations (default: 1000)
+ * * `tol` - Convergence tolerance (default: 1e-7)
  *
  * # Returns
  *
@@ -229,7 +231,7 @@ export function jarque_bera_test(y_json: string, x_vars_json: string): string;
  * Returns a JSON error object if parsing fails, lambda is negative,
  * or domain check fails.
  */
-export function lasso_regression(y_json: string, x_vars_json: string, _variable_names: string, lambda: number, standardize: boolean): string;
+export function lasso_regression(y_json: string, x_vars_json: string, _variable_names: string, lambda: number, standardize: boolean, max_iter: number, tol: number): string;
 
 /**
  * Generates a lambda path for regularized regression via WASM.
@@ -526,7 +528,7 @@ export interface InitOutput {
   readonly get_version: () => [number, number];
   readonly harvey_collier_test: (a: number, b: number, c: number, d: number) => [number, number];
   readonly jarque_bera_test: (a: number, b: number, c: number, d: number) => [number, number];
-  readonly lasso_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
+  readonly lasso_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
   readonly make_lambda_path: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
   readonly ols_regression: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
   readonly parse_csv: (a: number, b: number) => [number, number];

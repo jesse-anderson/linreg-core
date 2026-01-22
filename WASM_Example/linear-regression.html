@@ -165,6 +165,26 @@ X1,X2,Y
                                 <span>Standardize predictors (recommended)</span>
                             </label>
                         </div>
+                        <!-- Lasso-specific parameters -->
+                        <div id="lassoParams" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                            <div class="selector-group" style="margin-bottom: 12px;">
+                                <label for="maxIterInput">Max Iterations: <span id="maxIterValue">1000</span></label>
+                                <input type="range" id="maxIterSlider" min="100" max="10000" step="100" value="1000" style="width: 100%;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                                    <span>100</span>
+                                    <span>10000</span>
+                                </div>
+                            </div>
+                            <div class="selector-group" style="margin-bottom: 8px;">
+                                <label for="tolInput">Convergence Tolerance: <span id="tolValue">1e-7</span></label>
+                                <select id="tolSelect" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
+                                    <option value="1e-10">1e-10 (Very precise)</option>
+                                    <option value="1e-7" selected>1e-7 (Default)</option>
+                                    <option value="1e-5">1e-5 (Relaxed)</option>
+                                    <option value="1e-3">1e-3 (Loose)</option>
+                                </select>
+                            </div>
+                        </div>
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
                             <strong>Ridge</strong> shrinks coefficients toward zero (handles multicollinearity).<br>
                             <strong>Lasso</strong> can set coefficients to exactly zero (variable selection).
@@ -335,6 +355,34 @@ X1,X2,Y
                         <p style="font-size: 0.8rem; color: var(--text-muted); margin: 4px 0 12px;">
                             Tests for regression assumptions (linearity, homoscedasticity, normality, etc.)
                         </p>
+
+                        <!-- Individual Test Buttons -->
+                        <div id="diagnosticButtons" style="display: none; margin-bottom: 16px;">
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+                                <button class="tool-btn diagnostic-btn" data-test="linearity" style="padding: 6px 12px; font-size: 0.75rem;">
+                                    Linearity Tests
+                                </button>
+                                <button class="tool-btn diagnostic-btn" data-test="heteroscedasticity" style="padding: 6px 12px; font-size: 0.75rem;">
+                                    Heteroscedasticity Tests
+                                </button>
+                                <button class="tool-btn diagnostic-btn" data-test="normality" style="padding: 6px 12px; font-size: 0.75rem;">
+                                    Normality Tests
+                                </button>
+                                <button class="tool-btn diagnostic-btn" data-test="autocorrelation" style="padding: 6px 12px; font-size: 0.75rem;">
+                                    Autocorrelation Test
+                                </button>
+                                <button class="tool-btn diagnostic-btn" data-test="influence" style="padding: 6px 12px; font-size: 0.75rem;">
+                                    Influence Test
+                                </button>
+                                <button class="tool-btn diagnostic-btn" data-test="all" style="padding: 6px 12px; font-size: 0.75rem; background: var(--accent-educational);">
+                                    Run All Tests
+                                </button>
+                            </div>
+                            <p style="font-size: 0.7rem; color: var(--text-muted); margin: 0;">
+                                Note: Diagnostic tests analyze residuals and can be run after any regression method.
+                            </p>
+                        </div>
+
                         <div id="diagnosticsResults">
                             <div class="diagnostics-empty">
                                 <p style="color: var(--text-muted); font-size: 0.875rem;">Run regression to see diagnostic test results</p>

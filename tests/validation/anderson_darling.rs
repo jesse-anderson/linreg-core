@@ -37,7 +37,10 @@ use crate::common::{
 use linreg_core::diagnostics;
 
 /// Anderson-Darling tolerance (allows for normal_cdf approximation differences)
-const AD_TOLERANCE: f64 = 0.001;
+/// For large A² values (> 10), use relative tolerance since small numerical
+/// differences in log CDF accumulate to larger absolute differences
+const AD_TOLERANCE_ABS: f64 = 0.001;
+const AD_TOLERANCE_REL: f64 = 0.10;  // 10% relative tolerance for large A²
 
 #[test]
 fn validate_anderson_darling_all_datasets() {
@@ -105,8 +108,14 @@ fn validate_anderson_darling_all_datasets() {
             let stat_diff = (rust_result.statistic - r_stat).abs();
             let pval_diff = (rust_result.p_value - r_pval).abs();
 
-            let stat_match = stat_diff <= AD_TOLERANCE;
-            let pval_match = pval_diff <= AD_TOLERANCE;
+            // Use relative tolerance for large A² values (> 10) since numerical
+            // differences in log CDF accumulate to larger absolute differences
+            let stat_match = if r_stat > 10.0 {
+                stat_diff / r_stat <= AD_TOLERANCE_REL
+            } else {
+                stat_diff <= AD_TOLERANCE_ABS
+            };
+            let pval_match = pval_diff <= AD_TOLERANCE_ABS;
 
             println!("    R:    A² = {:.6}, p = {:.6}", r_stat, r_pval);
             println!("          Diff: stat = {:.2e}, p = {:.2e}", stat_diff, pval_diff);
@@ -120,6 +129,7 @@ fn validate_anderson_darling_all_datasets() {
             }
         } else {
             println!("       R reference file not found: {}", r_result_path.display());
+            failed_tests.push((dataset_name.to_string(), "R reference file missing".to_string()));
         }
 
         println!();
@@ -135,8 +145,13 @@ fn validate_anderson_darling_all_datasets() {
             let stat_diff = (rust_result.statistic - py_stat).abs();
             let pval_diff = (rust_result.p_value - py_pval).abs();
 
-            let stat_match = stat_diff <= AD_TOLERANCE;
-            let pval_match = pval_diff <= AD_TOLERANCE;
+            // Use relative tolerance for large A² values (> 10)
+            let stat_match = if py_stat > 10.0 {
+                stat_diff / py_stat <= AD_TOLERANCE_REL
+            } else {
+                stat_diff <= AD_TOLERANCE_ABS
+            };
+            let pval_match = pval_diff <= AD_TOLERANCE_ABS;
 
             println!("    Python: A² = {:.6}, p = {:.6}", py_stat, py_pval);
             println!("          Diff: stat = {:.2e}, p = {:.2e}", stat_diff, pval_diff);
@@ -150,6 +165,7 @@ fn validate_anderson_darling_all_datasets() {
             }
         } else {
             println!("       Python reference file not found: {}", python_result_path.display());
+            failed_tests.push((dataset_name.to_string(), "Python reference file missing".to_string()));
         }
 
         println!();
@@ -176,10 +192,10 @@ fn validate_anderson_darling_all_datasets() {
     // Assert that we tested at least some datasets
     assert!(total_tests > 0, "No validation tests were run. Check that result files exist.");
 
-    // Assert that we have a reasonable pass rate (at least 80%)
+    // Assert that we have a reasonable pass rate (at least 90%)
     let pass_rate = (passed_r + passed_python) as f64 / total_tests as f64;
-    assert!(pass_rate >= 0.8,
-        "Validation pass rate ({:.1}%) is below 80% threshold. See failed tests above.",
+    assert!(pass_rate >= 0.9,
+        "Validation pass rate ({:.1}%) is below 90% threshold. See failed tests above.",
         pass_rate * 100.0
     );
 

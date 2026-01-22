@@ -42,15 +42,11 @@ def convert_categorical_to_numeric(data, dataset_name):
     # Process each non-numeric column
     for col in non_numeric_cols:
         if data[col].dtype == 'object':
-            # For string/categorical data, use integer encoding
-            data[col] = pd.to_numeric(data[col], errors='coerce')
-            # Replace NaN (missing values from coercing) with mode
-            if data[col].isnull().any():
-                mode_val = data[col].mode()[0]
-                data[col].fillna(mode_val, inplace=True)
-                print(f"  {col}: {len(data[col].unique())} unique values -> integer encoding (missing filled with mode: {mode_val})")
-            else:
-                print(f"  {col}: {len(data[col].unique())} unique values -> integer encoding")
+            # For string/categorical data, use factorize (integer encoding)
+            # This preserves the categorical nature without trying to parse strings as numbers
+            encoded, categories = pd.factorize(data[col])
+            data[col] = encoded
+            print(f"  {col}: {len(categories)} unique categories -> integer encoded as 0, 1, 2, ...")
         else:
             # Already numeric or other type
             pass
@@ -125,7 +121,12 @@ def main():
     print(f"Passed: {white_result[1] > 0.05}")
     print()
 
-    # Prepare output
+    # Prepare output - use None for NaN values (converts to null in JSON)
+    def safe_float(value):
+        """Convert to float, returning None for NaN"""
+        fval = float(value)
+        return None if np.isnan(fval) else fval
+
     output = {
         "test_name": "White Test (Python - statsmodels)",
         "dataset": dataset_name,
@@ -133,8 +134,8 @@ def main():
         "statistic": float(white_result[0]),
         "p_value": float(white_result[1]),
         "passed": bool(white_result[1] > 0.05),
-        "f_statistic": float(white_result[2]),
-        "f_p_value": float(white_result[3]),
+        "f_statistic": safe_float(white_result[2]),
+        "f_p_value": safe_float(white_result[3]),
         "description": "Tests for heteroscedasticity using squares and cross-products of predictors. Uses statsmodels.stats.diagnostic.het_white."
     }
 

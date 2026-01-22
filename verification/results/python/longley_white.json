@@ -5,7 +5,7 @@
   "statistic": 16.0,
   "p_value": 0.38205166150286385,
   "passed": true,
-  "f_statistic": NaN,
-  "f_p_value": NaN,
+  "f_statistic": null,
+  "f_p_value": null,
   "description": "Tests for heteroscedasticity using squares and cross-products of predictors. Uses statsmodels.stats.diagnostic.het_white."
 }

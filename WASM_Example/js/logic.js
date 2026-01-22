@@ -13,6 +13,7 @@ import init, {
     anderson_darling_test,
     cooks_distance_test,
     test,
+    get_version,
     get_t_critical,
     get_normal_inverse,
     parse_csv
@@ -118,15 +119,18 @@ ThemeManager.init();
 // Initialize WASM and expose to global scope
 let wasmReady = false;
 let wasmError = null;
+let wasmVersion = null;
 
 async function initWasm() {
     try {
         await init();
         wasmReady = true;
-        console.log(test()); // Should print "Rust WASM is working!"
+        wasmVersion = get_version();
+        console.log(`%c[linreg-core] v${wasmVersion}`, 'color: #16a34a; font-weight: bold;');
+        console.log('[linreg-core] Rust WASM engine loaded successfully');
     } catch (e) {
         wasmError = e;
-        console.error('Failed to load WASM:', e);
+        console.error('[linreg-core] Failed to load WASM:', e);
     }
 }
 
@@ -154,11 +158,11 @@ window.WasmRegression = {
         const namesJson = JSON.stringify(names);
         return ridge_regression(yJson, xJson, namesJson, lambda, standardize);
     },
-    lasso: (y, xVars, names, lambda, standardize = true) => {
+    lasso: (y, xVars, names, lambda, standardize = true, maxIter = 1000, tol = 1e-7) => {
         const yJson = JSON.stringify(y);
         const xJson = JSON.stringify(xVars);
         const namesJson = JSON.stringify(names);
-        return lasso_regression(yJson, xJson, namesJson, lambda, standardize);
+        return lasso_regression(yJson, xJson, namesJson, lambda, standardize, maxIter, tol);
     },
     lambdaPath: (y, xVars, nLambda = 100, lambdaMinRatio = 0.0001) => {
         const yJson = JSON.stringify(y);
@@ -338,8 +342,8 @@ async function calculateRegression(yVar, xVars) {
 
     // Call WASM OLS regression
     const resultJson = window.WasmRegression.ols(yData, xData, names);
-    console.log('Raw WASM result:', resultJson); // Debug log
     const result = JSON.parse(resultJson);
+    console.log(`[linreg-core] OLS regression: n=${n}, k=${k}, R²=${result.r_squared?.toFixed(4) || 'N/A'}`);
 
     // Check for error
     if (result.error) {
@@ -380,7 +384,8 @@ async function calculateRegression(yVar, xVars) {
         n: result.n,
         k: result.k,
         df: result.df,
-        variableNames: result.variable_names
+        variableNames: result.variable_names,
+        method: 'ols'
     };
 }
 
@@ -402,6 +407,7 @@ async function calculateRidgeRegression(yVar, xVars, lambda = 1.0, standardize =
 
     const resultJson = window.WasmRegression.ridge(yData, xData, names, lambda, standardize);
     const result = JSON.parse(resultJson);
+    console.log(`[linreg-core] Ridge regression: n=${n}, k=${k}, λ=${lambda}, R²=${result.r_squared?.toFixed(4) || 'N/A'}`);
 
     if (result.error) {
         throw new Error(result.error);
@@ -431,7 +437,7 @@ async function calculateRidgeRegression(yVar, xVars, lambda = 1.0, standardize =
     };
 }
 
-async function calculateLassoRegression(yVar, xVars, lambda = 1.0, standardize = true) {
+async function calculateLassoRegression(yVar, xVars, lambda = 1.0, standardize = true, maxIter = 1000, tol = 1e-7) {
     const n = STATE.rawData.length;
     const k = xVars.length;
 
@@ -447,8 +453,9 @@ async function calculateLassoRegression(yVar, xVars, lambda = 1.0, standardize =
     const xData = xVars.map(v => STATE.rawData.map(row => row[v]));
     const names = ['Intercept', ...xVars];
 
-    const resultJson = window.WasmRegression.lasso(yData, xData, names, lambda, standardize);
+    const resultJson = window.WasmRegression.lasso(yData, xData, names, lambda, standardize, maxIter, tol);
     const result = JSON.parse(resultJson);
+    console.log(`[linreg-core] Lasso regression: n=${n}, k=${k}, λ=${lambda}, R²=${result.r_squared?.toFixed(4) || 'N/A'}, nonzero=${result.n_nonzero || 0}, iter=${result.iterations || 'N/A'}`);
 
     if (result.error) {
         throw new Error(result.error);
@@ -510,9 +517,10 @@ async function generateLambdaPath(yVar, xVars, nLambda = 100, lambdaMinRatio = 0
  * @param {Array} xData - Predictor variables data (array of arrays)
  * @param {string} rainbowMethod - Rainbow test method: 'r', 'python', or 'both' (default: 'r')
  * @param {string} whiteMethod - White test method: 'r', 'python', or 'both' (default: 'r')
+ * @param {string|null} testType - Specific test category to run ('linearity', 'heteroscedasticity', 'normality', 'autocorrelation', 'influence') or null for all tests
  * @returns {Object} Diagnostic test results
  */
-async function runDiagnostics(yData, xData, rainbowMethod = 'r', whiteMethod = 'r') {
+async function runDiagnostics(yData, xData, rainbowMethod = 'r', whiteMethod = 'r', testType = null) {
     if (!window.WasmRegression || !window.WasmRegression.isReady()) {
         throw new Error('WASM module is not ready for diagnostics');
     }
@@ -525,8 +533,12 @@ async function runDiagnostics(yData, xData, rainbowMethod = 'r', whiteMethod = '
         influence: []
     };
 
+    // Helper function to check if we should run a test category
+    const shouldRunTest = (category) => !testType || testType === 'all' || testType === category;
+
     // Rainbow Test for Linearity
-    try {
+    if (shouldRunTest('linearity')) {
+        try {
         const rainbowJson = window.WasmRegression.rainbowTest(yData, xData, 0.5, rainbowMethod);
         const rainbowResult = JSON.parse(rainbowJson);
         if (!rainbowResult.error) {
@@ -578,9 +590,11 @@ async function runDiagnostics(yData, xData, rainbowMethod = 'r', whiteMethod = '
     } catch (e) {
         console.warn('Rainbow test failed:', e);
     }
+    }
 
     // Harvey-Collier Test for Linearity
-    try {
+    if (shouldRunTest('linearity')) {
+        try {
         const hcJson = window.WasmRegression.harveyCollierTest(yData, xData);
         const hcResult = JSON.parse(hcJson);
         if (!hcResult.error) {
@@ -593,9 +607,11 @@ async function runDiagnostics(yData, xData, rainbowMethod = 'r', whiteMethod = '
     } catch (e) {
         console.warn('Harvey-Collier test failed:', e);
     }
+    }
 
     // White Test for Heteroscedasticity
-    try {
+    if (shouldRunTest('heteroscedasticity')) {
+        try {
         const whiteJson = window.WasmRegression.whiteTest(yData, xData, whiteMethod);
         const whiteResult = JSON.parse(whiteJson);
         if (!whiteResult.error) {
@@ -647,9 +663,11 @@ async function runDiagnostics(yData, xData, rainbowMethod = 'r', whiteMethod = '
     } catch (e) {
         console.warn('White test failed:', e);
     }
+    }
 
     // Breusch-Pagan Test for Heteroscedasticity
-    try {
+    if (shouldRunTest('heteroscedasticity')) {
+        try {
         const bpJson = window.WasmRegression.breuschPaganTest(yData, xData);
         const bpResult = JSON.parse(bpJson);
         if (!bpResult.error) {
@@ -662,9 +680,11 @@ async function runDiagnostics(yData, xData, rainbowMethod = 'r', whiteMethod = '
     } catch (e) {
         console.warn('Breusch-Pagan test failed:', e);
     }
+    }
 
     // Jarque-Bera Test for Normality
-    try {
+    if (shouldRunTest('normality')) {
+        try {
         const jbJson = window.WasmRegression.jarqueBeraTest(yData, xData);
         const jbResult = JSON.parse(jbJson);
         if (!jbResult.error) {
@@ -677,9 +697,11 @@ async function runDiagnostics(yData, xData, rainbowMethod = 'r', whiteMethod = '
     } catch (e) {
         console.warn('Jarque-Bera test failed:', e);
     }
+    }
 
     // Shapiro-Wilk Test for Normality
-    try {
+    if (shouldRunTest('normality')) {
+        try {
         const swJson = window.WasmRegression.shapiroWilkTest(yData, xData);
         const swResult = JSON.parse(swJson);
         if (!swResult.error) {
@@ -692,9 +714,11 @@ async function runDiagnostics(yData, xData, rainbowMethod = 'r', whiteMethod = '
     } catch (e) {
         console.warn('Shapiro-Wilk test failed:', e);
     }
+    }
 
     // Anderson-Darling Test for Normality
-    try {
+    if (shouldRunTest('normality')) {
+        try {
         const adJson = window.WasmRegression.andersonDarlingTest(yData, xData);
         const adResult = JSON.parse(adJson);
         if (!adResult.error) {
@@ -707,9 +731,11 @@ async function runDiagnostics(yData, xData, rainbowMethod = 'r', whiteMethod = '
     } catch (e) {
         console.warn('Anderson-Darling test failed:', e);
     }
+    }
 
     // Durbin-Watson Test for Autocorrelation
-    try {
+    if (shouldRunTest('autocorrelation')) {
+        try {
         const dwJson = window.WasmRegression.durbinWatsonTest(yData, xData);
         const dwResult = JSON.parse(dwJson);
         if (!dwResult.error) {
@@ -722,9 +748,11 @@ async function runDiagnostics(yData, xData, rainbowMethod = 'r', whiteMethod = '
     } catch (e) {
         console.warn('Durbin-Watson test failed:', e);
     }
+    }
 
     // Cook's Distance for Influence Detection
-    try {
+    if (shouldRunTest('influence')) {
+        try {
         const cdJson = window.WasmRegression.cooksDistanceTest(yData, xData);
         const cdResult = JSON.parse(cdJson);
         if (!cdResult.error) {
@@ -736,6 +764,7 @@ async function runDiagnostics(yData, xData, rainbowMethod = 'r', whiteMethod = '
         }
     } catch (e) {
         console.warn("Cook's Distance test failed:", e);
+    }
     }
 
     return diagnostics;
@@ -2336,8 +2365,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('regressionMethodSelect')?.addEventListener('change', (e) => {
         const method = e.target.value;
         const regularizedParams = document.getElementById('regularizedParams');
+        const lassoParams = document.getElementById('lassoParams');
         if (regularizedParams) {
             regularizedParams.style.display = (method === 'ridge' || method === 'lasso') ? 'block' : 'none';
+        }
+        if (lassoParams) {
+            lassoParams.style.display = method === 'lasso' ? 'block' : 'none';
         }
     });
 
@@ -2346,6 +2379,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const lambdaValue = document.getElementById('lambdaValue');
         if (lambdaValue) {
             lambdaValue.textContent = parseFloat(e.target.value).toFixed(2);
+        }
+    });
+
+    // Max iterations slider - update display value
+    document.getElementById('maxIterSlider')?.addEventListener('input', (e) => {
+        const maxIterValue = document.getElementById('maxIterValue');
+        if (maxIterValue) {
+            maxIterValue.textContent = parseInt(e.target.value);
+        }
+    });
+
+    // Tolerance select - update display value
+    document.getElementById('tolSelect')?.addEventListener('change', (e) => {
+        const tolValue = document.getElementById('tolValue');
+        if (tolValue) {
+            tolValue.textContent = e.target.value;
         }
     });
 
@@ -2377,13 +2426,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const method = document.getElementById('regressionMethodSelect')?.value || 'ols';
             const lambda = parseFloat(document.getElementById('lambdaSlider')?.value || 1.0);
             const standardize = document.getElementById('standardizeCheck')?.checked !== false;
+            const maxIter = parseInt(document.getElementById('maxIterSlider')?.value || 1000);
+            const tol = parseFloat(document.getElementById('tolSelect')?.value || 1e-7);
 
             // Run appropriate regression
             if (method === 'ridge') {
                 STATE.regressionResults = await calculateRidgeRegression(STATE.yVariable, STATE.xVariables, lambda, standardize);
                 showToast('Ridge regression complete (Rust WASM engine)', 'success');
             } else if (method === 'lasso') {
-                STATE.regressionResults = await calculateLassoRegression(STATE.yVariable, STATE.xVariables, lambda, standardize);
+                STATE.regressionResults = await calculateLassoRegression(STATE.yVariable, STATE.xVariables, lambda, standardize, maxIter, tol);
                 showToast('Lasso regression complete (Rust WASM engine)', 'success');
             } else {
                 STATE.regressionResults = await calculateRegression(STATE.yVariable, STATE.xVariables);
@@ -2394,21 +2445,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const yData = STATE.rawData.map(row => row[STATE.yVariable]);
             const xData = STATE.xVariables.map(v => STATE.rawData.map(row => row[v]));
 
-            // Run diagnostic tests (only for OLS)
-            if (method === 'ols') {
-                STATE.diagnostics = await runDiagnostics(yData, xData);
-            } else {
-                STATE.diagnostics = null;
-            }
+            // Note: Diagnostics are no longer auto-run. Users can run them via buttons.
+            STATE.diagnostics = null;
 
             updateResultsDisplay(STATE.regressionResults);
+
+            // Show diagnostic buttons for any regression method
+            const diagnosticButtons = document.getElementById('diagnosticButtons');
+            if (diagnosticButtons) {
+                diagnosticButtons.style.display = 'block';
+            }
+
             if (STATE.diagnostics) {
                 updateDiagnosticsDisplay(STATE.diagnostics);
             } else {
                 document.getElementById('diagnosticsResults').innerHTML = `
                     <div class="diagnostics-empty">
                         <p style="color: var(--text-muted); font-size: 0.875rem;">
-                            Diagnostic tests are only available for OLS regression.
+                            Click a button above to run diagnostic tests on the regression residuals.
                         </p>
                     </div>
                 `;
@@ -2466,6 +2520,38 @@ document.addEventListener('DOMContentLoaded', () => {
         this.classList.toggle('collapsed');
         document.getElementById('disclaimerContent').classList.toggle('collapsed');
         this.setAttribute('aria-expanded', this.classList.contains('collapsed') ? 'false' : 'true');
+    });
+
+    // Diagnostic test buttons
+    const diagnosticButtons = document.querySelectorAll('.diagnostic-btn');
+    diagnosticButtons.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (!STATE.regressionResults) {
+                showToast('Please run a regression first', 'warning');
+                return;
+            }
+
+            const testType = btn.dataset.test;
+            const yData = STATE.rawData.map(row => row[STATE.yVariable]);
+            const xData = STATE.xVariables.map(v => STATE.rawData.map(row => row[v]));
+
+            // Update button states
+            diagnosticButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const methodLabel = STATE.regressionResults.method?.toUpperCase() || 'Unknown';
+            showToast(`Running ${testType === 'all' ? 'all' : testType} diagnostic tests (${methodLabel})...`, 'info');
+
+            try {
+                const diagnostics = await runDiagnostics(yData, xData, 'r', 'r', testType);
+                STATE.diagnostics = diagnostics;
+                updateDiagnosticsDisplay(diagnostics);
+                showToast(`Diagnostic tests completed`, 'success');
+            } catch (error) {
+                showToast(`Diagnostic test error: ${error.message}`, 'error');
+                console.error('Diagnostic test error:', error);
+            }
+        });
     });
 
     // Export buttons

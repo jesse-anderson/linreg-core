@@ -10,7 +10,7 @@
 
 use crate::common::{
     load_dataset, load_r_cooks_result, load_python_cooks_result,
-    COOKS_TOLERANCE,
+    ALL_DATASETS, COOKS_TOLERANCE,
 };
 
 use linreg_core::diagnostics;
@@ -28,8 +28,9 @@ fn validate_cooks_distance_all_datasets() {
     let r_results_dir = current_dir.join("verification/results/r");
     let python_results_dir = current_dir.join("verification/results/python");
 
-    // Cook's distance is available for mtcars (can extend to more datasets later)
-    let datasets = vec!["mtcars"];
+    // Cook's distance validation against R (all datasets) and Python (mtcars only)
+    // R reference files exist for all datasets, Python only for mtcars
+    let datasets = ALL_DATASETS;
 
     let mut total_tests = 0;
     let mut passed_r = 0;
@@ -83,8 +84,7 @@ fn validate_cooks_distance_all_datasets() {
         if let Some(r_ref) = load_r_cooks_result(&r_result_path) {
             total_tests += 1;
 
-            let empty_vec: Vec<f64> = vec![];
-            let r_distances = r_ref.distances.get(0).unwrap_or(&empty_vec);
+            let r_distances = &r_ref.distances;
             let r_max_dist = r_ref.max_distance.get(0).copied().unwrap_or(0.0);
             let r_max_idx = r_ref.max_index.get(0).copied().unwrap_or(0);
 
@@ -115,6 +115,7 @@ fn validate_cooks_distance_all_datasets() {
             }
         } else {
             println!("      R reference file not found: {}", r_result_path.display());
+            failed_tests.push((dataset_name.to_string(), "R reference file missing".to_string()));
         }
 
         // Validate against Python
@@ -152,6 +153,7 @@ fn validate_cooks_distance_all_datasets() {
             }
         } else {
             println!("      Python reference file not found: {}", python_result_path.display());
+            failed_tests.push((dataset_name.to_string(), "Python reference file missing".to_string()));
         }
 
         println!();
@@ -169,7 +171,7 @@ fn validate_cooks_distance_all_datasets() {
 
     assert!(total_tests > 0, "No Cook's Distance validation tests were run.");
     let pass_rate = (passed_r + passed_python) as f64 / total_tests as f64;
-    assert!(pass_rate >= 0.8, "Cook's Distance validation pass rate ({:.1}%) is below 80%.", pass_rate * 100.0);
+    assert!(pass_rate >= 0.9, "Cook's Distance validation pass rate ({:.1}%) is below 90%.", pass_rate * 100.0);
 
     println!();
     println!(" Cook's Distance comprehensive validation passed!");

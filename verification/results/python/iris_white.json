@@ -1,0 +1,11 @@
+{
+  "test_name": "White Test (Python - statsmodels)",
+  "dataset": "iris",
+  "formula": "Sepal.Length ~ Sepal.Width + Petal.Length + Petal.Width + Species",
+  "statistic": 69.82770839617366,
+  "p_value": 8.635038757965794e-10,
+  "passed": false,
+  "f_statistic": 7.255300894350287,
+  "f_p_value": 1.0421498151434829e-11,
+  "description": "Tests for heteroscedasticity using squares and cross-products of predictors. Uses statsmodels.stats.diagnostic.het_white."
+}

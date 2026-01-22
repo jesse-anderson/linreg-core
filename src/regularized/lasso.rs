@@ -255,11 +255,11 @@ pub fn lasso_fit(x: &Matrix, y: &[f64], options: &LassoFitOptions) -> Result<Las
         options.penalty_factor.as_deref(),
     )?;
 
-    // Unstandardize coefficients
+    // Unstandardize coefficients (beta_orig now contains only slope coefficients)
     let (intercept, beta_orig) = unstandardize_coefficients(&beta_std, &std_info);
 
-    // Count non-zero coefficients
-    let n_nonzero = beta_orig.iter().skip(start_col).filter(|&&b| b.abs() > 0.0).count();
+    // Count non-zero coefficients (beta_orig already excludes intercept col coefficient)
+    let n_nonzero = beta_orig.iter().filter(|&&b| b.abs() > 0.0).count();
 
     // Compute fitted values and residuals
     let fitted = predict(x, intercept, &beta_orig);
@@ -405,15 +405,7 @@ fn coordinate_descent(
 
 /// OLS fit for lambda = 0 (special case of lasso).
 fn lasso_ols_fit(x: &Matrix, y: &[f64], options: &LassoFitOptions) -> Result<LassoFit> {
-    let std_options = StandardizeOptions {
-        intercept: options.intercept,
-        standardize_x: false,
-        standardize_y: false,
-    };
-
-    let (_, _, std_info) = standardize_xy(x, y, &std_options);
-
-    // Use QR decomposition for OLS
+    // Use QR decomposition for OLS on original (non-standardized) data
     let (q, r) = x.qr();
 
     // Solve R * beta = Q^T * y
@@ -436,14 +428,22 @@ fn lasso_ols_fit(x: &Matrix, y: &[f64], options: &LassoFitOptions) -> Result<Las
         beta[i] = sum / r.get(i, i);
     }
 
-    // Unstandardize
-    let (intercept, beta_orig) = unstandardize_coefficients(&beta, &std_info);
+    // Extract intercept and slope coefficients directly (no unstandardization needed)
+    // OLS on original data gives coefficients on original scale
+    let (intercept, beta_orig) = if options.intercept {
+        // beta[0] is intercept, beta[1..] are slopes
+        let slopes: Vec<f64> = beta[1..].to_vec();
+        (beta[0], slopes)
+    } else {
+        // No intercept, all coefficients are slopes
+        (0.0, beta)
+    };
 
     // Compute fitted values and residuals
     let fitted = predict(x, intercept, &beta_orig);
     let residuals: Vec<f64> = y.iter().zip(fitted.iter()).map(|(yi, yh)| yi - yh).collect();
 
-    // Count non-zero coefficients
+    // Count non-zero coefficients (beta_orig already excludes intercept col coefficient)
     let n_nonzero = beta_orig.iter().filter(|&&b| b.abs() > 0.0).count();
 
     // Compute model fit statistics
@@ -567,7 +567,8 @@ mod tests {
         // With large lambda, all coefficients should be zero
         // Only intercept should be non-zero (equal to mean of y)
         assert_eq!(fit.n_nonzero, 0);
-        assert!((fit.coefficients[1]).abs() < 1e-10);
+        // coefficients[0] is the first (and only) slope coefficient
+        assert!((fit.coefficients[0]).abs() < 1e-10);
     }
 
     #[test]

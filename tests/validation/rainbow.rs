@@ -100,6 +100,7 @@ fn validate_rainbow_all_datasets() {
             }
         } else {
             println!("      R reference file not found: {}", r_result_path.display());
+            failed_tests.push((dataset_name.to_string(), "R reference file missing".to_string()));
         }
 
         // Run Rainbow test (Python method)
@@ -146,6 +147,7 @@ fn validate_rainbow_all_datasets() {
             }
         } else {
             println!("      Python reference file not found: {}", python_result_path.display());
+            failed_tests.push((dataset_name.to_string(), "Python reference file missing".to_string()));
         }
 
         println!();
@@ -163,7 +165,7 @@ fn validate_rainbow_all_datasets() {
 
     assert!(total_tests > 0, "No Rainbow validation tests were run.");
     let pass_rate = (passed_r + passed_python) as f64 / total_tests as f64;
-    assert!(pass_rate >= 0.8, "Rainbow validation pass rate ({:.1}%) is below 80%.", pass_rate * 100.0);
+    assert!(pass_rate >= 0.9, "Rainbow validation pass rate ({:.1}%) is below 90%.", pass_rate * 100.0);
 
     println!();
     println!(" Rainbow comprehensive validation passed!");
