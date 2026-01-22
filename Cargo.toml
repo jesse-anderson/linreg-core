@@ -26,12 +26,15 @@ exclude = [
     "target/criterion/",
     "AIC_BIC_TODO.md",
     "COVERAGE_MATRIX.md",
+    "*TODO*.md",
     "generate_test_data.py",
     "core_bench_output.txt",
     "blog-*.md",
     # Exclude WASM example and pkg (demo only)
     "WASM_Example/",
+    "criterion*/",
     "criterion_0_2_0",
+    "flame*/",
 ]
 
 [package.metadata.docs.rs]
