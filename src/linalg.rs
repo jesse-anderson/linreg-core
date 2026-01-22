@@ -1105,7 +1105,7 @@ impl Matrix {
                             qraux[j] = new_norm;
                             work[j].0 = new_norm;
                         } else {
-                            qraux[j] = qraux[j] * tt.sqrt();
+                            qraux[j] *= tt.sqrt();
                         }
                     }
                 }
@@ -1156,6 +1156,7 @@ impl Matrix {
     ///
     /// The LINPACK QR algorithm stores R with mixed signs on the diagonal.
     /// This solver corrects for that by taking the absolute value of R's diagonal.
+    #[allow(clippy::needless_range_loop)]
     pub fn qr_solve_linpack(&self, qr_result: &QRLinpack, y: &[f64]) -> Option<Vec<f64>> {
         let n = self.rows;
         let p = self.cols;
@@ -1317,6 +1318,7 @@ pub fn fit_ols_linpack(y: &[f64], x: &Matrix) -> Option<Vec<f64>> {
 ///
 /// This matches R's behavior where `predict(lm.fit(...))` handles NA coefficients
 /// by excluding the corresponding columns from the prediction.
+#[allow(clippy::needless_range_loop)]
 pub fn fit_and_predict_linpack(y: &[f64], x: &Matrix) -> Option<Vec<f64>> {
     let n = x.rows;
     let p = x.cols;

@@ -266,6 +266,7 @@ pub fn standardize_xy(
 /// coefficient (which is already 0 in the standardized space since X was centered).
 /// The returned `beta_slopes` will NOT include this zeroed coefficient - only actual
 /// slope coefficients are returned.
+#[allow(clippy::needless_range_loop)]
 pub fn unstandardize_coefficients(beta_std: &[f64], info: &StandardizationInfo) -> (f64, Vec<f64>) {
     let p = beta_std.len();
     let y_scale = info.y_scale.unwrap_or(1.0);
@@ -313,6 +314,7 @@ pub fn unstandardize_coefficients(beta_std: &[f64], info: &StandardizationInfo) 
 /// If `x_new` has an intercept column (first column of all ones), `beta` should have
 /// `p - 1` elements corresponding to the non-intercept columns. If `x_new` has no
 /// intercept column, `beta` should have `p` elements.
+#[allow(clippy::needless_range_loop)]
 pub fn predict(x_new: &Matrix, beta0: f64, beta: &[f64]) -> Vec<f64> {
     let n = x_new.rows;
     let p = x_new.cols;

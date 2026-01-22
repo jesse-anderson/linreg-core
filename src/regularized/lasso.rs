@@ -328,6 +328,8 @@ pub fn lasso_fit(x: &Matrix, y: &[f64], options: &LassoFitOptions) -> Result<Las
 ///
 /// A tuple `(iterations, converged)` indicating the number of iterations
 /// and whether convergence was achieved.
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::needless_range_loop)]
 fn coordinate_descent(
     x: &Matrix,
     y: &[f64],
@@ -410,6 +412,7 @@ fn coordinate_descent(
 }
 
 /// OLS fit for lambda = 0 (special case of lasso).
+#[allow(clippy::needless_range_loop)]
 fn lasso_ols_fit(x: &Matrix, y: &[f64], options: &LassoFitOptions) -> Result<LassoFit> {
     // Use QR decomposition for OLS on original (non-standardized) data
     let (q, r) = x.qr();

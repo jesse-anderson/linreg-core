@@ -73,6 +73,7 @@ impl Default for LambdaPathOptions {
 /// If `alpha = 0` (pure ridge), this returns `f64::INFINITY` since ridge never produces
 /// exact zero coefficients. Use [`make_lambda_path`] which handles this case by using
 /// a small alpha value.
+#[allow(clippy::needless_range_loop)]
 pub fn compute_lambda_max(
     x: &Matrix,
     y: &[f64],

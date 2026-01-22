@@ -224,9 +224,7 @@ pub fn ridge_fit(x: &Matrix, y: &[f64], options: &RidgeFitOptions) -> Result<Rid
 
     // Build augmented y vector
     let mut y_aug = vec![0.0; aug_n];
-    for i in 0..n {
-        y_aug[i] = y_centered[i];
-    }
+    y_aug[..n].copy_from_slice(&y_centered[..n]);
     // Remaining entries are already 0
 
     // Solve using QR decomposition
@@ -396,6 +394,7 @@ fn ridge_ols_fit(x: &Matrix, y: &[f64], options: &RidgeFitOptions) -> Result<Rid
 /// Solves R * beta = Q^T * y_aug for beta.
 ///
 /// This is a helper for the augmented QR approach.
+#[allow(clippy::needless_range_loop)]
 fn solve_upper_triangular_with_augmented_y(
     r: &Matrix,
     q: &Matrix,
