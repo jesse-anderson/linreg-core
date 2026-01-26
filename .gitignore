@@ -6,7 +6,7 @@ Cargo.lock
 pkg/
 **/pkg/
 
-# Compiled test binaries (but keep .rs source files and diagnostic scripts)
+# Compiled test binaries (but keep .rs source files and diagnostic scripts) 
 *.exe
 *.pdb
 test_*
