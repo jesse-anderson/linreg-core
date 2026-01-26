@@ -4,12 +4,12 @@
   "collaborators": [
     "Jesse Anderson"
   ],
-  "description": "Lightweight linear regression (OLS, Ridge, Lasso) with diagnostic tests. Pure Rust - no external math dependencies.",
+  "description": "Lightweight linear regression (OLS, Ridge, Lasso, Elastic Net) with diagnostic tests. Pure Rust - no external math dependencies.",
   "version": "0.3.0",
   "license": "MIT OR Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jesse-anderson/linreg-core"
+    "url": "git+https://github.com/jesse-anderson/linreg-core.git"
   },
   "files": [
     "linreg_core_bg.wasm",
@@ -19,7 +19,7 @@
     "LICENSE-MIT"
   ],
   "main": "linreg_core.js",
-  "homepage": "https://jesse-anderson.net",
+  "homepage": "https://github.com/jesse-anderson/linreg-core#readme",
   "types": "linreg_core.d.ts",
   "sideEffects": [
     "./snippets/*"

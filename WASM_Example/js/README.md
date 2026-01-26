@@ -19,6 +19,28 @@ yarn add linreg-core
 pnpm add linreg-core
 ```
 
+### CDN (no build step required)
+
+Use directly in the browser via CDN without npm:
+
+```html
+<script type="module">
+  import init, { ols_regression } from 'https://cdn.jsdelivr.net/npm/linreg-core@0.3.0/linreg_core.js';
+
+  await init();
+
+  const result = JSON.parse(ols_regression(
+    JSON.stringify([1, 2, 3, 4, 5]),
+    JSON.stringify([[1, 2, 3, 4, 5]]),
+    JSON.stringify(["Intercept", "X1"])
+  ));
+  console.log("R²:", result.r_squared);
+  console.log("Coefficients:", result.coefficients);
+</script>
+```
+
+Also available via [unpkg](https://unpkg.com/linreg-core@0.3.0/linreg_core.js).
+
 ---
 
 A lightweight, self-contained linear regression library written in Rust. Compiles to WebAssembly for browser use or runs as a native Rust crate.
