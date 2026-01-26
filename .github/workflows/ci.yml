@@ -71,7 +71,7 @@ jobs:
           COLOR=$(python -c "c=float('$COVERAGE'); print('brightgreen' if c>=90 else 'green' if c>=85 else 'yellowgreen' if c>=80 else 'yellow' if c>=70 else 'orange' if c>=60 else 'red')")
           # Create badge JSON
           cat > .github/coverage-badge.json << EOF
-          {"schemaVersion": 1, "label": "coverage", "message": "${COVERAGE}%", "color": "${COLOR}"}
+          {"schemaVersion": 1, "label": "test coverage", "message": "${COVERAGE}%", "color": "${COLOR}"}
           EOF
       - name: Commit coverage badge
         run: |
