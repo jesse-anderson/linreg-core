@@ -129,7 +129,7 @@ export function hexToRgba(hex, alpha = 1) {
  * @returns {string} Current theme
  */
 export function getCurrentTheme() {
-    return document.body.classList.contains('dark-theme') ? 'dark' : 'light';
+    return document.body.getAttribute('data-theme') || 'light';
 }
 
 /**
@@ -245,13 +245,13 @@ export const ThemeManager = {
     },
 
     setTheme(theme) {
-        document.body.classList.remove('light-theme', 'dark-theme');
-        document.body.classList.add(`${theme}-theme`);
+        // Use data-theme attribute to match shared.css
+        document.body.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
 
-        // Update charts if they exist
-        if (window.updateCharts) {
-            window.updateCharts();
+        // Update charts if they exist and we have regression results
+        if (window.updateCharts && STATE.regressionResults) {
+            window.updateCharts(STATE.regressionResults);
         }
     },
 
