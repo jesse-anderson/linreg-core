@@ -1,8 +1,25 @@
 # linreg-core
 
+[![CI](https://github.com/jesse-anderson/linreg-core/actions/workflows/ci.yml/badge.svg)](https://github.com/jesse-anderson/linreg-core/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/jesse-anderson/linreg-core/main/.github/coverage-badge.json)](https://github.com/jesse-anderson/linreg-core/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](LICENSE-MIT)
 [![Crates.io](https://img.shields.io/crates/v/linreg-core?color=orange)](https://crates.io/crates/linreg-core)
 [![docs.rs](https://img.shields.io/badge/docs.rs-linreg__core-green)](https://docs.rs/linreg-core)
+
+## Installation
+
+```bash
+# npm
+npm install linreg-core
+
+# yarn
+yarn add linreg-core
+
+# pnpm
+pnpm add linreg-core
+```
+
+---
 
 A lightweight, self-contained linear regression library written in Rust. Compiles to WebAssembly for browser use or runs as a native Rust crate.
 
@@ -14,6 +31,7 @@ A lightweight, self-contained linear regression library written in Rust. Compile
 - **OLS Regression:** Coefficients, standard errors, t-statistics, p-values, confidence intervals
 - **Ridge Regression:** L2-regularized regression with optional standardization
 - **Lasso Regression:** L1-regularized regression via coordinate descent
+- **Elastic Net:** Combined L1 + L2 regularization for variable selection with multicollinearity handling
 - **Lambda Path Generation:** Create regularization paths for cross-validation
 
 ### Model Statistics
@@ -25,10 +43,10 @@ A lightweight, self-contained linear regression library written in Rust. Compile
 ### Diagnostic Tests
 | Category | Tests |
 |----------|-------|
-| **Linearity** | Rainbow Test, Harvey-Collier Test |
+| **Linearity** | Rainbow Test, Harvey-Collier Test, RESET Test |
 | **Heteroscedasticity** | Breusch-Pagan (Koenker variant), White Test (R & Python methods) |
 | **Normality** | Jarque-Bera, Shapiro-Wilk (n ≤ 5000), Anderson-Darling |
-| **Autocorrelation** | Durbin-Watson |
+| **Autocorrelation** | Durbin-Watson, Breusch-Godfrey (higher-order) |
 | **Influence** | Cook's Distance |
 
 ### Dual Target
@@ -132,6 +150,41 @@ fn main() -> Result<(), linreg_core::Error> {
 }
 ```
 
+#### Elastic Net Regression
+
+```rust,no_run
+use linreg_core::regularized::{elastic_net_fit, ElasticNetOptions};
+use linreg_core::linalg::Matrix;
+
+fn main() -> Result<(), linreg_core::Error> {
+    let y = vec![2.5, 3.7, 4.2, 5.1, 6.3];
+    // Matrix: 5 rows × 3 cols (intercept + 2 predictors), row-major order
+    let x = Matrix::new(5, 3, vec![
+        1.0, 1.0, 0.5,  // row 0: intercept, x1, x2
+        1.0, 2.0, 1.0,  // row 1
+        1.0, 3.0, 1.5,  // row 2
+        1.0, 4.0, 2.0,  // row 3
+        1.0, 5.0, 2.5,  // row 4
+    ]);
+
+    let options = ElasticNetOptions {
+        lambda: 0.1,
+        alpha: 0.5,   // 0 = Ridge, 1 = Lasso, 0.5 = balanced
+        standardize: true,
+        intercept: true,
+        ..Default::default()
+    };
+
+    let result = elastic_net_fit(&x, &y, &options)?;
+
+    println!("Intercept: {}", result.intercept);
+    println!("Coefficients: {:?}", result.coefficients);
+    println!("Non-zero coefficients: {}", result.n_nonzero);
+
+    Ok(())
+}
+```
+
 ### WebAssembly (Browser)
 
 Build with wasm-pack:
@@ -143,7 +196,7 @@ wasm-pack build --release --target web
 #### OLS in JavaScript
 
 ```javascript
-import init, { ols_regression } from './pkg/linreg_core.js';
+import init, { ols_regression } from 'linreg-core';
 
 async function run() {
     await init();
@@ -188,11 +241,31 @@ const result = JSON.parse(lasso_regression(
     JSON.stringify(x),
     JSON.stringify(["Intercept", "X1", "X2"]),
     0.1,      // lambda
-    true      // standardize
+    true,     // standardize
+    100000,   // max_iter
+    1e-7      // tol
 ));
 
 console.log("Coefficients:", result.coefficients);
-console.log("Non-zero coefficients:", result.n_nonzero_coeffs);
+console.log("Non-zero coefficients:", result.n_nonzero);
+```
+
+#### Elastic Net Regression
+
+```javascript
+const result = JSON.parse(elastic_net_regression(
+    JSON.stringify(y),
+    JSON.stringify(x),
+    JSON.stringify(["Intercept", "X1", "X2"]),
+    0.1,      // lambda
+    0.5,      // alpha (0 = Ridge, 1 = Lasso, 0.5 = balanced)
+    true,     // standardize
+    100000,   // max_iter
+    1e-7      // tol
+));
+
+console.log("Coefficients:", result.coefficients);
+console.log("Non-zero coefficients:", result.n_nonzero);
 ```
 
 #### Lambda Path Generation
@@ -205,7 +278,7 @@ const path = JSON.parse(make_lambda_path(
     0.01              // lambda_min_ratio (as fraction of lambda_max)
 ));
 
-console.log("Lambda sequence:", path.lambdas);
+console.log("Lambda sequence:", path.lambda_path);
 console.log("Lambda max:", path.lambda_max);
 ```
 
@@ -270,11 +343,23 @@ const bp = JSON.parse(breusch_pagan_test(
     JSON.stringify(x)
 ));
 
-// White test (method selection)
+// White test (method selection: "r", "python", or "both")
 const white = JSON.parse(white_test(
     JSON.stringify(y),
     JSON.stringify(x),
-    "r"       // "r", "python", or "both"
+    "r"       // method: "r", "python", or "both"
+));
+
+// White test - R-specific method (no method parameter)
+const whiteR = JSON.parse(r_white_test(
+    JSON.stringify(y),
+    JSON.stringify(x)
+));
+
+// White test - Python-specific method (no method parameter)
+const whitePy = JSON.parse(python_white_test(
+    JSON.stringify(y),
+    JSON.stringify(x)
 ));
 
 // Jarque-Bera test
@@ -306,6 +391,22 @@ const cd = JSON.parse(cooks_distance_test(
     JSON.stringify(y),
     JSON.stringify(x)
 ));
+
+// RESET test (functional form)
+const reset = JSON.parse(reset_test(
+    JSON.stringify(y),
+    JSON.stringify(x),
+    JSON.stringify([2, 3]),  // powers (array of powers to test)
+    "fitted"                  // type: "fitted", "regressor", or "princomp"
+));
+
+// Breusch-Godfrey test (higher-order autocorrelation)
+const bg = JSON.parse(breusch_godfrey_test(
+    JSON.stringify(y),
+    JSON.stringify(x),
+    1,        // order (1 = first-order autocorrelation)
+    "chisq"   // test_type: "chisq" or "f"
+));
 ```
 
 ## Statistical Utilities (WASM)
@@ -319,6 +420,37 @@ const tCrit = get_t_critical(0.05, 20);
 
 // Normal inverse CDF (probit)
 const zScore = get_normal_inverse(0.975);
+
+// Descriptive statistics (all return JSON strings)
+const mean = JSON.parse(stats_mean(JSON.stringify([1, 2, 3, 4, 5])));
+const variance = JSON.parse(stats_variance(JSON.stringify([1, 2, 3, 4, 5])));
+const stddev = JSON.parse(stats_stddev(JSON.stringify([1, 2, 3, 4, 5])));
+const median = JSON.parse(stats_median(JSON.stringify([1, 2, 3, 4, 5])));
+const quantile = JSON.parse(stats_quantile(JSON.stringify([1, 2, 3, 4, 5]), 0.5));
+const correlation = JSON.parse(stats_correlation(
+    JSON.stringify([1, 2, 3, 4, 5]),
+    JSON.stringify([2, 4, 6, 8, 10])
+));
+```
+
+### CSV Parsing (WASM)
+
+```javascript
+// Parse CSV content - returns headers, data rows, and numeric column names
+const csv = parse_csv(csvContent);
+const parsed = JSON.parse(csv);
+console.log("Headers:", parsed.headers);
+console.log("Numeric columns:", parsed.numeric_columns);
+```
+
+### Helper Functions (WASM)
+
+```javascript
+// Get library version
+const version = get_version();  // e.g., "0.3.0"
+
+// Verify WASM is working
+const msg = test();  // "Rust WASM is working!"
 ```
 
 ## Feature Flags

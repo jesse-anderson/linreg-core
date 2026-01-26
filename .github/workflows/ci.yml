@@ -45,6 +45,9 @@ jobs:
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
+    concurrency:
+      group: coverage-badge
+    needs: [test, wasm, docs]
     permissions:
       contents: write
     steps:

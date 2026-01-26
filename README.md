@@ -226,11 +226,13 @@ const result = JSON.parse(lasso_regression(
     JSON.stringify(x),
     JSON.stringify(["Intercept", "X1", "X2"]),
     0.1,      // lambda
-    true      // standardize
+    true,     // standardize
+    100000,   // max_iter
+    1e-7      // tol
 ));
 
 console.log("Coefficients:", result.coefficients);
-console.log("Non-zero coefficients:", result.n_nonzero_coeffs);
+console.log("Non-zero coefficients:", result.n_nonzero);
 ```
 
 #### Elastic Net Regression
@@ -242,11 +244,13 @@ const result = JSON.parse(elastic_net_regression(
     JSON.stringify(["Intercept", "X1", "X2"]),
     0.1,      // lambda
     0.5,      // alpha (0 = Ridge, 1 = Lasso, 0.5 = balanced)
-    true      // standardize
+    true,     // standardize
+    100000,   // max_iter
+    1e-7      // tol
 ));
 
 console.log("Coefficients:", result.coefficients);
-console.log("Non-zero coefficients:", result.n_nonzero_coeffs);
+console.log("Non-zero coefficients:", result.n_nonzero);
 ```
 
 #### Lambda Path Generation
@@ -259,7 +263,7 @@ const path = JSON.parse(make_lambda_path(
     0.01              // lambda_min_ratio (as fraction of lambda_max)
 ));
 
-console.log("Lambda sequence:", path.lambdas);
+console.log("Lambda sequence:", path.lambda_path);
 console.log("Lambda max:", path.lambda_max);
 ```
 
@@ -324,11 +328,23 @@ const bp = JSON.parse(breusch_pagan_test(
     JSON.stringify(x)
 ));
 
-// White test (method selection)
+// White test (method selection: "r", "python", or "both")
 const white = JSON.parse(white_test(
     JSON.stringify(y),
     JSON.stringify(x),
-    "r"       // "r", "python", or "both"
+    "r"       // method: "r", "python", or "both"
+));
+
+// White test - R-specific method (no method parameter)
+const whiteR = JSON.parse(r_white_test(
+    JSON.stringify(y),
+    JSON.stringify(x)
+));
+
+// White test - Python-specific method (no method parameter)
+const whitePy = JSON.parse(python_white_test(
+    JSON.stringify(y),
+    JSON.stringify(x)
 ));
 
 // Jarque-Bera test
@@ -365,14 +381,16 @@ const cd = JSON.parse(cooks_distance_test(
 const reset = JSON.parse(reset_test(
     JSON.stringify(y),
     JSON.stringify(x),
-    3        // power (default: 3)
+    JSON.stringify([2, 3]),  // powers (array of powers to test)
+    "fitted"                  // type: "fitted", "regressor", or "princomp"
 ));
 
 // Breusch-Godfrey test (higher-order autocorrelation)
 const bg = JSON.parse(breusch_godfrey_test(
     JSON.stringify(y),
     JSON.stringify(x),
-    1        // order (1 = first-order autocorrelation)
+    1,        // order (1 = first-order autocorrelation)
+    "chisq"   // test_type: "chisq" or "f"
 ));
 ```
 
@@ -387,6 +405,37 @@ const tCrit = get_t_critical(0.05, 20);
 
 // Normal inverse CDF (probit)
 const zScore = get_normal_inverse(0.975);
+
+// Descriptive statistics (all return JSON strings)
+const mean = JSON.parse(stats_mean(JSON.stringify([1, 2, 3, 4, 5])));
+const variance = JSON.parse(stats_variance(JSON.stringify([1, 2, 3, 4, 5])));
+const stddev = JSON.parse(stats_stddev(JSON.stringify([1, 2, 3, 4, 5])));
+const median = JSON.parse(stats_median(JSON.stringify([1, 2, 3, 4, 5])));
+const quantile = JSON.parse(stats_quantile(JSON.stringify([1, 2, 3, 4, 5]), 0.5));
+const correlation = JSON.parse(stats_correlation(
+    JSON.stringify([1, 2, 3, 4, 5]),
+    JSON.stringify([2, 4, 6, 8, 10])
+));
+```
+
+### CSV Parsing (WASM)
+
+```javascript
+// Parse CSV content - returns headers, data rows, and numeric column names
+const csv = parse_csv(csvContent);
+const parsed = JSON.parse(csv);
+console.log("Headers:", parsed.headers);
+console.log("Numeric columns:", parsed.numeric_columns);
+```
+
+### Helper Functions (WASM)
+
+```javascript
+// Get library version
+const version = get_version();  // e.g., "0.3.0"
+
+// Verify WASM is working
+const msg = test();  // "Rust WASM is working!"
 ```
 
 ## Feature Flags
