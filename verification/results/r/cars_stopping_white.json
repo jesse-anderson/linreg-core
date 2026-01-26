@@ -1,0 +1,9 @@
+{
+  "test_name": ["White Test (R - skedastic::white)"],
+  "dataset": ["cars_stopping"],
+  "formula": ["speed ~ dist"],
+  "statistic": [0.9772511888298141],
+  "p_value": [0.61346897021012137],
+  "passed": [true],
+  "description": ["Tests for heteroscedasticity using squares and cross-products of predictors. R variant uses skedastic::white with original variables only."]
+}

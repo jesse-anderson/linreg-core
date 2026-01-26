@@ -1,0 +1,11 @@
+{
+  "test_name": "White Test (Python - statsmodels)",
+  "dataset": "faithful",
+  "formula": "Eruption length (mins) ~ Eruption wait (mins)",
+  "statistic": 13.67968070081107,
+  "p_value": 0.0010702742548515118,
+  "passed": false,
+  "f_statistic": 7.12261838035311,
+  "f_p_value": 0.0009678541444823045,
+  "description": "Tests for heteroscedasticity using squares and cross-products of predictors. Uses statsmodels.stats.diagnostic.het_white."
+}

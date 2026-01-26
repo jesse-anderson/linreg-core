@@ -16,6 +16,8 @@
 //!   predictors and response is linear
 //! - **Harvey-Collier Test** (`harvey_collier.rs`) - Tests for functional form
 //!   misspecification using recursive residuals
+//! - **RESET Test** (`reset.rs`) - Ramsey's Regression Specification Error Test
+//!   for detecting omitted variables or incorrect functional form
 //!
 //! ## Heteroscedasticity Tests
 //!
@@ -37,6 +39,8 @@
 //!
 //! - **Durbin-Watson Test** (`durbin_watson.rs`) - Tests for first-order
 //!   autocorrelation in residuals
+//! - **Breusch-Godfrey Test** (`breusch_godfrey.rs`) - Tests for higher-order
+//!   serial correlation (LM test)
 //!
 //! ## Influence Measures
 //!
@@ -45,6 +49,7 @@
 
 // Submodules
 mod anderson_darling;
+mod breusch_godfrey;
 mod breusch_pagan;
 mod cooks_distance;
 mod durbin_watson;
@@ -52,6 +57,7 @@ mod harvey_collier;
 mod helpers;
 mod jarque_bera;
 mod rainbow;
+mod reset;
 mod shapiro_wilk;
 mod types;
 mod white;
@@ -64,12 +70,14 @@ pub use types::{
 
 // Re-export test functions
 pub use anderson_darling::{anderson_darling_test, anderson_darling_test_raw};
+pub use breusch_godfrey::{breusch_godfrey_test, BGTestType, BreuschGodfreyResult};
 pub use breusch_pagan::breusch_pagan_test;
 pub use cooks_distance::cooks_distance_test;
 pub use durbin_watson::{durbin_watson_test, DurbinWatsonResult};
 pub use harvey_collier::harvey_collier_test;
 pub use jarque_bera::jarque_bera_test;
 pub use rainbow::rainbow_test;
+pub use reset::{reset_test, ResetType};
 pub use shapiro_wilk::{shapiro_wilk_test, shapiro_wilk_test_raw};
 pub use white::{python_white_method, r_white_method, white_test};
 

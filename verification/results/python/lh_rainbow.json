@@ -1,0 +1,10 @@
+{
+  "test_name": "Rainbow Test (Python - statsmodels)",
+  "dataset": "lh",
+  "formula": "time ~ value",
+  "statistic": 5.687914885432281,
+  "p_value": 5.8634684114721884e-05,
+  "passed": false,
+  "fraction": 0.5,
+  "description": "Tests for linearity by comparing fit on central subset vs full data. Uses statsmodels.stats.diagnostic.linear_rainbow."
+}

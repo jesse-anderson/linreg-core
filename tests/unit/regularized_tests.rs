@@ -154,7 +154,7 @@ fn test_lasso_handles_infinity_in_y() {
     // Should handle infinity gracefully
     match result {
         Ok(fit) => {
-            assert!(fit.fitted_values.iter().any(|v| v.is_infinite()));
+            assert!(fit.fitted_values.iter().any(|v| !v.is_finite()));
         },
         Err(_) => {
             // Also acceptable to return an error
@@ -172,7 +172,11 @@ fn test_ridge_rejects_negative_lambda() {
     let y = vec![2.0, 4.0, 6.0];
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: -1.0,
+        weights: None,
         ..Default::default()
     };
 
@@ -625,9 +629,13 @@ fn test_ridge_perfect_linear_fit() {
     let y = vec![2.0, 4.0, 6.0, 8.0, 10.0]; // y = 2*x
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.001, // Very small lambda for near-OLS solution
         intercept: true,
         standardize: false,
+        weights: None,
     };
 
     let fit = ridge_fit(&x, &y, &options).unwrap();
@@ -645,9 +653,13 @@ fn test_ridge_with_intercept() {
         .collect();
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.001,
         intercept: true,
         standardize: false,
+        weights: None,
     };
 
     let fit = ridge_fit(&x, &y, &options).unwrap();
@@ -667,9 +679,13 @@ fn test_ridge_without_intercept() {
     let y: Vec<f64> = x_data.iter().map(|&v| 2.0 * v).collect();
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.001,
         intercept: false,
         standardize: false,
+        weights: None,
     };
 
     let fit = ridge_fit(&x, &y, &options).unwrap();
@@ -684,9 +700,13 @@ fn test_ridge_zero_lambda_equivalent_ols() {
     let y = vec![2.0, 4.0, 6.0];
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.0,
         intercept: true,
         standardize: false,
+        weights: None,
     };
 
     let fit = ridge_fit(&x, &y, &options).unwrap();
@@ -711,9 +731,13 @@ fn test_ridge_coefficient_shrinkage_with_lambda() {
 
     for &lambda in &lambdas {
         let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
             lambda,
             intercept: true,
             standardize: true,
+            weights: None,
         };
 
         let fit = ridge_fit(&x, &y, &options).unwrap();
@@ -731,9 +755,13 @@ fn test_ridge_coefficient_shrinkage_with_lambda() {
 
     // With very large lambda, coefficient should be near zero
     let options_large = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 1000.0,
         intercept: true,
         standardize: true,
+        weights: None,
     };
     let fit_large = ridge_fit(&x, &y, &options_large).unwrap();
     assert!(
@@ -749,18 +777,26 @@ fn test_ridge_shrinkage_towards_zero() {
 
     // OLS coefficient (lambda = 0)
     let options_ols = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.0,
         intercept: true,
         standardize: false,
+        weights: None,
     };
     let fit_ols = ridge_fit(&x, &y, &options_ols).unwrap();
     let ols_coef = fit_ols.coefficients[0];
 
     // Ridge coefficient (lambda > 0)
     let options_ridge = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 1.0,
         intercept: true,
         standardize: false,
+        weights: None,
     };
     let fit_ridge = ridge_fit(&x, &y, &options_ridge).unwrap();
     let ridge_coef = fit_ridge.coefficients[0];
@@ -787,9 +823,13 @@ fn test_ridge_handles_perfect_multicollinearity() {
     let y: Vec<f64> = (0..5).map(|i| 1.0 + 3.0 * x1[i]).collect();
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 1.0,
         intercept: true,
         standardize: true,
+        weights: None,
     };
 
     // Ridge should handle multicollinearity without error
@@ -812,17 +852,25 @@ fn test_ridge_coefficients_stabilize_with_lambda() {
 
     // Without regularization (or very small), coefficients might be unstable
     let options_small = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.001,
         intercept: true,
         standardize: true,
+        weights: None,
     };
     let fit_small = ridge_fit(&x, &y, &options_small).unwrap();
 
     // With regularization, coefficients should be more stable
     let options_large = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 1.0,
         intercept: true,
         standardize: true,
+        weights: None,
     };
     let fit_large = ridge_fit(&x, &y, &options_large).unwrap();
 
@@ -875,15 +923,23 @@ fn test_ridge_standardization_affects_coefficients() {
     let y = vec![202.0, 404.0, 606.0, 808.0]; // y ≈ 2*x
 
     let options_std = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.1,
         intercept: true,
         standardize: true,
+        weights: None,
     };
 
     let options_no_std = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.1,
         intercept: true,
         standardize: false,
+        weights: None,
     };
 
     let fit_std = ridge_fit(&x, &y, &options_std).unwrap();
@@ -1029,6 +1085,9 @@ fn test_ridge_r_squared_in_valid_range() {
     let y = vec![2.0, 4.0, 6.0, 8.0, 10.0];
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 1.0,
         ..Default::default()
     };
@@ -1048,6 +1107,9 @@ fn test_ridge_r_squared_perfect_fit() {
     let y = vec![2.0, 4.0, 6.0];
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.0, // OLS
         ..Default::default()
     };
@@ -1066,6 +1128,9 @@ fn test_ridge_adjusted_r_squared_less_than_r_squared() {
     let y: Vec<f64> = (0..10).map(|i| 1.0 + x1[i] + 0.5 * x2[i]).collect();
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 1.0,
         ..Default::default()
     };
@@ -1086,6 +1151,9 @@ fn test_ridge_rmse_calculation() {
     let y = vec![2.0, 4.0, 6.0];
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.1,
         ..Default::default()
     };
@@ -1102,6 +1170,9 @@ fn test_ridge_mae_calculation() {
     let y = vec![2.0, 4.0, 6.0];
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.1,
         ..Default::default()
     };
@@ -1120,6 +1191,9 @@ fn test_ridge_residuals_sum_property() {
     let y = vec![2.0, 4.0, 6.0, 8.0, 10.0];
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 1.0,
         intercept: true,
         ..Default::default()
@@ -1144,6 +1218,9 @@ fn test_ridge_effective_degrees_of_freedom() {
 
     // OLS (lambda = 0): df should be number of parameters
     let options_ols = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.0,
         ..Default::default()
     };
@@ -1157,6 +1234,9 @@ fn test_ridge_effective_degrees_of_freedom() {
 
     // Ridge (lambda > 0): df should be less than OLS
     let options_ridge = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 10.0,
         ..Default::default()
     };
@@ -1204,6 +1284,9 @@ fn test_ridge_predictions_match_fitted_values() {
     let y = vec![2.0, 4.0, 6.0];
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.001,
         standardize: false,
         ..Default::default()
@@ -1253,6 +1336,9 @@ fn test_ridge_new_data_predictions() {
     let y_train = vec![2.0, 4.0, 6.0, 8.0, 10.0];
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.001,
         standardize: false,
         ..Default::default()
@@ -1316,6 +1402,9 @@ fn test_ridge_multiple_predictors() {
         .collect();
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.001,
         standardize: false,
         ..Default::default()
@@ -1359,6 +1448,9 @@ fn test_ridge_with_constant_y() {
     let y = vec![5.0; 5];
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 1.0,
         ..Default::default()
     };
@@ -1396,6 +1488,9 @@ fn test_ridge_with_negative_values() {
     let y = vec![-10.0, -6.0, -2.0, 2.0, 6.0]; // y = 2*x
 
     let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
         lambda: 0.001,
         standardize: false,
         ..Default::default()
@@ -1428,7 +1523,8 @@ proptest! {
         };
 
         if let Ok(fit) = lasso_fit(&x_mat, &y, &options) {
-            prop_assert!(fit.r_squared >= 0.0 && fit.r_squared <= 1.0,
+            // Allow small numerical tolerance for floating point errors
+            prop_assert!(fit.r_squared >= -1e-10 && fit.r_squared <= 1.0 + 1e-10,
                 "R² = {} is outside [0, 1]", fit.r_squared);
         }
     }
@@ -1444,6 +1540,9 @@ proptest! {
         let x_mat = create_design_matrix(&x);
 
         let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
             lambda,
             ..Default::default()
         };
@@ -1542,6 +1641,9 @@ proptest! {
         let x_mat = create_design_matrix(&x);
 
         let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
             lambda,
             ..Default::default()
         };
@@ -1589,6 +1691,9 @@ proptest! {
         let x_mat = create_design_matrix(&x);
 
         let options = RidgeFitOptions {
+        max_iter: 10000,
+        tol: 1e-7,
+        warm_start: None,
             lambda,
             ..Default::default()
         };

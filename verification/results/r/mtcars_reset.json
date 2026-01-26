@@ -1,0 +1,14 @@
+{
+  "test_name": ["RESET Test (R - lmtest::resettest)"],
+  "dataset": ["mtcars"],
+  "formula": ["mpg ~ cyl + disp + hp + drat + wt + qsec + vs + am + gear + carb"],
+  "statistic": [5.545230273822531],
+  "p_value": [0.012679008059481361],
+  "passed": [false],
+  "power": [
+    [2],
+    [3]
+  ],
+  "type": ["fitted"],
+  "description": ["Ramsey's RESET test for functional form misspecification. Tests whether powers of fitted values, regressors, or principal component significantly improve model fit."]
+}

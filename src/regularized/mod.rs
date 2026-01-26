@@ -42,16 +42,19 @@
 //! # Modules
 //!
 //! - [`preprocess`] - Data standardization utilities
+//! - [`elastic_net`] - Core elastic net implementation
 //! - [`ridge`] - Ridge regression (L2 penalty)
 //! - [`lasso`] - Lasso regression (L1 penalty)
 //! - [`path`] - Lambda path generation for regularization paths
 
+pub mod elastic_net;
 pub mod lasso;
 pub mod path;
 pub mod preprocess;
 pub mod ridge;
 
 // Re-exports for convenience
+pub use elastic_net::{elastic_net_fit, elastic_net_path, ElasticNetFit, ElasticNetOptions};
 pub use lasso::{lasso_fit, LassoFit, LassoFitOptions};
 pub use path::{make_lambda_path, LambdaPathOptions};
 pub use preprocess::{standardize_xy, unstandardize_coefficients, StandardizationInfo};

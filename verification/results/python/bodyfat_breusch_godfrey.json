@@ -1,0 +1,21 @@
+{
+  "test_name": "Breusch-Godfrey Test (Python - statsmodels)",
+  "dataset": "bodyfat",
+  "formula": "Density ~ BodyFat + Age + Weight + Height + Neck + Chest + Abdomen + Hip + Thigh + Knee + Ankle + Biceps + Forearm + Wrist",
+  "order": 1,
+  "statistic": 0.020270487079297794,
+  "p_value": 0.8867842342211041,
+  "test_type": "Chisq",
+  "df": [
+    1.0
+  ],
+  "f_statistic": 0.018984999150443455,
+  "f_p_value": 0.890526984927896,
+  "f_df": [
+    1.0,
+    236.0
+  ],
+  "passed": true,
+  "interpretation": "No significant serial correlation detected up to order 1",
+  "description": "Tests for serial correlation up to order 1. The LM (Chi-squared) statistic is asymptotically distributed as chi-squared with 1 degrees of freedom. The F statistic provides a finite-sample correction. Uses statsmodels.stats.diagnostic.acorr_breusch_godfrey."
+}

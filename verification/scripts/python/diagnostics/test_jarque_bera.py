@@ -40,19 +40,9 @@ def convert_categorical_to_numeric(data, dataset_name):
 
     # Process each non-numeric column
     for col in non_numeric_cols:
-        if data[col].dtype == 'object':
-            # For string/categorical data, use integer encoding
-            data[col] = pd.to_numeric(data[col], errors='coerce')
-            # Replace NaN (missing values from coercing) with mode
-            if data[col].isnull().any():
-                mode_val = data[col].mode()[0]
-                data[col].fillna(mode_val, inplace=True)
-                print(f"  {col}: {len(data[col].unique())} unique values -> integer encoding (missing filled with mode: {mode_val})")
-            else:
-                print(f"  {col}: {len(data[col].unique())} unique values -> integer encoding")
-        else:
-            # Already numeric or other type
-            pass
+        # Use factorize for reliable categorical encoding
+        data[col], uniques = pd.factorize(data[col])
+        print(f"  {col}: {len(uniques)} unique values -> integer level encoding")
 
     return non_numeric_cols
 

@@ -1,0 +1,9 @@
+{
+  "test_name": "Anderson-Darling Test (Python - statsmodels.stats.diagnostic.normal_ad)",
+  "dataset": "faithful",
+  "formula": "Eruption length (mins) ~ Eruption wait (mins)",
+  "statistic": 0.5274156934559642,
+  "p_value": 0.1770333098676169,
+  "passed": true,
+  "description": "Tests for normality of residuals. The Anderson-Darling test is particularly sensitive to deviations in the tails of the distribution. Uses statsmodels.stats.diagnostic.normal_ad."
+}

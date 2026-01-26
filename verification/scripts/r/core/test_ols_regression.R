@@ -461,8 +461,8 @@ json_output <- sprintf('{
 
 # Write to file - ALWAYS OVERWRITE to ensure fresh validation data
 # Output to verification/results/r/
-script_dir <- dirname(sys.frame(1)$filename)
-output_path <- file.path(script_dir, "..", "..", "..", "results", "r", "R_results.json")
+# Use current working directory (more compatible with Rscript)
+output_path <- "verification/results/r/R_results.json"
 writeLines(json_output, output_path)
 
 cat(sprintf("\n[SUCCESS] Wrote fresh validation data to: %s\n", output_path))

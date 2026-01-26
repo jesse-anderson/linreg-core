@@ -17,11 +17,29 @@ import json
 import os
 import sys
 import numpy as np
+import pandas as pd
 from scipy import stats
+
+def convert_categorical_to_numeric(df, dataset_name):
+    """Convert categorical columns to numeric representations."""
+    non_numeric_cols = df.select_dtypes(exclude=[np.number]).columns.tolist()
+
+    if non_numeric_cols:
+        print(f"INFO: Dataset '{dataset_name}' contains non-numeric columns: "
+              f"{', '.join(non_numeric_cols)}")
+        print("Converting categorical variables to numeric representations...")
+
+        for col in non_numeric_cols:
+            # Use factorize for reliable categorical encoding
+            df[col], uniques = pd.factorize(df[col])
+            print(f"  {col}: {len(uniques)} unique values -> integer level encoding")
+
+    return df
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Shapiro-Wilk test validation')
     parser.add_argument('--csv', required=True, help='Path to CSV file')
+    parser.add_argument('--output-dir', default='../../results/python', help='Path to output directory')
     return parser.parse_args()
 
 def main():
@@ -33,8 +51,17 @@ def main():
         print(f"Error: File not found: {csv_file}", file=sys.stderr)
         sys.exit(1)
 
-    # Read CSV data
-    data = np.loadtxt(csv_file, delimiter=',', skiprows=1)
+    # Get dataset name
+    dataset_name = os.path.splitext(os.path.basename(csv_file))[0]
+
+    # Read CSV data using pandas to handle categorical columns
+    data = pd.read_csv(csv_file)
+
+    # Convert categorical columns to numeric
+    data = convert_categorical_to_numeric(data, dataset_name)
+
+    # Convert to numpy array
+    data = data.values
 
     # First column is y (dependent variable), rest are x variables (predictors)
     y = data[:, 0]
@@ -100,12 +127,11 @@ def main():
 
     # Get output file name from CSV file name
     basename = os.path.splitext(os.path.basename(csv_file))[0]
-    output_file = f"../../results/python/{basename}_shapiro_wilk.json"
+    output_file = os.path.join(args.output_dir, f"{basename}_shapiro_wilk.json")
 
     # Create output directory if it doesn't exist
-    output_dir = os.path.dirname(output_file)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir, exist_ok=True)
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir, exist_ok=True)
 
     # Write output to JSON file
     with open(output_file, 'w') as f:

@@ -1,0 +1,11 @@
+{
+  "test_name": "Breusch-Pagan Test (Python - statsmodels)",
+  "dataset": "cars_stopping",
+  "formula": "speed ~ dist",
+  "statistic": 0.7152165074700789,
+  "p_value": 0.3977174781694145,
+  "passed": true,
+  "f_statistic": 0.6965718407541985,
+  "f_p_value": 0.4080727395351923,
+  "description": "Tests for heteroscedasticity by regressing squared residuals on predictors. Uses statsmodels.stats.diagnostic.het_breuschpagan."
+}

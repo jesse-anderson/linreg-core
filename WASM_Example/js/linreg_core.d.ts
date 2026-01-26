@@ -25,6 +25,29 @@
 export function anderson_darling_test(y_json: string, x_vars_json: string): string;
 
 /**
+ * Performs the Breusch-Godfrey test for higher-order serial correlation via WASM.
+ *
+ * Unlike the Durbin-Watson test which only detects first-order autocorrelation,
+ * the Breusch-Godfrey test can detect serial correlation at any lag order.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `order` - Maximum order of serial correlation to test (default: 1)
+ * * `test_type` - Type of test statistic: "chisq" or "f" (default: "chisq")
+ *
+ * # Returns
+ *
+ * JSON string containing test statistic, p-value, degrees of freedom, and interpretation.
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails or domain check fails.
+ */
+export function breusch_godfrey_test(y_json: string, x_vars_json: string, order: number, test_type: string): string;
+
+/**
  * Performs the Breusch-Pagan test for heteroscedasticity via WASM.
  *
  * The Breusch-Pagan test checks whether the variance of residuals is constant
@@ -93,6 +116,33 @@ export function cooks_distance_test(y_json: string, x_vars_json: string): string
  * Returns a JSON error object if parsing fails or domain check fails.
  */
 export function durbin_watson_test(y_json: string, x_vars_json: string): string;
+
+/**
+ * Performs Elastic Net regression via WASM.
+ *
+ * Elastic Net combines L1 (Lasso) and L2 (Ridge) penalties.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `variable_names` - JSON array of variable names
+ * * `lambda` - Regularization strength (>= 0)
+ * * `alpha` - Elastic net mixing parameter (0 = Ridge, 1 = Lasso)
+ * * `standardize` - Whether to standardize predictors (recommended: true)
+ * * `max_iter` - Maximum coordinate descent iterations
+ * * `tol` - Convergence tolerance
+ *
+ * # Returns
+ *
+ * JSON string containing regression results (same fields as Lasso).
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, parameters are invalid,
+ * or domain check fails.
+ */
+export function elastic_net_regression(y_json: string, x_vars_json: string, _variable_names: string, lambda: number, alpha: number, standardize: boolean, max_iter: number, tol: number): string;
 
 /**
  * Computes the inverse of the standard normal CDF (probit function).
@@ -211,7 +261,7 @@ export function jarque_bera_test(y_json: string, x_vars_json: string): string;
  * * `variable_names` - JSON array of variable names
  * * `lambda` - Regularization strength (>= 0, typical range 0.01 to 10)
  * * `standardize` - Whether to standardize predictors (recommended: true)
- * * `max_iter` - Maximum coordinate descent iterations (default: 1000)
+ * * `max_iter` - Maximum coordinate descent iterations (default: 100000)
  * * `tol` - Convergence tolerance (default: 1e-7)
  *
  * # Returns
@@ -385,6 +435,30 @@ export function r_white_test(y_json: string, x_vars_json: string): string;
 export function rainbow_test(y_json: string, x_vars_json: string, fraction: number, method: string): string;
 
 /**
+ * Performs the RESET test for model specification error via WASM.
+ *
+ * The RESET (Regression Specification Error Test) test checks whether the model
+ * is correctly specified by testing if additional terms (powers of fitted values,
+ * regressors, or first principal component) significantly improve the model fit.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `powers_json` - JSON array of powers to use (e.g., [2, 3] for ŷ², ŷ³)
+ * * `type_` - Type of terms to add: "fitted", "regressor", or "princomp"
+ *
+ * # Returns
+ *
+ * JSON string containing the F-statistic, p-value, and interpretation.
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails or domain check fails.
+ */
+export function reset_test(y_json: string, x_vars_json: string, powers_json: string, type_: string): string;
+
+/**
  * Performs Ridge regression via WASM.
  *
  * Ridge regression adds an L2 penalty to the coefficients, which helps with
@@ -437,6 +511,90 @@ export function ridge_regression(y_json: string, x_vars_json: string, _variable_
  * Returns a JSON error object if parsing fails or domain check fails.
  */
 export function shapiro_wilk_test(y_json: string, x_vars_json: string): string;
+
+/**
+ * Computes the correlation coefficient between two JSON arrays of f64 values.
+ *
+ * # Arguments
+ *
+ * * `x_json` - JSON string representing the first array of f64 values
+ * * `y_json` - JSON string representing the second array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with the correlation coefficient, or "null" if input is invalid
+ */
+export function stats_correlation(x_json: string, y_json: string): string;
+
+/**
+ * Computes the arithmetic mean of a JSON array of f64 values.
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with the mean, or "null" if input is invalid/empty
+ */
+export function stats_mean(data_json: string): string;
+
+/**
+ * Computes the median of a JSON array of f64 values.
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with the median, or "null" if input is invalid/empty
+ */
+export function stats_median(data_json: string): string;
+
+/**
+ * Computes a quantile of a JSON array of f64 values.
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ * * `q` - Quantile to calculate (0.0 to 1.0)
+ *
+ * # Returns
+ *
+ * JSON string with the quantile value, or "null" if input is invalid
+ */
+export function stats_quantile(data_json: string, q: number): string;
+
+/**
+ * Computes the sample standard deviation of a JSON array of f64 values.
+ *
+ * Uses the (n-1) denominator for unbiased estimation.
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with the standard deviation, or "null" if input is invalid
+ */
+export function stats_stddev(data_json: string): string;
+
+/**
+ * Computes the sample variance of a JSON array of f64 values.
+ *
+ * Uses the (n-1) denominator for unbiased estimation.
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with the variance, or "null" if input is invalid
+ */
+export function stats_variance(data_json: string): string;
 
 /**
  * Simple test function to verify WASM is working.
@@ -520,57 +678,66 @@ export function white_test(y_json: string, x_vars_json: string, method: string):
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
-  readonly memory: WebAssembly.Memory;
-  readonly anderson_darling_test: (a: number, b: number, c: number, d: number) => [number, number];
-  readonly breusch_pagan_test: (a: number, b: number, c: number, d: number) => [number, number];
-  readonly cooks_distance_test: (a: number, b: number, c: number, d: number) => [number, number];
-  readonly durbin_watson_test: (a: number, b: number, c: number, d: number) => [number, number];
-  readonly get_version: () => [number, number];
-  readonly harvey_collier_test: (a: number, b: number, c: number, d: number) => [number, number];
-  readonly jarque_bera_test: (a: number, b: number, c: number, d: number) => [number, number];
-  readonly lasso_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
-  readonly make_lambda_path: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
-  readonly ols_regression: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
-  readonly parse_csv: (a: number, b: number) => [number, number];
-  readonly python_white_test: (a: number, b: number, c: number, d: number) => [number, number];
-  readonly r_white_test: (a: number, b: number, c: number, d: number) => [number, number];
-  readonly rainbow_test: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
-  readonly ridge_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
-  readonly shapiro_wilk_test: (a: number, b: number, c: number, d: number) => [number, number];
-  readonly test: () => [number, number];
-  readonly test_ci: (a: number, b: number, c: number, d: number) => [number, number];
-  readonly test_housing_regression: () => [number, number];
-  readonly test_r_accuracy: () => [number, number];
-  readonly test_t_critical: (a: number, b: number) => [number, number];
-  readonly white_test: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
-  readonly get_t_cdf: (a: number, b: number) => number;
-  readonly get_t_critical: (a: number, b: number) => number;
-  readonly get_normal_inverse: (a: number) => number;
-  readonly __wbindgen_externrefs: WebAssembly.Table;
-  readonly __wbindgen_free: (a: number, b: number, c: number) => void;
-  readonly __wbindgen_malloc: (a: number, b: number) => number;
-  readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
-  readonly __wbindgen_start: () => void;
+    readonly memory: WebAssembly.Memory;
+    readonly anderson_darling_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly breusch_godfrey_test: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+    readonly breusch_pagan_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly cooks_distance_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly durbin_watson_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly elastic_net_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
+    readonly get_version: () => [number, number];
+    readonly harvey_collier_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly jarque_bera_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly lasso_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
+    readonly make_lambda_path: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+    readonly ols_regression: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+    readonly parse_csv: (a: number, b: number) => [number, number];
+    readonly python_white_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly r_white_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly rainbow_test: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+    readonly reset_test: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
+    readonly ridge_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
+    readonly shapiro_wilk_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly stats_correlation: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly stats_mean: (a: number, b: number) => [number, number];
+    readonly stats_median: (a: number, b: number) => [number, number];
+    readonly stats_quantile: (a: number, b: number, c: number) => [number, number];
+    readonly stats_stddev: (a: number, b: number) => [number, number];
+    readonly stats_variance: (a: number, b: number) => [number, number];
+    readonly test: () => [number, number];
+    readonly test_ci: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly test_housing_regression: () => [number, number];
+    readonly test_r_accuracy: () => [number, number];
+    readonly test_t_critical: (a: number, b: number) => [number, number];
+    readonly white_test: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+    readonly get_t_cdf: (a: number, b: number) => number;
+    readonly get_t_critical: (a: number, b: number) => number;
+    readonly get_normal_inverse: (a: number) => number;
+    readonly __wbindgen_externrefs: WebAssembly.Table;
+    readonly __wbindgen_malloc: (a: number, b: number) => number;
+    readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
+    readonly __wbindgen_start: () => void;
 }
 
 export type SyncInitInput = BufferSource | WebAssembly.Module;
 
 /**
-* Instantiates the given `module`, which can either be bytes or
-* a precompiled `WebAssembly.Module`.
-*
-* @param {{ module: SyncInitInput }} module - Passing `SyncInitInput` directly is deprecated.
-*
-* @returns {InitOutput}
-*/
+ * Instantiates the given `module`, which can either be bytes or
+ * a precompiled `WebAssembly.Module`.
+ *
+ * @param {{ module: SyncInitInput }} module - Passing `SyncInitInput` directly is deprecated.
+ *
+ * @returns {InitOutput}
+ */
 export function initSync(module: { module: SyncInitInput } | SyncInitInput): InitOutput;
 
 /**
-* If `module_or_path` is {RequestInfo} or {URL}, makes a request and
-* for everything else, calls `WebAssembly.instantiate` directly.
-*
-* @param {{ module_or_path: InitInput | Promise<InitInput> }} module_or_path - Passing `InitInput` directly is deprecated.
-*
-* @returns {Promise<InitOutput>}
-*/
+ * If `module_or_path` is {RequestInfo} or {URL}, makes a request and
+ * for everything else, calls `WebAssembly.instantiate` directly.
+ *
+ * @param {{ module_or_path: InitInput | Promise<InitInput> }} module_or_path - Passing `InitInput` directly is deprecated.
+ *
+ * @returns {Promise<InitOutput>}
+ */
 export default function __wbg_init (module_or_path?: { module_or_path: InitInput | Promise<InitInput> } | InitInput | Promise<InitInput>): Promise<InitOutput>;

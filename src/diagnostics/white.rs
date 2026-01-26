@@ -41,6 +41,40 @@ use crate::error::{Error, Result};
 use crate::linalg::{fit_and_predict_linpack, fit_ols_linpack, vec_mean, Matrix};
 
 /// Performs the White test for heteroscedasticity.
+///
+/// The White test is a general test for heteroscedasticity that does not assume
+/// a specific form of heteroscedasticity. It tests whether the variance of
+/// residuals depends on the values of the predictors.
+///
+/// # Arguments
+///
+/// * `y` - Dependent variable values
+/// * `x_vars` - Independent variables (each vec is a column)
+/// * `method` - Which implementation to use: R, Python, or Both
+///
+/// # Returns
+///
+/// A `WhiteTestOutput` containing test statistics, p-values, and interpretation
+/// for each requested method.
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::diagnostics::{white_test, WhiteMethod};
+/// let y = vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0];
+/// let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+/// let x2 = vec![2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+///
+/// let result = white_test(&y, &[x1, x2], WhiteMethod::R).unwrap();
+///
+/// // Check the test results
+/// if let Some(r_result) = result.r_result {
+///     println!("LM statistic: {}", r_result.statistic);
+///     println!("P-value: {}", r_result.p_value);
+///     // Low p-value suggests heteroscedasticity
+/// }
+/// # Ok::<(), linreg_core::Error>(())
+/// ```
 pub fn white_test(y: &[f64], x_vars: &[Vec<f64>], method: WhiteMethod) -> Result<WhiteTestOutput> {
     let n = y.len();
     let k = x_vars.len();
@@ -284,12 +318,68 @@ fn interpret_result(p_value: f64, alpha: f64) -> (String, &'static str) {
 }
 
 /// Performs the White test for heteroscedasticity using R's method.
+///
+/// This implementation matches R's `skedastic::white()` function behavior.
+/// Uses the standard QR decomposition and the R-specific auxiliary matrix
+/// structure (intercept, X, X² only - no cross-products).
+///
+/// # Arguments
+///
+/// * `y` - Dependent variable values
+/// * `x_vars` - Independent variables (each vec is a column)
+///
+/// # Returns
+///
+/// A `WhiteSingleResult` containing the LM statistic and p-value.
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::diagnostics::r_white_method;
+/// let y = vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0];
+/// let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+/// let x2 = vec![2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+///
+/// let result = r_white_method(&y, &[x1, x2]).unwrap();
+///
+/// println!("LM statistic: {}", result.statistic);
+/// println!("P-value: {}", result.p_value);
+/// # Ok::<(), linreg_core::Error>(())
+/// ```
 pub fn r_white_method(y: &[f64], x_vars: &[Vec<f64>]) -> Result<WhiteSingleResult> {
     let result = white_test(y, x_vars, WhiteMethod::R)?;
     result.r_result.ok_or(Error::SingularMatrix)
 }
 
 /// Performs the White test for heteroscedasticity using Python's method.
+///
+/// This implementation matches Python's `statsmodels.stats.diagnostic.het_white()` function.
+/// Uses the LINPACK QR decomposition with column pivoting and the Python-specific
+/// auxiliary matrix structure (intercept, X, X², and cross-products).
+///
+/// # Arguments
+///
+/// * `y` - Dependent variable values
+/// * `x_vars` - Independent variables (each vec is a column)
+///
+/// # Returns
+///
+/// A `WhiteSingleResult` containing the LM statistic and p-value.
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::diagnostics::python_white_method;
+/// let y = vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0];
+/// let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+/// let x2 = vec![2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+///
+/// let result = python_white_method(&y, &[x1, x2]).unwrap();
+///
+/// println!("LM statistic: {}", result.statistic);
+/// println!("P-value: {}", result.p_value);
+/// # Ok::<(), linreg_core::Error>(())
+/// ```
 pub fn python_white_method(y: &[f64], x_vars: &[Vec<f64>]) -> Result<WhiteSingleResult> {
     let result = white_test(y, x_vars, WhiteMethod::Python)?;
     result.python_result.ok_or(Error::SingularMatrix)

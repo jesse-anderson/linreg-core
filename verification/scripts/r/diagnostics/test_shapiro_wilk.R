@@ -1,37 +1,48 @@
 #!/usr/bin/env Rscript
 # ============================================================================
-# Shapiro-Wilk Test Validation Script (R)
+# Shapiro-Wilk Test Reference Implementation (R)
 # ============================================================================
+# This script generates reference values for the Shapiro-Wilk test using R's
+# native shapiro.test function. The Shapiro-Wilk test checks whether residuals
+# are normally distributed.
 #
-# This script runs the Shapiro-Wilk test on regression residuals using R's
-# native shapiro.test function and outputs the results to JSON for validation
-# against the Rust implementation.
+# Source: stats package, shapiro.test function
+# Reference: Shapiro & Wilk (1965), "An analysis of variance test for normality
+#            (complete samples)", Biometrika, Vol. 52, pp. 591-611
 #
-# Usage: Rscript test_shapiro_wilk.R <csv_file>
-# Example: Rscript test_shapiro_wilk.R ../../datasets/csv/mtcars.csv
-#
-# Output: JSON file with test results
+# Usage:
+#   Rscript test_shapiro_wilk.R [csv_path] [output_dir]
+#   Args:
+#     csv_path  - Path to CSV file (first col = response, rest = predictors)
+#                 Default: ../../datasets/csv/mtcars.csv
+#     output_dir- Path to output directory
+#                 Default: ../../results/r
+# ============================================================================
 
 library(stats)
+library(jsonlite)
 
-# Get command line arguments
+# Parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
-if (length(args) < 1) {
-  cat("Usage: Rscript test_shapiro_wilk.R <csv_file>\n")
-  quit(status = 1)
+# Set defaults
+default_csv <- "../../datasets/csv/mtcars.csv"
+default_output <- "../../results/r"
+
+# Parse arguments
+csv_path <- ifelse(length(args) >= 1, args[1], default_csv)
+output_dir <- ifelse(length(args) >= 2, args[2], default_output)
+
+# Validate CSV path
+if (!file.exists(csv_path)) {
+  stop(paste("CSV file not found:", csv_path))
 }
 
-csv_file <- args[1]
-
-# Check if file exists
-if (!file.exists(csv_file)) {
-  cat(paste("Error: File not found:", csv_file, "\n"))
-  quit(status = 1)
-}
+# Extract dataset name from filename
+dataset_name <- tools::file_path_sans_ext(basename(csv_path))
 
 # Read CSV data
-data <- read.csv(csv_file)
+data <- read.csv(csv_path)
 
 # Get the column names
 cols <- colnames(data)
@@ -93,20 +104,15 @@ output <- list(
   guidance = guidance
 )
 
-# Get output file name from CSV file name
-basename <- tools::file_path_sans_ext(basename(csv_file))
-output_file <- paste0("../../results/r/", basename, "_shapiro_wilk.json")
-
 # Create output directory if it doesn't exist
-output_dir <- dirname(output_file)
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
 }
 
-# Write output to JSON file
-library(jsonlite)
-write_json(output, output_file, pretty = TRUE, auto_unbox = FALSE)
+# Save to JSON with naming convention: {dataset}_shapiro_wilk.json
+output_file <- file.path(output_dir, paste0(dataset_name, "_shapiro_wilk.json"))
 
-cat(paste("Results written to:", output_file, "\n"))
-cat(paste("W statistic:", w_statistic, "\n"))
-cat(paste("p-value:", p_value, "\n"))
+# Write output to JSON file
+write_json(output, output_file, pretty = TRUE, digits = 22)
+
+cat("Results saved to:", output_file, "\n")

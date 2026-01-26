@@ -1,0 +1,10 @@
+{
+  "test_name": ["Durbin-Watson Test (R - lmtest::dwtest)"],
+  "dataset": ["faithful"],
+  "formula": ["Eruption.length..mins. ~ Eruption.wait..mins."],
+  "statistic": [2.5610124443557889],
+  "p_value": [0.99999853980259978],
+  "passed": [true],
+  "interpretation": ["Possible negative autocorrelation"],
+  "description": ["Tests for autocorrelation in residuals. Values near 2 indicate no autocorrelation, values near 0 suggest positive autocorrelation, and values near 4 suggest negative autocorrelation. Uses lmtest::dwtest."]
+}

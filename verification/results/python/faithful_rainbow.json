@@ -1,0 +1,10 @@
+{
+  "test_name": "Rainbow Test (Python - statsmodels)",
+  "dataset": "faithful",
+  "formula": "Eruption length (mins) ~ Eruption wait (mins)",
+  "statistic": 0.9428782335048487,
+  "p_value": 0.6336313591885188,
+  "passed": true,
+  "fraction": 0.5,
+  "description": "Tests for linearity by comparing fit on central subset vs full data. Uses statsmodels.stats.diagnostic.linear_rainbow."
+}

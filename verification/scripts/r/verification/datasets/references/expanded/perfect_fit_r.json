@@ -1,0 +1,58 @@
+{
+  "dataset_name": "perfect_fit",
+  "coefficients": [1, 4, "NA"],
+  "std_errors": [2.0687e-15, 3.334e-16],
+  "t_stats": [483392504499320.94, 11997486447509456],
+  "p_values": [3.7568e-115, 2.6091e-126],
+  "r_squared": 1,
+  "adj_r_squared": 1,
+  "f_statistic": 1.4393968105817316e+32,
+  "f_p_value": 2.2418e-111,
+  "mse": 1.0481e-29,
+  "std_error": 3.2374e-15,
+  "conf_int_lower": [1, 4, "NA"],
+  "conf_int_upper": [1, 4, "NA"],
+  "residuals": [-6.4747e-15, 2.3097e-15, 2.474e-15, 2.1379e-15, 1.8019e-15, 5.7762e-16, 1.1297e-15, -9.8268e-16, -3.0951e-15, 1.2156e-16],
+  "standardized_residuals": [-2.6427, 0.8798, 0.8999, 0.7557, 0.6283, 0.2014, 0.3993, -0.3574, -1.179, 0.0496],
+  "leverage": [0.3455, 0.2485, 0.1758, 0.1273, 0.103, 0.103, 0.1273, 0.1758, 0.2485, 0.3455],
+  "vif": [],
+  "rainbow": {
+    "statistic": 1.3506,
+    "p_value": 0.4772,
+    "passed": true
+  },
+  "harvey_collier": {
+    "statistic": null,
+    "p_value": null,
+    "passed": false
+  },
+  "breusch_pagan": {
+    "statistic": 3.2002,
+    "p_value": 0.0736,
+    "passed": true
+  },
+  "white": {
+    "statistic": 6.3576,
+    "p_value": 0.0416,
+    "passed": false
+  },
+  "jarque_bera": {
+    "statistic": 2.9553,
+    "p_value": 0.2282,
+    "passed": true
+  },
+  "durbin_watson": {
+    "statistic": null,
+    "p_value": null,
+    "passed": false
+  },
+  "breusch_godfrey": {
+    "statistic": null,
+    "p_value": null,
+    "passed": false
+  },
+  "n": 10,
+  "k": 2,
+  "df": 7,
+  "variable_names": ["Intercept", "x1", "x2"]
+}

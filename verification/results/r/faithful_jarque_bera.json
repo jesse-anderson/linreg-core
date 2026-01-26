@@ -1,0 +1,11 @@
+{
+  "test_name": ["Jarque-Bera Test (R - tseries::jarque.bera.test)"],
+  "dataset": ["faithful"],
+  "formula": ["Eruption.length..mins. ~ Eruption.wait..mins."],
+  "statistic": [3.1734143591146444],
+  "p_value": [0.20459820892047098],
+  "passed": [true],
+  "skewness": [],
+  "kurtosis": [],
+  "description": ["Tests for normality of residuals by examining skewness and kurtosis. Uses tseries::jarque.bera.test."]
+}

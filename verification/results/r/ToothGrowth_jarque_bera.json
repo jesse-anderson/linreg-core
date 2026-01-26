@@ -1,0 +1,11 @@
+{
+  "test_name": ["Jarque-Bera Test (R - tseries::jarque.bera.test)"],
+  "dataset": ["ToothGrowth"],
+  "formula": ["len ~ supp + dose"],
+  "statistic": [2.5374699538338783],
+  "p_value": [0.28118710506225653],
+  "passed": [true],
+  "skewness": [],
+  "kurtosis": [],
+  "description": ["Tests for normality of residuals by examining skewness and kurtosis. Uses tseries::jarque.bera.test."]
+}

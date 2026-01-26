@@ -70,9 +70,11 @@ def main():
         {"name": "White", "script": "test_white.py"},
         {"name": "Jarque-Bera", "script": "test_jarque_bera.py"},
         {"name": "Durbin-Watson", "script": "test_durbin_watson.py"},
+        {"name": "Breusch-Godfrey", "script": "test_breusch_godfrey.py"},
         {"name": "Shapiro-Wilk", "script": "test_shapiro_wilk.py"},
         {"name": "Anderson-Darling", "script": "test_anderson_darling.py"},
         {"name": "Cooks-Distance", "script": "test_cooks_distance.py"},
+        {"name": "RESET", "script": "test_reset.py"},
     ]
 
     script_dir = Path(args.script_dir)

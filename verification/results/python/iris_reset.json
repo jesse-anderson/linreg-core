@@ -1,0 +1,14 @@
+{
+  "test_name": "RESET Test (Python - statsmodels)",
+  "dataset": "iris",
+  "formula": "Sepal.Length ~ Sepal.Width + Petal.Length + Petal.Width + Species",
+  "statistic": 2.197793090197972,
+  "p_value": 0.11345851513694172,
+  "passed": true,
+  "power": [
+    2,
+    3
+  ],
+  "type": "fitted",
+  "description": "Ramsey's RESET test for functional form misspecification. Tests whether powers of fitted values, regressors, or principal component significantly improve model fit."
+}

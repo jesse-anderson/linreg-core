@@ -1,0 +1,16 @@
+{
+  "test_name": ["Breusch-Godfrey Test (R - lmtest::bgtest)"],
+  "dataset": ["cars_stopping"],
+  "formula": ["speed ~ dist"],
+  "order": [1],
+  "statistic": [8.0950159039642582],
+  "p_value": [0.0044387148953606969],
+  "test_type": ["Chisq"],
+  "df": [1],
+  "f_statistic": [9.0792481060101906],
+  "f_p_value": [0.0041556474805469912],
+  "f_df": [1, 47],
+  "passed": [false],
+  "interpretation": ["Significant serial correlation detected at order <= 1"],
+  "description": ["Tests for serial correlation up to order 1. The LM (Chi-squared) statistic is asymptotically distributed as chi-squared with 1 degrees of freedom. The F statistic provides a finite-sample correction. Uses lmtest::bgtest."]
+}

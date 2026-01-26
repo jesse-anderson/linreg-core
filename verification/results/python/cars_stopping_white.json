@@ -1,0 +1,11 @@
+{
+  "test_name": "White Test (Python - statsmodels)",
+  "dataset": "cars_stopping",
+  "formula": "speed ~ dist",
+  "statistic": 0.9772511888298141,
+  "p_value": 0.6134689702101215,
+  "passed": true,
+  "f_statistic": 0.4684642027308724,
+  "f_p_value": 0.6288540968854485,
+  "description": "Tests for heteroscedasticity using squares and cross-products of predictors. Uses statsmodels.stats.diagnostic.het_white."
+}

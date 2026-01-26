@@ -1,0 +1,11 @@
+{
+  "test_name": "Breusch-Pagan Test (Python - statsmodels)",
+  "dataset": "ToothGrowth",
+  "formula": "len ~ supp + dose",
+  "statistic": 1.4533063764801124,
+  "p_value": 0.483524550746149,
+  "passed": true,
+  "f_statistic": 0.7074563765466666,
+  "f_p_value": 0.4971724029812176,
+  "description": "Tests for heteroscedasticity by regressing squared residuals on predictors. Uses statsmodels.stats.diagnostic.het_breuschpagan."
+}

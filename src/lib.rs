@@ -21,7 +21,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! linreg-core = { version = "0.2", default-features = false }
+//! linreg-core = { version = "0.3", default-features = false }
 //! ```
 //!
 //! ```rust
@@ -42,7 +42,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! linreg-core = "0.2"
+//! linreg-core = "0.3"
 //! ```
 //!
 //! Build with `wasm-pack build --target web`, then use in JavaScript:
@@ -73,6 +73,7 @@
 //!     lambda: 1.0,
 //!     intercept: true,
 //!     standardize: true,
+//!     ..Default::default()
 //! })?;
 //!
 //! // Lasso regression (L1 penalty - does variable selection by zeroing coefficients)
@@ -131,7 +132,7 @@
 //! For native-only builds (smaller binary, no WASM deps):
 //!
 //! ```toml
-//! linreg-core = { version = "0.2", default-features = false }
+//! linreg-core = { version = "0.3", default-features = false }
 //! ```
 //!
 //! ## Why This Library?
@@ -172,6 +173,7 @@ pub mod distributions;
 pub mod error;
 pub mod linalg;
 pub mod regularized;
+pub mod stats;
 
 // Unit tests are now in tests/unit/ directory
 // - error_tests.rs -> tests/unit/error_tests.rs
@@ -183,8 +185,9 @@ pub mod regularized;
 // Re-export public API (always available)
 pub use core::{RegressionOutput, VifResult};
 pub use diagnostics::{
-    CooksDistanceResult, DiagnosticTestResult, RainbowMethod, RainbowSingleResult,
-    RainbowTestOutput, WhiteMethod, WhiteSingleResult, WhiteTestOutput,
+    BGTestType, BreuschGodfreyResult, CooksDistanceResult, DiagnosticTestResult,
+    RainbowMethod, RainbowSingleResult, RainbowTestOutput, ResetType,
+    WhiteMethod, WhiteSingleResult, WhiteTestOutput,
 };
 
 // Re-export core test functions with different names to avoid WASM conflicts
@@ -877,6 +880,111 @@ pub fn cooks_distance_test(y_json: &str, x_vars_json: &str) -> String {
     }
 }
 
+/// Performs the RESET test for model specification error via WASM.
+///
+/// The RESET (Regression Specification Error Test) test checks whether the model
+/// is correctly specified by testing if additional terms (powers of fitted values,
+/// regressors, or first principal component) significantly improve the model fit.
+///
+/// # Arguments
+///
+/// * `y_json` - JSON array of response variable values
+/// * `x_vars_json` - JSON array of predictor arrays
+/// * `powers_json` - JSON array of powers to use (e.g., [2, 3] for ŷ², ŷ³)
+/// * `type_` - Type of terms to add: "fitted", "regressor", or "princomp"
+///
+/// # Returns
+///
+/// JSON string containing the F-statistic, p-value, and interpretation.
+///
+/// # Errors
+///
+/// Returns a JSON error object if parsing fails or domain check fails.
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+pub fn reset_test(y_json: &str, x_vars_json: &str, powers_json: &str, type_: &str) -> String {
+    if let Err(e) = check_domain() {
+        return error_to_json(&e);
+    }
+
+    let y: Vec<f64> = match serde_json::from_str(y_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse y: {}", e)),
+    };
+
+    let x_vars: Vec<Vec<f64>> = match serde_json::from_str(x_vars_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse x_vars: {}", e)),
+    };
+
+    let powers: Vec<usize> = match serde_json::from_str(powers_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse powers: {}", e)),
+    };
+
+    // Parse reset type (default to "fitted")
+    let reset_type = match type_.to_lowercase().as_str() {
+        "regressor" => diagnostics::ResetType::Regressor,
+        "princomp" => diagnostics::ResetType::PrincipalComponent,
+        _ => diagnostics::ResetType::Fitted,
+    };
+
+    match diagnostics::reset_test(&y, &x_vars, &powers, reset_type) {
+        Ok(output) => serde_json::to_string(&output)
+            .unwrap_or_else(|_| error_json("Failed to serialize RESET test result")),
+        Err(e) => error_json(&e.to_string()),
+    }
+}
+
+/// Performs the Breusch-Godfrey test for higher-order serial correlation via WASM.
+///
+/// Unlike the Durbin-Watson test which only detects first-order autocorrelation,
+/// the Breusch-Godfrey test can detect serial correlation at any lag order.
+///
+/// # Arguments
+///
+/// * `y_json` - JSON array of response variable values
+/// * `x_vars_json` - JSON array of predictor arrays
+/// * `order` - Maximum order of serial correlation to test (default: 1)
+/// * `test_type` - Type of test statistic: "chisq" or "f" (default: "chisq")
+///
+/// # Returns
+///
+/// JSON string containing test statistic, p-value, degrees of freedom, and interpretation.
+///
+/// # Errors
+///
+/// Returns a JSON error object if parsing fails or domain check fails.
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+pub fn breusch_godfrey_test(y_json: &str, x_vars_json: &str, order: usize, test_type: &str) -> String {
+    if let Err(e) = check_domain() {
+        return error_to_json(&e);
+    }
+
+    let y: Vec<f64> = match serde_json::from_str(y_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse y: {}", e)),
+    };
+
+    let x_vars: Vec<Vec<f64>> = match serde_json::from_str(x_vars_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse x_vars: {}", e)),
+    };
+
+    // Parse test type (default to "chisq")
+    let bg_test_type = match test_type.to_lowercase().as_str() {
+        "f" => diagnostics::BGTestType::F,
+        _ => diagnostics::BGTestType::Chisq,
+    };
+
+    match diagnostics::breusch_godfrey_test(&y, &x_vars, order, bg_test_type) {
+        Ok(output) => serde_json::to_string(&output)
+            .unwrap_or_else(|_| error_json("Failed to serialize Breusch-Godfrey test result")),
+        Err(e) => error_json(&e.to_string()),
+    }
+}
+
 // ============================================================================
 // Regularized Regression WASM Wrappers
 // ============================================================================
@@ -966,6 +1074,10 @@ pub fn ridge_regression(
         lambda,
         intercept: true,
         standardize,
+        max_iter: 100000,
+        tol: 1e-7,
+        warm_start: None,
+        weights: None,
     };
 
     match regularized::ridge::ridge_fit(&x, &y, &options) {
@@ -990,7 +1102,7 @@ pub fn ridge_regression(
 /// * `variable_names` - JSON array of variable names
 /// * `lambda` - Regularization strength (>= 0, typical range 0.01 to 10)
 /// * `standardize` - Whether to standardize predictors (recommended: true)
-/// * `max_iter` - Maximum coordinate descent iterations (default: 1000)
+/// * `max_iter` - Maximum coordinate descent iterations (default: 100000)
 /// * `tol` - Convergence tolerance (default: 1e-7)
 ///
 /// # Returns
@@ -1081,6 +1193,104 @@ pub fn lasso_regression(
 
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+/// Performs Elastic Net regression via WASM.
+///
+/// Elastic Net combines L1 (Lasso) and L2 (Ridge) penalties.
+///
+/// # Arguments
+///
+/// * `y_json` - JSON array of response variable values
+/// * `x_vars_json` - JSON array of predictor arrays
+/// * `variable_names` - JSON array of variable names
+/// * `lambda` - Regularization strength (>= 0)
+/// * `alpha` - Elastic net mixing parameter (0 = Ridge, 1 = Lasso)
+/// * `standardize` - Whether to standardize predictors (recommended: true)
+/// * `max_iter` - Maximum coordinate descent iterations
+/// * `tol` - Convergence tolerance
+///
+/// # Returns
+///
+/// JSON string containing regression results (same fields as Lasso).
+///
+/// # Errors
+///
+/// Returns a JSON error object if parsing fails, parameters are invalid,
+/// or domain check fails.
+pub fn elastic_net_regression(
+    y_json: &str,
+    x_vars_json: &str,
+    _variable_names: &str,
+    lambda: f64,
+    alpha: f64,
+    standardize: bool,
+    max_iter: usize,
+    tol: f64,
+) -> String {
+    if let Err(e) = check_domain() {
+        return error_to_json(&e);
+    }
+
+    // Parse JSON input
+    let y: Vec<f64> = match serde_json::from_str(y_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse y: {}", e)),
+    };
+
+    let x_vars: Vec<Vec<f64>> = match serde_json::from_str(x_vars_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse x_vars: {}", e)),
+    };
+
+    // Build design matrix with intercept column
+    let n = y.len();
+    let p = x_vars.len();
+
+    if n <= p + 1 {
+        return error_json(&format!(
+            "Insufficient data: need at least {} observations for {} predictors",
+            p + 2,
+            p
+        ));
+    }
+
+    let mut x_data = vec![1.0; n * (p + 1)]; // Intercept column
+    for (j, x_var) in x_vars.iter().enumerate() {
+        if x_var.len() != n {
+            return error_json(&format!(
+                "x_vars[{}] has {} elements, expected {}",
+                j,
+                x_var.len(),
+                n
+            ));
+        }
+        for (i, &val) in x_var.iter().enumerate() {
+            x_data[i * (p + 1) + j + 1] = val;
+        }
+    }
+
+    let x = linalg::Matrix::new(n, p + 1, x_data);
+
+    // Configure elastic net options
+    let options = regularized::elastic_net::ElasticNetOptions {
+        lambda,
+        alpha,
+        intercept: true,
+        standardize,
+        max_iter,
+        tol,
+        ..Default::default()
+    };
+
+    match regularized::elastic_net::elastic_net_fit(&x, &y, &options) {
+        Ok(output) => serde_json::to_string(&output)
+            .unwrap_or_else(|_| error_json("Failed to serialize elastic net regression result")),
+        Err(e) => error_json(&e.to_string()),
+    }
+}
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
 /// Generates a lambda path for regularized regression via WASM.
 ///
 /// Creates a logarithmically-spaced sequence of lambda values from lambda_max
@@ -1159,7 +1369,7 @@ pub fn make_lambda_path(
         })
         .collect();
 
-    let x_std: Vec<f64> = (0..x.cols)
+    let x_standardized: Vec<f64> = (0..x.cols)
         .map(|j| {
             if j == 0 {
                 0.0 // Intercept column - no centering
@@ -1173,22 +1383,22 @@ pub fn make_lambda_path(
         .collect();
 
     // Build standardized X matrix
-    let mut x_std_data = vec![1.0; n * (p + 1)];
+    let mut x_standardized_data = vec![1.0; n * (p + 1)];
     for j in 0..x.cols {
         for i in 0..n {
             if j == 0 {
-                x_std_data[i * (p + 1)] = 1.0; // Intercept
+                x_standardized_data[i * (p + 1)] = 1.0; // Intercept
             } else {
-                let std = x_std[j];
+                let std = x_standardized[j];
                 if std > 1e-10 {
-                    x_std_data[i * (p + 1) + j] = (x.get(i, j) - x_mean[j]) / std;
+                    x_standardized_data[i * (p + 1) + j] = (x.get(i, j) - x_mean[j]) / std;
                 } else {
-                    x_std_data[i * (p + 1) + j] = 0.0;
+                    x_standardized_data[i * (p + 1) + j] = 0.0;
                 }
             }
         }
     }
-    let x_std = linalg::Matrix::new(n, p + 1, x_std_data);
+    let x_standardized = linalg::Matrix::new(n, p + 1, x_standardized_data);
 
     // Center y
     let y_mean: f64 = y.iter().sum::<f64>() / n as f64;
@@ -1207,12 +1417,12 @@ pub fn make_lambda_path(
     };
 
     let lambda_path =
-        regularized::path::make_lambda_path(&x_std, &y_centered, &options, None, Some(0));
+        regularized::path::make_lambda_path(&x_standardized, &y_centered, &options, None, Some(0));
 
     let lambda_max = lambda_path.first().copied().unwrap_or(0.0);
     let lambda_min = lambda_path.last().copied().unwrap_or(0.0);
 
-    // Return as JSON
+    // Return as JSON (note: infinity serializes as null in JSON, handled in JS)
     let result = serde_json::json!({
         "lambda_path": lambda_path,
         "lambda_max": lambda_max,
@@ -1294,6 +1504,165 @@ pub fn get_normal_inverse(p: f64) -> f64 {
 }
 
 // ============================================================================
+// Statistical Utilities (WASM-only)
+// ============================================================================
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+/// Computes the arithmetic mean of a JSON array of f64 values.
+///
+/// # Arguments
+///
+/// * `data_json` - JSON string representing an array of f64 values
+///
+/// # Returns
+///
+/// JSON string with the mean, or "null" if input is invalid/empty
+pub fn stats_mean(data_json: String) -> String {
+    if check_domain().is_err() {
+        return "null".to_string();
+    }
+
+    let data: Vec<f64> = match serde_json::from_str(&data_json) {
+        Ok(d) => d,
+        Err(_) => return "null".to_string(),
+    };
+
+    serde_json::to_string(&stats::mean(&data)).unwrap_or("null".to_string())
+}
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+/// Computes the sample standard deviation of a JSON array of f64 values.
+///
+/// Uses the (n-1) denominator for unbiased estimation.
+///
+/// # Arguments
+///
+/// * `data_json` - JSON string representing an array of f64 values
+///
+/// # Returns
+///
+/// JSON string with the standard deviation, or "null" if input is invalid
+pub fn stats_stddev(data_json: String) -> String {
+    if check_domain().is_err() {
+        return "null".to_string();
+    }
+
+    let data: Vec<f64> = match serde_json::from_str(&data_json) {
+        Ok(d) => d,
+        Err(_) => return "null".to_string(),
+    };
+
+    serde_json::to_string(&stats::stddev(&data)).unwrap_or("null".to_string())
+}
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+/// Computes the sample variance of a JSON array of f64 values.
+///
+/// Uses the (n-1) denominator for unbiased estimation.
+///
+/// # Arguments
+///
+/// * `data_json` - JSON string representing an array of f64 values
+///
+/// # Returns
+///
+/// JSON string with the variance, or "null" if input is invalid
+pub fn stats_variance(data_json: String) -> String {
+    if check_domain().is_err() {
+        return "null".to_string();
+    }
+
+    let data: Vec<f64> = match serde_json::from_str(&data_json) {
+        Ok(d) => d,
+        Err(_) => return "null".to_string(),
+    };
+
+    serde_json::to_string(&stats::variance(&data)).unwrap_or("null".to_string())
+}
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+/// Computes the median of a JSON array of f64 values.
+///
+/// # Arguments
+///
+/// * `data_json` - JSON string representing an array of f64 values
+///
+/// # Returns
+///
+/// JSON string with the median, or "null" if input is invalid/empty
+pub fn stats_median(data_json: String) -> String {
+    if check_domain().is_err() {
+        return "null".to_string();
+    }
+
+    let data: Vec<f64> = match serde_json::from_str(&data_json) {
+        Ok(d) => d,
+        Err(_) => return "null".to_string(),
+    };
+
+    serde_json::to_string(&stats::median(&data)).unwrap_or("null".to_string())
+}
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+/// Computes a quantile of a JSON array of f64 values.
+///
+/// # Arguments
+///
+/// * `data_json` - JSON string representing an array of f64 values
+/// * `q` - Quantile to calculate (0.0 to 1.0)
+///
+/// # Returns
+///
+/// JSON string with the quantile value, or "null" if input is invalid
+pub fn stats_quantile(data_json: String, q: f64) -> String {
+    if check_domain().is_err() {
+        return "null".to_string();
+    }
+
+    let data: Vec<f64> = match serde_json::from_str(&data_json) {
+        Ok(d) => d,
+        Err(_) => return "null".to_string(),
+    };
+
+    serde_json::to_string(&stats::quantile(&data, q)).unwrap_or("null".to_string())
+}
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+/// Computes the correlation coefficient between two JSON arrays of f64 values.
+///
+/// # Arguments
+///
+/// * `x_json` - JSON string representing the first array of f64 values
+/// * `y_json` - JSON string representing the second array of f64 values
+///
+/// # Returns
+///
+/// JSON string with the correlation coefficient, or "null" if input is invalid
+pub fn stats_correlation(x_json: String, y_json: String) -> String {
+    if check_domain().is_err() {
+        return "null".to_string();
+    }
+
+    let x: Vec<f64> = match serde_json::from_str(&x_json) {
+        Ok(d) => d,
+        Err(_) => return "null".to_string(),
+    };
+
+    let y: Vec<f64> = match serde_json::from_str(&y_json) {
+        Ok(d) => d,
+        Err(_) => return "null".to_string(),
+    };
+
+    serde_json::to_string(&stats::correlation(&x, &y)).unwrap_or("null".to_string())
+}
+
+// ============================================================================
 // Domain Check (WASM-only)
 // ============================================================================
 //
@@ -1354,6 +1723,162 @@ mod tests {
         let result = test_housing_regression_native();
         if let Err(e) = result {
             panic!("Regression test failed: {}", e);
+        }
+    }
+
+    /// Test that test_housing_regression_native produces valid JSON
+    #[test]
+    fn test_housing_regression_json_output() {
+        let result = test_housing_regression_native().unwrap();
+        // Should be valid JSON
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+        // Should have status field
+        assert!(parsed.get("status").is_some());
+        // Status should be PASS (we control the test data)
+        assert_eq!(parsed["status"], "PASS");
+    }
+
+    /// Test housing regression with actual R reference values
+    #[test]
+    fn test_housing_regression_coefficients() {
+        let y = vec![
+            245.5, 312.8, 198.4, 425.6, 278.9, 356.2, 189.5, 512.3, 234.7, 298.1, 445.8, 167.9,
+            367.4, 289.6, 198.2, 478.5, 256.3, 334.7, 178.5, 398.9, 223.4, 312.5, 156.8, 423.7,
+            267.9,
+        ];
+
+        let square_feet = vec![
+            1200.0, 1800.0, 950.0, 2400.0, 1450.0, 2000.0, 1100.0, 2800.0, 1350.0, 1650.0,
+            2200.0, 900.0, 1950.0, 1500.0, 1050.0, 2600.0, 1300.0, 1850.0, 1000.0, 2100.0,
+            1250.0, 1700.0, 850.0, 2350.0, 1400.0,
+        ];
+        let bedrooms = vec![
+            3.0, 4.0, 2.0, 4.0, 3.0, 4.0, 2.0, 5.0, 3.0, 3.0, 4.0, 2.0, 4.0, 3.0, 2.0, 5.0,
+            3.0, 4.0, 2.0, 4.0, 3.0, 3.0, 2.0, 4.0, 3.0,
+        ];
+        let age = vec![
+            15.0, 10.0, 25.0, 5.0, 8.0, 12.0, 20.0, 2.0, 18.0, 7.0, 3.0, 30.0, 6.0, 14.0,
+            22.0, 1.0, 16.0, 9.0, 28.0, 4.0, 19.0, 11.0, 35.0, 3.0, 13.0,
+        ];
+
+        let x_vars = vec![square_feet, bedrooms, age];
+        let names = vec![
+            "Intercept".to_string(),
+            "Square_Feet".to_string(),
+            "Bedrooms".to_string(),
+            "Age".to_string(),
+        ];
+
+        let result = core::ols_regression(&y, &x_vars, &names).unwrap();
+
+        // Check against R results
+        let expected_coeffs = [52.1271333, 0.1613877, 0.9545492, -1.1811815];
+        let expected_std_errs = [31.18201809, 0.01875072, 10.44400198, 0.73219949];
+
+        let tolerance = 1e-4;
+        for i in 0..4 {
+            assert!(
+                (result.coefficients[i] - expected_coeffs[i]).abs() < tolerance,
+                "coeff[{}] differs: got {}, expected {}",
+                i,
+                result.coefficients[i],
+                expected_coeffs[i]
+            );
+            assert!(
+                (result.std_errors[i] - expected_std_errs[i]).abs() < tolerance,
+                "std_err[{}] differs: got {}, expected {}",
+                i,
+                result.std_errors[i],
+                expected_std_errs[i]
+            );
+        }
+    }
+
+    /// Test R-squared calculation in housing regression
+    #[test]
+    fn test_housing_regression_r_squared() {
+        let result = test_housing_regression_native().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
+
+        // If status is PASS, R² should be reasonable (between 0 and 1)
+        assert_eq!(parsed["status"], "PASS");
+    }
+
+    /// Test that housing regression handles all expected output fields
+    #[test]
+    fn test_housing_regression_comprehensive() {
+        let y = vec![
+            245.5, 312.8, 198.4, 425.6, 278.9, 356.2, 189.5, 512.3, 234.7, 298.1,
+        ];
+        let x1 = vec![1200.0, 1800.0, 950.0, 2400.0, 1450.0, 2000.0, 1100.0, 2800.0, 1350.0, 1650.0];
+        let x2 = vec![3.0, 4.0, 2.0, 4.0, 3.0, 4.0, 2.0, 5.0, 3.0, 3.0];
+
+        let result = core::ols_regression(&y, &[x1, x2], &["Intercept".into(), "X1".into(), "X2".into()])
+            .unwrap();
+
+        // Verify expected output fields exist
+        assert!(!result.coefficients.is_empty());
+        assert!(!result.std_errors.is_empty());
+        assert!(!result.t_stats.is_empty());
+        assert!(!result.p_values.is_empty());
+        assert!(result.r_squared >= 0.0 && result.r_squared <= 1.0);
+        assert!(result.residuals.len() == y.len());
+    }
+
+    /// Test error handling when insufficient data is provided
+    #[test]
+    fn test_housing_regression_insufficient_data() {
+        let y = vec![245.5, 312.8]; // Only 2 observations
+        let x1 = vec![1200.0, 1800.0];
+        let x2 = vec![3.0, 4.0];
+
+        let result = core::ols_regression(&y, &[x1, x2], &["Intercept".into(), "X1".into(), "X2".into()]);
+        assert!(result.is_err());
+    }
+
+    /// Test housing regression precision with tolerance check
+    #[test]
+    fn test_housing_regression_tolerance_check() {
+        let y = vec![
+            245.5, 312.8, 198.4, 425.6, 278.9, 356.2, 189.5, 512.3, 234.7, 298.1, 445.8, 167.9,
+            367.4, 289.6, 198.2, 478.5, 256.3, 334.7, 178.5, 398.9, 223.4, 312.5, 156.8, 423.7,
+            267.9,
+        ];
+
+        let square_feet = vec![
+            1200.0, 1800.0, 950.0, 2400.0, 1450.0, 2000.0, 1100.0, 2800.0, 1350.0, 1650.0,
+            2200.0, 900.0, 1950.0, 1500.0, 1050.0, 2600.0, 1300.0, 1850.0, 1000.0, 2100.0,
+            1250.0, 1700.0, 850.0, 2350.0, 1400.0,
+        ];
+        let bedrooms = vec![
+            3.0, 4.0, 2.0, 4.0, 3.0, 4.0, 2.0, 5.0, 3.0, 3.0, 4.0, 2.0, 4.0, 3.0, 2.0, 5.0,
+            3.0, 4.0, 2.0, 4.0, 3.0, 3.0, 2.0, 4.0, 3.0,
+        ];
+        let age = vec![
+            15.0, 10.0, 25.0, 5.0, 8.0, 12.0, 20.0, 2.0, 18.0, 7.0, 3.0, 30.0, 6.0, 14.0,
+            22.0, 1.0, 16.0, 9.0, 28.0, 4.0, 19.0, 11.0, 35.0, 3.0, 13.0,
+        ];
+
+        let x_vars = vec![square_feet, bedrooms, age];
+        let names = vec![
+            "Intercept".to_string(),
+            "Square_Feet".to_string(),
+            "Bedrooms".to_string(),
+            "Age".to_string(),
+        ];
+
+        let result = core::ols_regression(&y, &x_vars, &names).unwrap();
+
+        // Verify all coefficient values are finite
+        for coef in &result.coefficients {
+            assert!(coef.is_finite(), "Coefficient should be finite");
+        }
+        // Verify all standard errors are positive and finite
+        for se in &result.std_errors {
+            assert!(se.is_finite(), "Standard error should be finite");
+            if *se <= 0.0 {
+                panic!("Standard error should be positive, got {}", se);
+            }
         }
     }
 }
@@ -1473,6 +1998,7 @@ pub fn test_housing_regression() -> String {
 }
 
 // Native Rust test function (works without WASM feature)
+#[cfg(any(test, feature = "wasm"))]
 fn test_housing_regression_native() -> Result<String> {
     let y = vec![
         245.5, 312.8, 198.4, 425.6, 278.9, 356.2, 189.5, 512.3, 234.7, 298.1, 445.8, 167.9, 367.4,

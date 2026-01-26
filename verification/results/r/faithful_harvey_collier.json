@@ -1,0 +1,9 @@
+{
+  "test_name": ["Harvey-Collier Test (R - lmtest::harvtest)"],
+  "dataset": ["faithful"],
+  "formula": ["Eruption.length..mins. ~ Eruption.wait..mins."],
+  "statistic": [1.7210107732259463],
+  "p_value": [0.086398672865377224],
+  "passed": [true],
+  "description": ["Tests for functional form misspecification by examining whether recursive residuals exhibit a linear trend. R variant uses lmtest::harvtest with order.by = fitted values."]
+}

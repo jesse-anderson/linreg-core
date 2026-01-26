@@ -238,6 +238,22 @@ pub fn f_p_value(f_stat: f64, df1: f64, df2: f64) -> f64 {
 ///
 /// * `x` - Design matrix (including intercept column)
 /// * `xtx_inv` - Inverse of X'X matrix
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::core::compute_leverage;
+/// # use linreg_core::linalg::Matrix;
+/// // Design matrix with intercept: [[1, 1], [1, 2], [1, 3]]
+/// let x = Matrix::new(3, 2, vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0]);
+/// let xtx = x.transpose().matmul(&x);
+/// let xtx_inv = xtx.invert().unwrap();
+///
+/// let leverage = compute_leverage(&x, &xtx_inv);
+/// assert_eq!(leverage.len(), 3);
+/// // Leverage values should sum to the number of parameters (2)
+/// assert!((leverage.iter().sum::<f64>() - 2.0).abs() < 0.01);
+/// ```
 #[allow(clippy::needless_range_loop)]
 pub fn compute_leverage(x: &Matrix, xtx_inv: &Matrix) -> Vec<f64> {
     let n = x.rows;

@@ -1,0 +1,14 @@
+{
+  "test_name": ["RESET Test (R - lmtest::resettest)"],
+  "dataset": ["synthetic_outliers"],
+  "formula": ["x ~ y"],
+  "statistic": [268.22943329116822],
+  "p_value": [5.0057537972731619e-40],
+  "passed": [false],
+  "power": [
+    [2],
+    [3]
+  ],
+  "type": ["fitted"],
+  "description": ["Ramsey's RESET test for functional form misspecification. Tests whether powers of fitted values, regressors, or principal component significantly improve model fit."]
+}

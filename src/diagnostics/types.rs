@@ -25,6 +25,25 @@ use serde::Serialize;
 /// * `passed` - Whether the null hypothesis was not rejected (assumption met)
 /// * `interpretation` - Human-readable explanation of the result
 /// * `guidance` - Recommendations based on the test result
+///
+/// # Example
+///
+/// ```
+/// use linreg_core::diagnostics::DiagnosticTestResult;
+///
+/// let result = DiagnosticTestResult {
+///     test_name: "Breusch-Pagan".to_string(),
+///     statistic: 3.45,
+///     p_value: 0.063,
+///     passed: true,
+///     interpretation: "Failed to reject null hypothesis of homoscedasticity".to_string(),
+///     guidance: "No action needed - residuals appear to have constant variance.".to_string(),
+/// };
+///
+/// assert_eq!(result.test_name, "Breusch-Pagan");
+/// assert!(result.passed);
+/// assert!(result.p_value > 0.05);
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct DiagnosticTestResult {
     pub test_name: String,
@@ -47,6 +66,23 @@ pub struct DiagnosticTestResult {
 /// * `statistic` - F-statistic value
 /// * `p_value` - P-value for the test
 /// * `passed` - Whether linearity assumption was not rejected
+///
+/// # Example
+///
+/// ```
+/// use linreg_core::diagnostics::RainbowSingleResult;
+///
+/// let result = RainbowSingleResult {
+///     method: "r".to_string(),
+///     statistic: 1.23,
+///     p_value: 0.32,
+///     passed: true,
+/// };
+///
+/// assert_eq!(result.method, "r");
+/// assert!(result.passed);
+/// assert!(result.p_value > 0.05);
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct RainbowSingleResult {
     pub method: String,
@@ -69,6 +105,30 @@ pub struct RainbowSingleResult {
 /// * `python_result` - Result from Python's statsmodels (if computed)
 /// * `interpretation` - Human-readable explanation of the result
 /// * `guidance` - Recommendations based on the test result
+///
+/// # Example
+///
+/// ```
+/// use linreg_core::diagnostics::{RainbowTestOutput, RainbowSingleResult};
+///
+/// let r_result = Some(RainbowSingleResult {
+///     method: "r".to_string(),
+///     statistic: 1.23,
+///     p_value: 0.32,
+///     passed: true,
+/// });
+///
+/// let output = RainbowTestOutput {
+///     test_name: "Rainbow Test".to_string(),
+///     r_result,
+///     python_result: None,
+///     interpretation: "Linearity assumption not rejected".to_string(),
+///     guidance: "Model appears to have linear relationship.".to_string(),
+/// };
+///
+/// assert!(output.r_result.is_some());
+/// assert!(output.python_result.is_none());
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct RainbowTestOutput {
     pub test_name: String,
@@ -89,6 +149,20 @@ pub struct RainbowTestOutput {
 /// * `R` - R's lmtest::raintest (Type 7 quantile with interpolation)
 /// * `Python` - Python's statsmodels (direct formula using ceiling)
 /// * `Both` - Compute both R and Python results
+///
+/// # Example
+///
+/// ```
+/// use linreg_core::diagnostics::RainbowMethod;
+///
+/// let method_r = RainbowMethod::R;
+/// let method_python = RainbowMethod::Python;
+/// let method_both = RainbowMethod::Both;
+///
+/// // Enum variants can be compared
+/// assert_eq!(method_r, RainbowMethod::R);
+/// assert_ne!(method_r, method_python);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RainbowMethod {
     /// R's lmtest::raintest (Type 7 quantile)
@@ -110,6 +184,23 @@ pub enum RainbowMethod {
 /// * `statistic` - LM test statistic value
 /// * `p_value` - P-value for the test
 /// * `passed` - Whether homoscedasticity assumption was not rejected
+///
+/// # Example
+///
+/// ```
+/// use linreg_core::diagnostics::WhiteSingleResult;
+///
+/// let result = WhiteSingleResult {
+///     method: "python".to_string(),
+///     statistic: 5.67,
+///     p_value: 0.128,
+///     passed: true,
+/// };
+///
+/// assert_eq!(result.method, "python");
+/// assert!(result.passed);
+/// assert!(result.statistic > 0.0);
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct WhiteSingleResult {
     pub method: String,
@@ -132,6 +223,30 @@ pub struct WhiteSingleResult {
 /// * `python_result` - Result from Python's statsmodels (if computed)
 /// * `interpretation` - Human-readable explanation of the result
 /// * `guidance` - Recommendations based on the test result
+///
+/// # Example
+///
+/// ```
+/// use linreg_core::diagnostics::{WhiteTestOutput, WhiteSingleResult};
+///
+/// let py_result = Some(WhiteSingleResult {
+///     method: "python".to_string(),
+///     statistic: 5.67,
+///     p_value: 0.128,
+///     passed: true,
+/// });
+///
+/// let output = WhiteTestOutput {
+///     test_name: "White Test".to_string(),
+///     r_result: None,
+///     python_result: py_result,
+///     interpretation: "Homoscedasticity not rejected".to_string(),
+///     guidance: "Residuals appear to have constant variance.".to_string(),
+/// };
+///
+/// assert!(output.python_result.is_some());
+/// assert!(output.r_result.is_none());
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct WhiteTestOutput {
     pub test_name: String,
@@ -152,6 +267,20 @@ pub struct WhiteTestOutput {
 /// * `R` - R's skedastic::white (original variables and squares only)
 /// * `Python` - Python's statsmodels (squares and cross-products)
 /// * `Both` - Compute both R and Python results
+///
+/// # Example
+///
+/// ```
+/// use linreg_core::diagnostics::WhiteMethod;
+///
+/// let method_r = WhiteMethod::R;
+/// let method_python = WhiteMethod::Python;
+/// let method_both = WhiteMethod::Both;
+///
+/// // Enum variants can be compared
+/// assert_eq!(method_r, WhiteMethod::R);
+/// assert_ne!(method_r, method_python);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum WhiteMethod {
     /// R's skedastic::white (original variables only)
@@ -166,6 +295,30 @@ pub enum WhiteMethod {
 ///
 /// Cook's distance measures how much each observation influences the regression model.
 /// Unlike hypothesis tests, this is an influence measure - not a test with p-values.
+///
+/// # Example
+///
+/// ```
+/// use linreg_core::diagnostics::CooksDistanceResult;
+///
+/// let result = CooksDistanceResult {
+///     test_name: "Cook's Distance".to_string(),
+///     distances: vec![0.01, 0.05, 0.8, 0.02, 0.03],
+///     p: 2,
+///     mse: 1.5,
+///     threshold_4_over_n: 0.8,
+///     threshold_4_over_df: 1.33,
+///     threshold_1: 1.0,
+///     influential_4_over_n: vec![2],
+///     influential_4_over_df: vec![],
+///     influential_1: vec![],
+///     interpretation: "Observation 2 shows elevated influence.".to_string(),
+///     guidance: "Check if observation 2 is a valid data point.".to_string(),
+/// };
+///
+/// assert_eq!(result.distances.len(), 5);
+/// assert_eq!(result.influential_4_over_n, vec![2]);
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct CooksDistanceResult {
     /// Name of the test

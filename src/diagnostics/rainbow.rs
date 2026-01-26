@@ -184,6 +184,24 @@ fn rainbow_test_internal(
 /// # Note
 ///
 /// The subset center is fixed at 0.5 (midpoint of ordered data).
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::diagnostics::{rainbow_test, RainbowMethod};
+/// let y = vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0];
+/// let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+/// let x2 = vec![2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+///
+/// let result = rainbow_test(&y, &[x1, x2], 0.5, RainbowMethod::R).unwrap();
+///
+/// // Check if the relationship is linear (high p-value suggests linearity)
+/// if let Some(r_result) = result.r_result {
+///     println!("F-statistic: {}", r_result.statistic);
+///     println!("P-value: {}", r_result.p_value);
+/// }
+/// # Ok::<(), linreg_core::Error>(())
+/// ```
 pub fn rainbow_test(
     y: &[f64],
     x_vars: &[Vec<f64>],

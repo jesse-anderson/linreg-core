@@ -1,0 +1,9 @@
+{
+  "test_name": "Anderson-Darling Test (Python - statsmodels.stats.diagnostic.normal_ad)",
+  "dataset": "prostate",
+  "formula": "lcavol ~ lweight + age + lbph + svi + lcp + gleason + pgg45 + lpsa",
+  "statistic": 0.4063538438402219,
+  "p_value": 0.3442229495839655,
+  "passed": true,
+  "description": "Tests for normality of residuals. The Anderson-Darling test is particularly sensitive to deviations in the tails of the distribution. Uses statsmodels.stats.diagnostic.normal_ad."
+}

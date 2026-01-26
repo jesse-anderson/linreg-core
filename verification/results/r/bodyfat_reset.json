@@ -1,0 +1,14 @@
+{
+  "test_name": ["RESET Test (R - lmtest::resettest)"],
+  "dataset": ["bodyfat"],
+  "formula": ["Density ~ BodyFat + Age + Weight + Height + Neck + Chest + Abdomen + Hip + Thigh + Knee + Ankle + Biceps + Forearm + Wrist"],
+  "statistic": [0.9386648046855991],
+  "p_value": [0.39261125574971117],
+  "passed": [true],
+  "power": [
+    [2],
+    [3]
+  ],
+  "type": ["fitted"],
+  "description": ["Ramsey's RESET test for functional form misspecification. Tests whether powers of fitted values, regressors, or principal component significantly improve model fit."]
+}

@@ -157,9 +157,13 @@ if (require("car", quietly = TRUE)) {
   if (k > 1) {
     tryCatch({
       vif_values <- vif(fit)
-      vif <- mapply(function(var, val) {
-        list(variable = var, vif = val, rsquared = 1 - 1/val)
-      }, names(vif_values), vif_values, SIMPLIFY = FALSE)
+      vif <- lapply(seq_along(vif_values), function(i) {
+        list(
+          variable = names(vif_values)[i],
+          vif = vif_values[i],
+          rsquared = 1 - 1 / vif_values[i]
+        )
+      })
     }, error = function(e) {
       # VIF failed, return empty list
       vif <<- list()
@@ -204,6 +208,6 @@ if (!dir.exists(output_dir)) {
 
 # Write output
 output_file <- file.path(output_dir, paste0(dataset_name, "_ols.json"))
-write_json(result, output_file, pretty = TRUE, auto_unbox = TRUE)
+write_json(result, output_file, pretty = TRUE, auto_unbox = TRUE, digits = 22)
 
 cat(sprintf("Wrote: %s\n", normalizePath(output_file)))

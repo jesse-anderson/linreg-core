@@ -1,0 +1,14 @@
+{
+  "test_name": "RESET Test (Python - statsmodels)",
+  "dataset": "synthetic_collinear",
+  "formula": "x1 ~ x2 + x3 + y",
+  "statistic": 0.0,
+  "p_value": 1.0,
+  "passed": true,
+  "power": [
+    2,
+    3
+  ],
+  "type": "fitted",
+  "description": "Ramsey's RESET test for functional form misspecification. Tests whether powers of fitted values, regressors, or principal component significantly improve model fit."
+}

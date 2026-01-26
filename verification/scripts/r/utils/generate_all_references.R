@@ -304,6 +304,18 @@ generate_reference <- function(dataset_name, dataset) {
     list(statistic = NA, p_value = NA, passed = FALSE)
   })
 
+  # Breusch-Godfrey test (order = 1, Chi-squared)
+  bg_result <- tryCatch({
+    bgt <- bgtest(model, order = 1, type = "Chisq")
+    list(
+      statistic = as.numeric(bgt$statistic),
+      p_value = as.numeric(bgt$p.value),
+      passed = as.numeric(bgt$p.value) > ALPHA
+    )
+  }, error = function(e) {
+    list(statistic = NA, p_value = NA, passed = FALSE)
+  })
+
   # Build output structure
   output <- list(
     dataset_name = dataset_name,
@@ -329,6 +341,7 @@ generate_reference <- function(dataset_name, dataset) {
     white = white_result,
     jarque_bera = jb_result,
     durbin_watson = dw_result,
+    breusch_godfrey = bg_result,
     n = n,
     k = k,
     df = df_residual,
@@ -379,11 +392,11 @@ main <- function() {
 
   # Print table of results
   if (length(results) > 0) {
-    cat("\nDataset           R²       F-stat   Rainbow  HC       BP       White    JB       DW\n")
-    cat("----------------------------------------------------------------------------------------\n")
+    cat("\nDataset           R²       F-stat   Rainbow  HC       BP       White    JB       DW       BG\n")
+    cat("--------------------------------------------------------------------------------------------------\n")
     for (name in names(results)) {
       r <- results[[name]]
-      cat(sprintf("%-16s  %.4f   %6.2f   %s  %s  %s  %s  %s  %s\n",
+      cat(sprintf("%-16s  %.4f   %6.2f   %s  %s  %s  %s  %s  %s  %s\n",
                   name,
                   r$r_squared,
                   r$f_statistic,
@@ -398,7 +411,9 @@ main <- function() {
                   ifelse(is.na(r$jarque_bera$p_value), "N/A",
                          ifelse(r$jarque_bera$p_value > ALPHA, "PASS", "FAIL")),
                   ifelse(is.na(r$durbin_watson$statistic), "N/A",
-                         sprintf("%.2f", r$durbin_watson$statistic))
+                         sprintf("%.2f", r$durbin_watson$statistic)),
+                  ifelse(is.na(r$breusch_godfrey$p_value), "N/A",
+                         ifelse(r$breusch_godfrey$p_value > ALPHA, "PASS", "FAIL"))
       ))
     }
   }

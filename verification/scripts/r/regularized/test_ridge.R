@@ -124,6 +124,15 @@ p <- ncol(X)
 
 cat(sprintf("  n = %d observations, p = %d predictors\n", n, p))
 
+# Add dummy predictor if only 1 predictor (glmnet requires 2+ columns for ridge)
+# Use a column of zeros as dummy (doesn't affect regularization test)
+if (p < 2) {
+  cat("  INFO: Adding dummy predictor (zeros) for ridge regression\n")
+  X <- cbind(X, rep(0, n))
+  colnames(X) <- c(colnames(X)[1], "dummy")
+  p <- ncol(X)
+}
+
 # Run glmnet for ridge regression (alpha = 0)
 set.seed(42)  # For reproducibility
 fit <- glmnet(X, y, family = "gaussian", alpha = 0,
@@ -138,6 +147,7 @@ coef_matrix <- as.matrix(coef(fit))
 # Each lambda gets a list of coefficients (including intercept as first element)
 coef_list <- split(coef_matrix, rep(1:ncol(coef_matrix), each = nrow(coef_matrix)))
 coef_list <- lapply(coef_list, as.vector)
+coef_list <- unname(coef_list)  # Remove names so JSON serializes as array, not object
 
 # Get lambda sequence
 lambda_seq <- fit$lambda
@@ -184,8 +194,8 @@ result <- list(
   glmnet_version = as.character(packageVersion("glmnet"))
 )
 
-# Write output
-output_file <- file.path(output_dir, paste0(dataset_name, "_ridge.json"))
+# Write output (use _ridge_glmnet suffix to match test expectations)
+output_file <- file.path(output_dir, paste0(dataset_name, "_ridge_glmnet.json"))
 write_json(result, output_file, pretty = TRUE, auto_unbox = TRUE)
 
 cat(sprintf("Wrote: %s\n", normalizePath(output_file)))

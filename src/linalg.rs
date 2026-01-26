@@ -828,6 +828,17 @@ pub fn vec_add(a: &[f64], b: &[f64]) -> Vec<f64> {
 /// # Panics
 ///
 /// Panics if slices have different lengths.
+///
+/// # Example
+///
+/// ```
+/// use linreg_core::linalg::vec_axpy_inplace;
+///
+/// let mut dst = vec![1.0, 2.0, 3.0];
+/// let src = vec![0.5, 0.5, 0.5];
+/// vec_axpy_inplace(&mut dst, 2.0, &src);
+/// assert_eq!(dst, vec![2.0, 3.0, 4.0]);  // [1+2*0.5, 2+2*0.5, 3+2*0.5]
+/// ```
 pub fn vec_axpy_inplace(dst: &mut [f64], alpha: f64, src: &[f64]) {
     assert_eq!(
         dst.len(),
@@ -845,6 +856,16 @@ pub fn vec_axpy_inplace(dst: &mut [f64], alpha: f64, src: &[f64]) {
 ///
 /// * `v` - Vector to scale (modified in place)
 /// * `alpha` - Scaling factor
+///
+/// # Example
+///
+/// ```
+/// use linreg_core::linalg::vec_scale_inplace;
+///
+/// let mut v = vec![1.0, 2.0, 3.0];
+/// vec_scale_inplace(&mut v, 2.5);
+/// assert_eq!(v, vec![2.5, 5.0, 7.5]);
+/// ```
 pub fn vec_scale_inplace(v: &mut [f64], alpha: f64) {
     for val in v.iter_mut() {
         *val *= alpha;
@@ -898,6 +919,15 @@ pub fn vec_l2_norm(v: &[f64]) -> f64 {
 /// # Arguments
 ///
 /// * `v` - Vector slice
+///
+/// # Example
+///
+/// ```
+/// use linreg_core::linalg::vec_max_abs;
+///
+/// assert_eq!(vec_max_abs(&[1.0, -5.0, 3.0]), 5.0);
+/// assert_eq!(vec_max_abs(&[-2.5, -1.5]), 2.5);
+/// ```
 pub fn vec_max_abs(v: &[f64]) -> f64 {
     v.iter().map(|&x| x.abs()).fold(0.0_f64, f64::max)
 }
@@ -1055,7 +1085,7 @@ impl Matrix {
                 continue;
             }
 
-            // Apply sign for numerical stability (dsign in Fortran)
+            // Apply sign for numerical stability
             let x_ll = x.get(l, l);
             if x_ll != 0.0 {
                 nrmxl = nrmxl.copysign(x_ll);
@@ -1286,6 +1316,17 @@ impl Matrix {
 /// For rank-deficient systems, this function uses the pivoted QR which
 /// automatically handles multicollinearity by selecting a linearly
 /// independent subset of columns.
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::linalg::{fit_ols_linpack, Matrix};
+/// let y = vec![2.0, 4.0, 6.0];
+/// let x = Matrix::new(3, 2, vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0]);
+///
+/// let beta = fit_ols_linpack(&y, &x).unwrap();
+/// assert_eq!(beta.len(), 2);  // Intercept and slope
+/// ```
 pub fn fit_ols_linpack(y: &[f64], x: &Matrix) -> Option<Vec<f64>> {
     let qr_result = x.qr_linpack(None);
     x.qr_solve_linpack(&qr_result, y)
@@ -1318,6 +1359,17 @@ pub fn fit_ols_linpack(y: &[f64], x: &Matrix) -> Option<Vec<f64>> {
 ///
 /// This matches R's behavior where `predict(lm.fit(...))` handles NA coefficients
 /// by excluding the corresponding columns from the prediction.
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::linalg::{fit_and_predict_linpack, Matrix};
+/// let y = vec![2.0, 4.0, 6.0];
+/// let x = Matrix::new(3, 2, vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0]);
+///
+/// let preds = fit_and_predict_linpack(&y, &x).unwrap();
+/// assert_eq!(preds.len(), 3);  // One prediction per observation
+/// ```
 #[allow(clippy::needless_range_loop)]
 pub fn fit_and_predict_linpack(y: &[f64], x: &Matrix) -> Option<Vec<f64>> {
     let n = x.rows;

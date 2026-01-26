@@ -68,9 +68,14 @@ AIC_BIC_TODO.md
 *TODO*.md
 # Large test data files
 test_data_*.csv
+*audit*.md
+tmpclaude*
+*claude*
+*gemini*
 
 # Other
 generate_test_data.py
+debug_*/
 
 #benchmarking
 criterion*/

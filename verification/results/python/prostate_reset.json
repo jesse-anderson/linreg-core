@@ -1,0 +1,14 @@
+{
+  "test_name": "RESET Test (Python - statsmodels)",
+  "dataset": "prostate",
+  "formula": "lcavol ~ lweight + age + lbph + svi + lcp + gleason + pgg45 + lpsa",
+  "statistic": 1.9719488039630835,
+  "p_value": 0.14542871390951118,
+  "passed": true,
+  "power": [
+    2,
+    3
+  ],
+  "type": "fitted",
+  "description": "Ramsey's RESET test for functional form misspecification. Tests whether powers of fitted values, regressors, or principal component significantly improve model fit."
+}

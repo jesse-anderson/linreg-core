@@ -1,0 +1,9 @@
+{
+  "test_name": ["Harvey-Collier Test (R - lmtest::harvtest)"],
+  "dataset": ["cars_stopping"],
+  "formula": ["speed ~ dist"],
+  "statistic": [5.4787274545178288],
+  "p_value": [1.6399509379978929e-06],
+  "passed": [false],
+  "description": ["Tests for functional form misspecification by examining whether recursive residuals exhibit a linear trend. R variant uses lmtest::harvtest with order.by = fitted values."]
+}

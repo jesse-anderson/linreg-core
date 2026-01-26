@@ -1,0 +1,9 @@
+{
+  "test_name": ["White Test (R - skedastic::white)"],
+  "dataset": ["ToothGrowth"],
+  "formula": ["len ~ supp + dose"],
+  "statistic": [1.4864823555186968],
+  "p_value": [0.82903322067946461],
+  "passed": [true],
+  "description": ["Tests for heteroscedasticity using squares and cross-products of predictors. R variant uses skedastic::white with original variables only."]
+}

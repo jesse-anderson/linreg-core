@@ -1,0 +1,9 @@
+{
+  "test_name": "Anderson-Darling Test (Python - statsmodels.stats.diagnostic.normal_ad)",
+  "dataset": "synthetic_nonnormal",
+  "formula": "x ~ y",
+  "statistic": 4.661773751571104,
+  "p_value": 1.2373388688818578e-11,
+  "passed": false,
+  "description": "Tests for normality of residuals. The Anderson-Darling test is particularly sensitive to deviations in the tails of the distribution. Uses statsmodels.stats.diagnostic.normal_ad."
+}

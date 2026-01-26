@@ -1,37 +1,76 @@
 //! Lambda path generation for regularized regression.
 //!
 //! This module provides utilities for generating a sequence of lambda values
-//! for regularization paths, matching glmnet's approach.
+//! for regularization paths, matching the R glmnet implementation's output/approach.
 //!
 //! # Lambda Path Construction
 //!
-//! glmnet generates a lambda path from `lambda_max` down to `lambda_min`:
+//! The lambda path follows this geometric decay pattern (following the glmnet R implementation):
 //!
-//! - `lambda_max`: The smallest lambda for which all penalized coefficients are zero
-//! - `lambda_min`: `lambda_min_ratio * lambda_max`
+//! ```text
+//! lambda[0] = infinity            // effectively infinite (all coefficients zero)
+//! lambda[1] = lambda_decay_factor * lambda_max           // First "real" lambda
+//! lambda[k] = lambda[k-1] * lambda_decay_factor    // Geometric decay
+//! ```
 //!
-//! For pure ridge (`alpha=0`), `lambda_max` is theoretically infinite, so we use
-//! a small `alpha` value to compute a finite starting point.
+//! Where (mapping implementation variables to the Friedman et al. paper):
+//! - `LAMBDA_EFFECTIVE_INFINITY = infinity`: Sentinel value (effectively infinite lambda)
+//! - `lambda_max`: Theoretical maximum lambda (paper: $\lambda_{max}$)
+//! - `lambda_decay_factor`: Geometric decay factor (paper: $(\epsilon)^{1/(K-1)}$)
+//! - `lambda_min_ratio`: Minimum lambda ratio (paper: $\epsilon$)
+//! - `eps = 1.0e-6`: Implementation constant for stability
+//!
+//! # Note on `LAMBDA_EFFECTIVE_INFINITY`
+//!
+//! The first lambda value is set to infinity, which produces all-zero coefficients.
+//! This matches glmnet's behavior and provides a complete view of the regularization
+//! path, showing the exact point where each coefficient enters the model as lambda
+//! decreases. Users who don't need this can simply ignore the first element.
 
 use crate::linalg::Matrix;
+
+/// Represents effectively infinite lambda.
+///
+/// At this lambda value, all penalized coefficients are zero.
+const LAMBDA_EFFECTIVE_INFINITY: f64 = f64::INFINITY;
+
+/// epsilon constant - minimum lambda_min_ratio value.
+const LAMBDA_MIN_RATIO_MINIMUM: f64 = 1.0e-6;
 
 /// Options for generating a lambda path.
 ///
 /// # Fields
 ///
 /// * `nlambda` - Number of lambda values (default: 100)
-/// * `lambda_min_ratio` - Ratio for smallest lambda (default: 0.0001 if n < p, else 0.01)
+/// * `lambda_min_ratio` - Lambda minimum ratio (default: None, which auto-selects based on n vs p)
 /// * `alpha` - Elastic net mixing parameter (0 = ridge, 1 = lasso)
 /// * `eps_for_ridge` - Small alpha to use for computing lambda_max when alpha=0 (default: 0.001)
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::regularized::path::LambdaPathOptions;
+/// let opts = LambdaPathOptions {
+///     nlambda: 50,
+///     lambda_min_ratio: Some(0.01),
+///     alpha: 0.5,
+///     eps_for_ridge: 0.001,
+/// };
+///
+/// assert_eq!(opts.nlambda, 50);
+/// assert_eq!(opts.alpha, 0.5);
+/// ```
 #[derive(Clone, Debug)]
 pub struct LambdaPathOptions {
     /// Number of lambda values to generate
     pub nlambda: usize,
-    /// Minimum lambda as a fraction of maximum
+    /// Lambda minimum ratio.
+    /// If None, auto-selects: 0.0001 if n >= p, else 0.01
     pub lambda_min_ratio: Option<f64>,
     /// Elastic net mixing parameter (0 = ridge, 1 = lasso)
     pub alpha: f64,
-    /// Small alpha to use for ridge lambda_max computation
+    /// Small value to use for ridge regression max lambda calculation
+    /// to avoid numerical issues (default: 1e-3)
     pub eps_for_ridge: f64,
 }
 
@@ -41,38 +80,36 @@ impl Default for LambdaPathOptions {
             nlambda: 100,
             lambda_min_ratio: None,
             alpha: 1.0,
-            eps_for_ridge: 0.001,
+            eps_for_ridge: 1e-3,
         }
     }
 }
 
-/// Computes `lambda_max`: the smallest lambda for which all penalized coefficients are zero.
+/// Computes `lambda_max`: the smallest lambda for which all
+/// penalized coefficients are zero.
 ///
-/// For lasso (alpha > 0), lambda_max is the smallest value such that the soft-thresholding
-/// operation zeros out all coefficients.
-///
-/// For standardized X and centered y:
+/// Formula:
 /// ```text
-/// lambda_max = max_j |x_j^T y| / (n * alpha)
+/// lambda_max = max(|X_j^T y|/vp(j)) / max(alpha, 1e-3)
 /// ```
+/// where `g(j) = |X_j^T y|` is the absolute correlation.
+///
+/// Key points:
+/// - y is assumed to be STANDARDIZED to unit norm (||y|| = 1)
+/// - X columns are assumed to be STANDARDIZED to unit norm
+/// - The `1e-3` minimum prevents division issues for pure ridge
 ///
 /// # Arguments
 ///
 /// * `x` - Standardized design matrix (n × p), first column is intercept if present
-/// * `y` - Centered response vector (n elements)
+/// * `y` - Standardized response vector (||y|| = 1)
 /// * `alpha` - Elastic net mixing parameter
 /// * `penalty_factor` - Per-feature penalty factors (optional, defaults to all 1.0)
 /// * `intercept_col` - Index of intercept column (typically 0, or None if no intercept)
 ///
 /// # Returns
 ///
-/// The maximum lambda value for the path.
-///
-/// # Note
-///
-/// If `alpha = 0` (pure ridge), this returns `f64::INFINITY` since ridge never produces
-/// exact zero coefficients. Use [`make_lambda_path`] which handles this case by using
-/// a small alpha value.
+/// The `lambda_max` value used by glmnet for lambda path construction.
 #[allow(clippy::needless_range_loop)]
 pub fn compute_lambda_max(
     x: &Matrix,
@@ -81,13 +118,10 @@ pub fn compute_lambda_max(
     penalty_factor: Option<&[f64]>,
     intercept_col: Option<usize>,
 ) -> f64 {
-    if alpha <= 0.0 {
-        return f64::INFINITY;
-    }
+    // Use max(alpha, 1e-3) to avoid division issues
+    let alpha_clamped = alpha.max(1e-3);
 
-    let n = x.rows as f64;
     let p = x.cols;
-
     let mut max_corr: f64 = 0.0;
 
     for j in 0..p {
@@ -106,10 +140,10 @@ pub fn compute_lambda_max(
         }
         let corr = corr.abs();
 
-        // Apply penalty factor if provided
-        let effective_corr = if let Some(pf) = penalty_factor {
-            if j < pf.len() && pf[j] > 0.0 {
-                corr / pf[j]
+        // Apply penalty factor if provided 
+        let effective_corr = if let Some(penalty_factors) = penalty_factor {
+            if j < penalty_factors.len() && penalty_factors[j] > 0.0 {
+                corr / penalty_factors[j]
             } else {
                 corr
             }
@@ -120,35 +154,40 @@ pub fn compute_lambda_max(
         max_corr = max_corr.max(effective_corr);
     }
 
-    max_corr / (n * alpha)
+    // Formula: lambda_max = max(|X^T y|) / max(alpha, 1e-3)
+    max_corr / alpha_clamped
 }
 
-/// Generates a lambda path from lambda_max down to lambda_min.
+/// Generates a lambda path.
 ///
-/// This creates a logarithmically-spaced sequence of lambda values, matching
-/// glmnet's approach for regularization paths.
+/// ```text
+/// lambda[0] = inf                  // Large value (all coefficients zero)
+/// lambda[1] = lambda_decay_factor * lambda_max           // First real lambda
+/// lambda[k] = lambda[k-1] * lambda_decay_factor    // Geometric decay
+/// ```
+///
+/// Where:
+/// - `lambda_max = max(|X^T y|) / max(alpha, 1e-3)`: Theoretical lambda_max
+/// - `lambda_decay_factor = max(lambda_min_ratio, eps)^(1/(nlambda-1))`: Geometric decay factor
+/// - `eps = 1.0e-6`: Minimum lambda_min_ratio value
 ///
 /// # Arguments
 ///
-/// * `x` - Standardized design matrix (n × p)
-/// * `y` - Centered response vector (n elements)
+/// * `x` - Standardized design matrix (n × p), columns are unit norm
+/// * `y` - Standardized response vector (||y|| = 1)
 /// * `options` - Lambda path generation options
 /// * `penalty_factor` - Optional per-feature penalty factors
 /// * `intercept_col` - Index of intercept column (typically 0)
 ///
 /// # Returns
 ///
-/// A vector of lambda values in **decreasing** order (largest to smallest).
+/// A vector of lambda values in **decreasing** order.
 ///
-/// # Lambda Sequence
+/// # First Lambda (LAMBDA_EFFECTIVE_INFINITY)
 ///
-/// The lambda values are logarithmically spaced:
-/// ```text
-/// lambda[k] = lambda_max * exp(log(lambda_min_ratio) * k / (nlambda - 1))
-/// ```
-///
-/// For ridge (`alpha ≈ 0`), we use a small alpha value to compute a finite
-/// `lambda_max`, then use that lambda sequence for the actual ridge fit.
+/// The first lambda value is set to `infinity`, which effectively produces
+/// all-zero coefficients. This matches R's cursed behavior.
+/// PROOF OF CONCEPT/R EQUIVALENCE: We may want to make this optional in future versions.
 ///
 /// # Default lambda_min_ratio
 ///
@@ -166,39 +205,36 @@ pub fn make_lambda_path(
     let p = x.cols;
 
     // Determine default lambda_min_ratio
-    let default_min_ratio = if n >= p { 0.0001 } else { 0.01 };
-    let lambda_min_ratio = options.lambda_min_ratio.unwrap_or(default_min_ratio);
+    let default_lambda_min_ratio = if n >= p { 0.0001 } else { 0.01 };
+    let lambda_min_ratio = options.lambda_min_ratio.unwrap_or(default_lambda_min_ratio);
 
-    // For pure ridge (alpha = 0), use a small alpha to compute lambda_max
-    let alpha_for_lambda_max = if options.alpha <= 0.0 {
-        options.eps_for_ridge
-    } else {
-        options.alpha
-    };
+    // Compute geometric decay factor: lambda_decay_factor = max(lambda_min_ratio, eps)^(1/(nlambda-1))
+    let lambda_min_ratio_clamped = lambda_min_ratio.max(LAMBDA_MIN_RATIO_MINIMUM);
+    let lambda_decay_factor = lambda_min_ratio_clamped.powf(1.0 / (options.nlambda - 1) as f64);
 
-    // Compute lambda_max
-    let lambda_max = compute_lambda_max(x, y, alpha_for_lambda_max, penalty_factor, intercept_col);
+    // Compute lambda_max = max(|X^T y|) / max(alpha, 1e-3)
+    let lambda_max = compute_lambda_max(x, y, options.alpha, penalty_factor, intercept_col);
 
-    // Handle the case where lambda_max is infinite or very small
-    if !lambda_max.is_finite() || lambda_max <= 0.0 {
-        // For ridge with no good lambda_max, return a default path
-        return (0..options.nlambda)
-            .map(|k| {
-                let t = k as f64 / (options.nlambda - 1) as f64;
-                10.0_f64.powf(2.0 * (1.0 - t)) // 10^2 down to 10^0
-            })
-            .collect();
+    // Build lambda path following glmnet's algorithm:
+    // lambda[0] = INF
+    // lambda[1] = lambda_decay_factor * lambda_max
+    // lambda[k] = lambda[k-1] * lambda_decay_factor
+    let mut lambdas = Vec::with_capacity(options.nlambda);
+
+    for k in 0..options.nlambda {
+        if k == 0 {
+            // First lambda: effectively infinite
+            lambdas.push(LAMBDA_EFFECTIVE_INFINITY);
+        } else if k == 1 {
+            // Second lambda: lambda_decay_factor * lambda_max
+            lambdas.push(lambda_decay_factor * lambda_max);
+        } else {
+            // Remaining lambdas: geometric decay
+            lambdas.push(lambdas[k - 1] * lambda_decay_factor);
+        }
     }
 
-    let _lambda_min = lambda_min_ratio * lambda_max;
-
-    // Generate logarithmically spaced lambdas (decreasing)
-    (0..options.nlambda)
-        .map(|k| {
-            let t = k as f64 / (options.nlambda - 1) as f64;
-            lambda_max * (lambda_min_ratio.powf(t))
-        })
-        .collect()
+    lambdas
 }
 
 /// Extracts a specific set of lambdas from a path.
@@ -214,6 +250,16 @@ pub fn make_lambda_path(
 /// # Returns
 ///
 /// A new vector containing the specified lambda values.
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::regularized::path::extract_lambdas;
+/// let path = vec![1.0, 0.5, 0.25, 0.125, 0.0625];
+/// let indices = vec![0, 2, 4];
+/// let extracted = extract_lambdas(&path, &indices);
+/// assert_eq!(extracted, vec![1.0, 0.25, 0.0625]);
+/// ```
 pub fn extract_lambdas(full_path: &[f64], indices: &[usize]) -> Vec<f64> {
     indices.iter().map(|&i| full_path[i]).collect()
 }
@@ -224,32 +270,33 @@ mod tests {
 
     #[test]
     fn test_compute_lambda_max() {
-        // Simple test: X = [1, x], y = [1, 2, 3]
+        // Simple test: X = [1, x], y standardized to unit norm
         let x_data = vec![1.0, -1.0, 1.0, 0.0, 1.0, 1.0];
         let x = Matrix::new(3, 2, x_data);
-        let y = vec![1.0, 2.0, 3.0];
 
-        // Center y
-        let y_mean: f64 = y.iter().sum::<f64>() / 3.0;
-        let y_centered: Vec<f64> = y.iter().map(|&yi| yi - y_mean).collect();
+        // Standardize y to unit norm (||y|| = 1)
+        let y = vec![-1.0, 0.0, 1.0];
+        let y_norm: f64 = y.iter().map(|&yi| yi * yi).sum::<f64>().sqrt();
+        let y_standardized: Vec<f64> = y.iter().map(|&yi| yi / y_norm).collect();
 
-        let lambda_max = compute_lambda_max(&x, &y_centered, 1.0, None, Some(0));
+        let lambda_max = compute_lambda_max(&x, &y_standardized, 1.0, None, Some(0));
 
-        // x^T y for column 1: -1*0 + 0*0 + 1*0 = 0 (since y is centered)
-        // Actually y_centered = [-1, 0, 1], so x^T y = 1*(-1) + 0*0 + 1*1 = 0
-        // y = [1,2,3], y_mean = 2, y_centered = [-1, 0, 1]
-        // back checks...
         // Column 1 of X: [-1, 0, 1]
-        // dot = (-1)*(-1) + 0*0 + 1*1 = 1 + 0 + 1 = 2
-        // lambda_max = 2 / (3 * 1) = 2/3
-        assert!((lambda_max - 2.0 / 3.0).abs() < 1e-10);
+        // y_standardized = [-1/sqrt(2), 0, 1/sqrt(2)]
+        // dot = (-1)*(-1/sqrt(2)) + 0*0 + 1*(1/sqrt(2)) = 2/sqrt(2) = sqrt(2)
+        // lambda_max = sqrt(2) / max(1.0, 1e-3) = sqrt(2)
+        assert!((lambda_max - 2.0_f64.sqrt()).abs() < 1e-10);
     }
 
     #[test]
-    fn test_make_lambda_path_decreasing() {
+    fn test_make_lambda_path_glmnet_style() {
         let x_data = vec![1.0, -1.0, 1.0, 0.0, 1.0, 1.0];
         let x = Matrix::new(3, 2, x_data);
-        let y_centered = vec![-1.0, 0.0, 1.0];
+        let y = vec![-1.0, 0.0, 1.0];
+
+        // Standardize y to unit norm
+        let y_norm: f64 = y.iter().map(|&yi| yi * yi).sum::<f64>().sqrt();
+        let y_standardized: Vec<f64> = y.iter().map(|&yi| yi / y_norm).collect();
 
         let options = LambdaPathOptions {
             nlambda: 10,
@@ -258,30 +305,40 @@ mod tests {
             eps_for_ridge: 0.001,
         };
 
-        let path = make_lambda_path(&x, &y_centered, &options, None, Some(0));
+        let path = make_lambda_path(&x, &y_standardized, &options, None, Some(0));
 
         assert_eq!(path.len(), 10);
 
-        // Check that path is decreasing
+        // First lambda should be LAMBDA_EFFECTIVE_INFINITY (effectively infinite)
+        assert_eq!(path[0], LAMBDA_EFFECTIVE_INFINITY);
+
+        // Second lambda should be: lambda_decay_factor * lambda_max
+        // where lambda_max = sqrt(2) and lambda_decay_factor = 0.01^(1/9)
+        let lambda_max = 2.0_f64.sqrt();
+        let lambda_decay_factor = 0.01_f64.powf(1.0 / 9.0);
+        assert!((path[1] - lambda_decay_factor * lambda_max).abs() < 1e-10);
+
+        // Path should be decreasing (each lambda < previous)
         for i in 1..path.len() {
             assert!(path[i] < path[i - 1]);
         }
-
-        // First value should be lambda_max, last should be lambda_max * 0.01
-        let lambda_max = 2.0 / 3.0;
-        assert!((path[0] - lambda_max).abs() < 1e-10);
-        assert!((path[9] - lambda_max * 0.01).abs() < 1e-10);
     }
 
     #[test]
-    fn test_lambda_max_ridge() {
+    fn test_lambda_max_with_small_alpha() {
         let x_data = vec![1.0, -1.0, 1.0, 0.0, 1.0, 1.0];
         let x = Matrix::new(3, 2, x_data);
         let y = vec![-1.0, 0.0, 1.0];
 
-        // For alpha = 0 (ridge), lambda_max should be infinite
-        let lambda_max = compute_lambda_max(&x, &y, 0.0, None, Some(0));
-        assert!(lambda_max.is_infinite());
+        let y_norm: f64 = y.iter().map(|&yi| yi * yi).sum::<f64>().sqrt();
+        let y_standardized: Vec<f64> = y.iter().map(|&yi| yi / y_norm).collect();
+
+        // For very small alpha, should use max(alpha, 1e-3) = 1e-3
+        let lambda_max = compute_lambda_max(&x, &y_standardized, 0.0001, None, Some(0));
+
+        // lambda_max = sqrt(2) / max(0.0001, 1e-3) = sqrt(2) / 1e-3
+        let expected = 2.0_f64.sqrt() / 1e-3;
+        assert!((lambda_max - expected).abs() < 1e-10);
     }
 
     #[test]

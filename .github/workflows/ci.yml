@@ -42,6 +42,45 @@ jobs:
       - run: wasm-pack build --release --target web
       # - run: wasm-pack test --node
 
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
+      - name: Generate coverage report
+        run: cargo llvm-cov --workspace --ignore-filename-regex "lib\.rs" --json --output-path coverage.json
+      - name: Extract coverage percentage
+        id: coverage
+        run: |
+          COVERAGE=$(python -c "import json; data=json.load(open('coverage.json')); print(f\"{data['data'][0]['totals']['lines']['percent']:.2f}\")")
+          echo "coverage=${COVERAGE}" >> $GITHUB_OUTPUT
+          echo "Coverage: ${COVERAGE}%"
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=${{ steps.coverage.outputs.coverage }}
+          python -c "import sys; sys.exit(0 if float('$COVERAGE') >= 85.0 else 1)" && echo "Coverage ${COVERAGE}% meets threshold 85.0%" || (echo "Coverage ${COVERAGE}% is below threshold 85.0%" && exit 1)
+      - name: Update coverage badge
+        run: |
+          COVERAGE=${{ steps.coverage.outputs.coverage }}
+          # Determine color based on coverage percentage
+          COLOR=$(python -c "c=float('$COVERAGE'); print('brightgreen' if c>=90 else 'green' if c>=85 else 'yellowgreen' if c>=80 else 'yellow' if c>=70 else 'orange' if c>=60 else 'red')")
+          # Create badge JSON
+          cat > .github/coverage-badge.json << EOF
+          {"schemaVersion": 1, "label": "coverage", "message": "${COVERAGE}%", "color": "${COLOR}"}
+          EOF
+      - name: Commit coverage badge
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .github/coverage-badge.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update coverage badge [skip ci]"
+          git push
+
   docs:
     name: Documentation
     runs-on: ubuntu-latest

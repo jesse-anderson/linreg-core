@@ -36,6 +36,23 @@ use crate::linalg::{vec_mean, Matrix};
 /// # Errors
 ///
 /// Returns [`Error::InsufficientData`] if n ≤ k + 2.
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::diagnostics::harvey_collier_test;
+/// // Data with some non-linear pattern
+/// let y = vec![1.0, 2.1, 3.5, 6.2, 9.8, 15.0];
+/// let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+/// let x2 = vec![1.0, 3.0, 2.0, 4.0, 2.5, 5.0];
+///
+/// let result = harvey_collier_test(&y, &[x1, x2]).unwrap();
+///
+/// println!("t-statistic: {}", result.statistic);
+/// println!("P-value: {}", result.p_value);
+/// // Low p-value suggests non-linearity (functional form misspecification)
+/// # Ok::<(), linreg_core::Error>(())
+/// ```
 #[allow(clippy::needless_range_loop)]
 pub fn harvey_collier_test(y: &[f64], x_vars: &[Vec<f64>]) -> Result<DiagnosticTestResult> {
     let n = y.len();
@@ -270,4 +287,283 @@ pub fn harvey_collier_test(y: &[f64], x_vars: &[Vec<f64>]) -> Result<DiagnosticT
         interpretation,
         guidance: guidance.to_string(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_harvey_collier_insufficient_data() {
+        // n=2, k=1 (p=2), need n > p+1 = 3, so n=2 is insufficient
+        let y = vec![1.0, 2.0];
+        let x = vec![1.0, 2.0];
+
+        let result = harvey_collier_test(&y, &[x]);
+        assert!(result.is_err());
+
+        if let Err(Error::InsufficientData { required, available }) = result {
+            assert_eq!(required, 4); // p + 2 = 2 + 2
+            assert_eq!(available, 2);
+        } else {
+            panic!("Expected InsufficientData error");
+        }
+    }
+
+    #[test]
+    fn test_harvey_collier_exact_minimum_data() {
+        // n=4, k=1 (p=2), need n > p+1 = 3, so n=4 is exactly minimum
+        // Add tiny noise for Harvey-Collier numerical stability
+        let y = vec![1.001, 1.999, 3.002, 3.998];
+        let x = vec![1.0, 2.0, 3.0, 4.0];
+
+        let result = harvey_collier_test(&y, &[x]);
+        assert!(result.is_ok());
+
+        let result = result.unwrap();
+        assert!(result.p_value > 0.0);
+        assert!(result.statistic >= 0.0);
+    }
+
+    #[test]
+    fn test_harvey_collier_linear_relationship() {
+        // Linear relationship with small noise - Harvey-Collier needs residual variance
+        let y: Vec<f64> = (1..=30).map(|i| {
+            1.0 + 2.0 * i as f64 + 0.01 * ((i % 7) as f64 - 3.0) // Small deterministic noise
+        }).collect();
+        let x: Vec<f64> = (1..=30).map(|i| i as f64).collect();
+
+        let result = harvey_collier_test(&y, &[x]).unwrap();
+        // For perfectly linear relationship, p-value should be large
+        assert!(result.p_value > 0.05);
+        assert!(result.passed);
+    }
+
+    #[test]
+    fn test_harvey_collier_quadratic_relationship() {
+        // Quadratic relationship - should detect non-linearity (low p-value)
+        let y: Vec<f64> = (1..=30).map(|i| 1.0 + i as f64 + 0.1 * i as f64 * i as f64).collect();
+        let x: Vec<f64> = (1..=30).map(|i| i as f64).collect();
+
+        let result = harvey_collier_test(&y, &[x]).unwrap();
+        // For quadratic relationship with linear model, p-value should be small
+        assert!(result.p_value < 0.1);
+    }
+
+    #[test]
+    fn test_harvey_collier_multiple_predictors() {
+        // Multiple predictors with linear relationship + small noise
+        // Use i and i^2 as predictors to avoid collinearity
+        let y: Vec<f64> = (1..=30).map(|i| {
+            1.0 + 2.0 * i as f64 + 0.3 * (i as f64) * (i as f64) + 0.01 * ((i % 5) as f64 - 2.0)
+        }).collect();
+        let x1: Vec<f64> = (1..=30).map(|i| i as f64).collect();
+        let x2: Vec<f64> = (1..=30).map(|i| (i as f64) * (i as f64)).collect();
+
+        let result = harvey_collier_test(&y, &[x1, x2]).unwrap();
+        // For correctly specified linear model, p-value should be large
+        assert!(result.p_value > 0.01);
+    }
+
+    #[test]
+    fn test_harvey_collier_multiple_predictors_nonlinear() {
+        // Multiple predictors with non-linear relationship
+        // Use i and i^2 as predictors (not collinear)
+        let y: Vec<f64> = (1..=30).map(|i| {
+            1.0 + i as f64 + (i as f64 / 2.0) + 0.05 * i as f64 * i as f64
+        }).collect();
+        let x1: Vec<f64> = (1..=30).map(|i| i as f64).collect();
+        let x2: Vec<f64> = (1..=30).map(|i| (i as f64) * (i as f64)).collect();
+
+        let result = harvey_collier_test(&y, &[x1, x2]).unwrap();
+        // Should detect some non-linearity
+        assert!(result.p_value < 0.15);
+    }
+
+    #[test]
+    fn test_harvey_collier_three_predictors() {
+        // Three predictors - use uncorrelated predictors to avoid singular matrix
+        let y: Vec<f64> = (1..=20).map(|i| {
+            1.0 + 2.0 * i as f64 + 0.3 * (i as f64).powi(2) + 0.5 * ((i % 4) as f64)
+        }).collect();
+        let x1: Vec<f64> = (1..=20).map(|i| i as f64).collect();
+        let x2: Vec<f64> = (1..=20).map(|i| (i as f64) * (i as f64)).collect();
+        let x3: Vec<f64> = (1..=20).map(|i| (i % 4) as f64).collect();
+
+        let result = harvey_collier_test(&y, &[x1, x2, x3]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_harvey_collier_small_dataset() {
+        // Minimum viable dataset (n=5, k=1, p=2, n-p-1=2)
+        let y = vec![1.0, 2.5, 4.0, 5.5, 7.0];
+        let x = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+
+        let result = harvey_collier_test(&y, &[x]);
+        assert!(result.is_ok());
+
+        let result = result.unwrap();
+        assert!(result.p_value > 0.0);
+        assert!(result.statistic.is_finite());
+    }
+
+    #[test]
+    fn test_harvey_collier_constant_y() {
+        // Constant y value (edge case)
+        let y = vec![5.0; 30];
+        let x: Vec<f64> = (1..=30).map(|i| i as f64).collect();
+
+        let result = harvey_collier_test(&y, &[x]);
+        // This might error due to singular matrix
+        assert!(result.is_err() || result.unwrap().p_value >= 0.0);
+    }
+
+    #[test]
+    fn test_harvey_collier_interpretation_and_guidance() {
+        let y: Vec<f64> = (1..=30).map(|i| 1.0 + 2.0 * i as f64).collect();
+        let x: Vec<f64> = (1..=30).map(|i| i as f64).collect();
+
+        let result = harvey_collier_test(&y, &[x]).unwrap();
+
+        // Check interpretation contains expected phrases
+        assert!(result.interpretation.contains("p-value"));
+        assert!(result.guidance.contains("appropriate") || result.guidance.contains("polynomial"));
+
+        // Test name
+        assert_eq!(result.test_name, "Harvey-Collier Test for Linearity");
+    }
+
+    #[test]
+    fn test_harvey_collier_perfect_collinearity() {
+        // Perfect collinearity (x2 = 2 * x1)
+        let y: Vec<f64> = (1..=10).map(|i| 1.0 + 2.0 * i as f64).collect();
+        let x1: Vec<f64> = (1..=10).map(|i| i as f64).collect();
+        let x2: Vec<f64> = (1..=10).map(|i| 2.0 * i as f64).collect();
+
+        let result = harvey_collier_test(&y, &[x1, x2]);
+        // Should handle collinearity (might error or produce a result)
+        match result {
+            Ok(r) => {
+                assert!(r.p_value >= 0.0);
+            }
+            Err(Error::SingularMatrix) => {
+                // Expected for perfectly collinear data
+            }
+            Err(_) => {
+                panic!("Unexpected error type");
+            }
+        }
+    }
+
+    #[test]
+    fn test_harvey_collier_exponential_relationship() {
+        // Exponential relationship - strong non-linearity
+        let y: Vec<f64> = (0..30).map(|i| (1.0 + 0.1 * i as f64).exp()).collect();
+        let x: Vec<f64> = (0..30).map(|i| i as f64).collect();
+
+        let result = harvey_collier_test(&y, &[x]).unwrap();
+        // Should definitely detect non-linearity
+        assert!(result.p_value < 0.05);
+        assert!(!result.passed);
+    }
+
+    #[test]
+    fn test_harvey_collier_logarithmic_relationship() {
+        // Logarithmic relationship - non-linear
+        let y: Vec<f64> = (1..=30).map(|i| 1.0 + 2.0 * (i as f64).ln()).collect();
+        let x: Vec<f64> = (1..=30).map(|i| i as f64).collect();
+
+        let result = harvey_collier_test(&y, &[x]).unwrap();
+        // Should detect non-linearity
+        assert!(result.p_value < 0.15);
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn test_harvey_collier_noisy_linear() {
+        // Noisy linear relationship
+        use rand::Rng;
+        use rand::SeedableRng;
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(42);
+        let y: Vec<f64> = (1..=50).map(|i| {
+            1.0 + 2.0 * i as f64 + (rng.gen::<f64>() - 0.5) * 2.0
+        }).collect();
+        let x: Vec<f64> = (1..=50).map(|i| i as f64).collect();
+
+        let result = harvey_collier_test(&y, &[x]).unwrap();
+        // For noisy linear, p-value should be reasonable
+        assert!(result.p_value > 0.0);
+    }
+
+    #[test]
+    fn test_harvey_collier_sin_relationship() {
+        // Sine wave - definitely non-linear
+        let y: Vec<f64> = (1..=40).map(|i| 5.0 + 2.0 * (0.2 * i as f64).sin()).collect();
+        let x: Vec<f64> = (1..=40).map(|i| i as f64).collect();
+
+        let result = harvey_collier_test(&y, &[x]).unwrap();
+        // Sine wave should be detected as non-linear
+        assert!(result.p_value < 0.1);
+    }
+
+    #[test]
+    fn test_harvey_collier_single_predictor_minimum_obs() {
+        // n=4, k=1 (p=2), n-p-1 = 1 (barely enough for variance calculation)
+        let y = vec![1.0, 2.0, 4.0, 5.0];
+        let x = vec![1.0, 2.0, 3.0, 4.0];
+
+        let result = harvey_collier_test(&y, &[x]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_harvey_collier_result_structure() {
+        let y: Vec<f64> = (1..=20).map(|i| 1.0 + 2.0 * i as f64).collect();
+        let x: Vec<f64> = (1..=20).map(|i| i as f64).collect();
+
+        let result = harvey_collier_test(&y, &[x]).unwrap();
+
+        // Verify result structure
+        assert!(!result.test_name.is_empty());
+        assert!(result.statistic >= 0.0);
+        assert!(result.p_value >= 0.0);
+        assert!(result.p_value <= 1.0);
+        assert!(result.interpretation.contains("p-value"));
+        assert!(!result.guidance.is_empty());
+    }
+
+    #[test]
+    fn test_harvey_collier_large_dataset() {
+        // Larger dataset to test scalability
+        let y: Vec<f64> = (1..=200).map(|i| 1.0 + 2.0 * i as f64 + 0.001 * i as f64 * i as f64).collect();
+        let x: Vec<f64> = (1..=200).map(|i| i as f64).collect();
+
+        let result = harvey_collier_test(&y, &[x]).unwrap();
+        // With large n, should detect the slight non-linearity
+        assert!(result.p_value < 0.05);
+    }
+
+    #[test]
+    fn test_harvey_collier_negative_values() {
+        // Data with negative values + small noise
+        let y: Vec<f64> = (-10..=10).map(|i| 1.0 + 2.0 * i as f64 + 0.01 * ((i as f64) % 3.0 - 1.0)).collect();
+        let x: Vec<f64> = (-10..=10).map(|i| i as f64).collect();
+
+        let result = harvey_collier_test(&y, &[x]).unwrap();
+        assert!(result.p_value > 0.01); // Should pass for linear relationship
+    }
+
+    #[test]
+    fn test_harvey_collier_step_function() {
+        // Step function - definitely non-linear
+        // NOTE: Harvey-Collier is not very sensitive to step functions
+        // R gets p ≈ 0.45 for this data, so we don't expect a low p-value
+        let y: Vec<f64> = (1..=30).map(|i| if i < 15 { 5.0 } else { 10.0 }).collect();
+        let x: Vec<f64> = (1..=30).map(|i| i as f64).collect();
+
+        let result = harvey_collier_test(&y, &[x]).unwrap();
+        // Harvey-Collier doesn't reliably detect step functions - just verify it runs
+        assert!(result.p_value >= 0.0 && result.p_value <= 1.0);
+    }
 }

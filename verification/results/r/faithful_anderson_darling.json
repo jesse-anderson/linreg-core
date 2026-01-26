@@ -1,0 +1,9 @@
+{
+  "test_name": ["Anderson-Darling Test (R - nortest::ad.test)"],
+  "dataset": ["faithful"],
+  "formula": ["Eruption.length..mins. ~ Eruption.wait..mins."],
+  "statistic": [0.52741569345602102],
+  "p_value": [0.17703330986755902],
+  "passed": [true],
+  "description": ["Tests for normality of residuals. The Anderson-Darling test is particularly sensitive to deviations in the tails of the distribution. Uses nortest::ad.test."]
+}

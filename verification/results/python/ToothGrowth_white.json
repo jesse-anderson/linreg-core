@@ -1,0 +1,11 @@
+{
+  "test_name": "White Test (Python - statsmodels)",
+  "dataset": "ToothGrowth",
+  "formula": "len ~ supp + dose",
+  "statistic": 3.695629318282172,
+  "p_value": 0.4487619341811312,
+  "passed": true,
+  "f_statistic": 0.9025037046170131,
+  "f_p_value": 0.46894164812621086,
+  "description": "Tests for heteroscedasticity using squares and cross-products of predictors. Uses statsmodels.stats.diagnostic.het_white."
+}

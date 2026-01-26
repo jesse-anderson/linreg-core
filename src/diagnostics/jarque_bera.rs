@@ -48,6 +48,22 @@ use crate::linalg::{vec_mean, Matrix};
 ///
 /// - Jarque, C. M., & Bera, A. K. (1987). "A Test for Normality of Observations
 ///   and Regression Residuals". International Statistical Review, 55(2), 163-172.
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::diagnostics::jarque_bera_test;
+/// let y = vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0];
+/// let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+/// let x2 = vec![2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+///
+/// let result = jarque_bera_test(&y, &[x1, x2]).unwrap();
+///
+/// println!("JB statistic: {}", result.statistic);
+/// println!("P-value: {}", result.p_value);
+/// // Low p-value suggests residuals are not normally distributed
+/// # Ok::<(), linreg_core::Error>(())
+/// ```
 pub fn jarque_bera_test(y: &[f64], x_vars: &[Vec<f64>]) -> Result<DiagnosticTestResult> {
     let n = y.len();
     let k = x_vars.len(); // number of non-intercept predictors

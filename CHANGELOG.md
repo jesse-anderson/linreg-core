@@ -2,6 +2,112 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-01-26
+
+### Added
+
+#### Elastic Net Regression
+- **Elastic Net regression** - Combined L1 (Lasso) and L2 (Ridge) penalties via cyclical coordinate descent
+  - `elastic_net_fit()` - Fit elastic net for single (lambda, alpha) pair
+  - `elastic_net_path()` - Fit entire regularization path efficiently
+  - `ElasticNetOptions` - Configuration with lambda, alpha, standardize, intercept, max_iter, tol
+  - `ElasticNetFit` - Result struct with coefficients, convergence info, nonzero count, r_squared
+  - `soft_threshold()` - Soft-thresholding operator (public API)
+  - Supports penalty factors, observation weights, warm starts, and coefficient bounds
+  - Follows glmnet conventions for objective function and standardization
+
+#### Lambda Path Generation
+- **Lambda path utilities** for regularization path analysis
+  - `make_lambda_path()` - Generate logarithmically-spaced lambda sequences
+  - `compute_lambda_max()` - Find maximum lambda (where all penalized coefficients are zero)
+  - `LambdaPathOptions` - Configuration (nlambda, lambda_min_ratio, alpha)
+  - Automatic lambda_min_ratio selection based on sample size
+
+#### Diagnostic Tests
+- **Breusch-Godfrey test** - LM test for higher-order serial correlation
+  - `breusch_godfrey_test()` - Test autocorrelation at any lag order
+  - `BGTestType` enum - Chi-squared (asymptotic) or F (finite sample) test variants
+  - `BreuschGodfreyResult` - Complete result with statistic, p-value, degrees of freedom
+  - Validates against R's `lmtest::bgtest()`
+  - Supports any lag order (not just first-order like Durbin-Watson)
+
+- **RESET test** - Ramsey's Regression Specification Error Test
+  - `reset_test()` - Test for omitted variables or incorrect functional form
+  - `ResetType` enum - Three variants: Fitted, Regressor, PrincipalComponent
+  - Tests if powers of fitted values/regressors/PC significantly improve model fit
+  - Validates against R's `lmtest::resettest()`
+
+#### WASM Bindings
+- `elastic_net_regression()` - Elastic net regression in browser
+- `make_lambda_path()` - Lambda sequence generation in browser
+- `reset_test()` - RESET test with power/type configuration
+- `breusch_godfrey_test()` - Higher-order autocorrelation test with order/test type
+- All new WASM functions include domain checking and JSON error handling
+
+#### Validation Tests
+- **glmnet algorithm tests** - Verify Elastic Net matches R's glmnet package
+  - `tests/unit/glmnet_algorithm_tests.rs` - 20+ tests for coordinate descent behavior
+  - Tests soft-thresholding, coordinate descent updates, active set convergence
+  - Verifies penalty factors, observation weights, warm starts, coefficient bounds
+
+- **Elastic Net validation** - `tests/validation/elastic_net.rs`
+  - Validates against R's `glmnet()` with alpha=0.5
+  - 19+ datasets tested (standard and synthetic)
+
+- **Breusch-Godfrey validation** - `tests/validation/breusch_godfrey.rs`
+  - Validates against R's `lmtest::bgtest()`
+  - Both Chi-squared and F test variants
+
+- **RESET validation** - `tests/validation/reset.rs`
+  - Validates against R's `lmtest::resettest()`
+  - All three test types (fitted, regressor, princomp)
+
+#### WASM-Specific Tests
+- **WASM test suite** - `tests/wasm/` module with comprehensive browser testing
+  - `mod.rs` - WASM test module organization
+  - `fixtures.rs` - Shared test fixtures and utilities
+  - `diagnostic_tests.rs` - Diagnostic tests in WASM environment (17.6 KB)
+  - `integration_tests.rs` - End-to-end integration tests
+  - `ols_tests.rs` - OLS regression WASM tests
+  - `regularized_tests.rs` - Ridge/Lasso/Elastic Net WASM tests (10.9 KB)
+  - `utility_tests.rs` - Utility function tests for WASM
+
+#### Ridge-Specific Tests
+- **Ridge test suite** - `tests/ridge_modules/` module for Ridge regression validation
+  - `mod.rs` - Ridge test module organization
+  - `baseline.rs` - Baseline Ridge regression tests (11.9 KB)
+  - `glmnet_audit.rs` - Ridge vs glmnet compatibility tests (12.7 KB)
+  - `verification.rs` - Reference result verification (8.3 KB)
+- `tests/ridge.rs` - Standalone Ridge regression test file
+
+#### Verification Reference Results
+- Complete R reference outputs for all new tests across 19+ datasets
+- Python reference outputs where applicable
+- New datasets added: ToothGrowth, cars_stopping, faithful, lh
+
+### Changed
+- **lib.rs**: Added comprehensive diagnostic tests table to module documentation
+- **regularized/mod.rs**: Expanded module docs with elastic net objective function
+- **diagnostics/mod.rs**: Added Breusch-Godfrey and RESET to available tests documentation
+- Improved public API re-exports for easier imports
+
+### Fixed
+- Fixed rustdoc warnings in `preprocess.rs` - escaped brackets in documentation comments
+- All diagnostic test modules now properly re-exported from `diagnostics` module
+
+## [0.2.3] - 2025-01-22
+
+### Fixed
+- Applied `cargo fmt` across the codebase (9000+ lines) for consistent code style
+- Fixed clippy warnings: `assign_op_pattern` (use `*=` operator), `manual_memcpy` (use `copy_from_slice`)
+- Added function-level `#[allow(clippy::needless_range_loop)]` for numerical code clarity (index-based loops preferred for math algorithms)
+- Added `#[allow(clippy::too_many_arguments)]` to `coordinate_descent` (internal algorithm function)
+
+## [0.2.2] - 2025-01-22
+
+### Changed
+- Code formatting: Applied `cargo fmt` across the codebase
+
 ## [0.2.1] - 2025-01-22
 
 ### Added

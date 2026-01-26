@@ -12,8 +12,8 @@
 // differences in how they construct the auxiliary regression.
 
 use crate::common::{
-    load_dataset, load_python_diagnostic_result, load_r_diagnostic_result, ALL_DATASETS,
-    STAT_TOLERANCE,
+    load_dataset_with_encoding, load_python_diagnostic_result, load_r_diagnostic_result, ALL_DATASETS,
+    STAT_TOLERANCE, CategoricalEncoding,
 };
 
 use linreg_core::diagnostics;
@@ -49,7 +49,7 @@ fn validate_white_all_datasets() {
         println!("  └─────────────────────────────────────────────────────────────────┘");
 
         // Load the dataset
-        let dataset = match load_dataset(&csv_path) {
+        let dataset = match load_dataset_with_encoding(&csv_path, CategoricalEncoding::OneBased) {
             Ok(d) => d,
             Err(e) => {
                 println!("     Failed to load dataset: {}", e);

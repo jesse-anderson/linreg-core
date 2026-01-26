@@ -1,0 +1,10 @@
+{
+  "test_name": "Rainbow Test (Python - statsmodels)",
+  "dataset": "ToothGrowth",
+  "formula": "len ~ supp + dose",
+  "statistic": 1.0027895853893005,
+  "p_value": 0.49970256400839624,
+  "passed": true,
+  "fraction": 0.5,
+  "description": "Tests for linearity by comparing fit on central subset vs full data. Uses statsmodels.stats.diagnostic.linear_rainbow."
+}

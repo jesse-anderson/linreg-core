@@ -1,0 +1,11 @@
+{
+  "test_name": "White Test (Python - statsmodels)",
+  "dataset": "lh",
+  "formula": "time ~ value",
+  "statistic": 0.8505840380135883,
+  "p_value": 0.6535788997989505,
+  "passed": true,
+  "f_statistic": 0.40590409159544255,
+  "f_p_value": 0.6687892799964781,
+  "description": "Tests for heteroscedasticity using squares and cross-products of predictors. Uses statsmodels.stats.diagnostic.het_white."
+}

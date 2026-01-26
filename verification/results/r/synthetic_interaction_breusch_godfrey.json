@@ -1,0 +1,16 @@
+{
+  "test_name": ["Breusch-Godfrey Test (R - lmtest::bgtest)"],
+  "dataset": ["synthetic_interaction"],
+  "formula": ["x1 ~ x2 + y"],
+  "order": [1],
+  "statistic": [0.41745385512298044],
+  "p_value": [0.51821026295811257],
+  "test_type": ["Chisq"],
+  "df": [1],
+  "f_statistic": [0.40243568419611048],
+  "f_p_value": [0.52734289349548802],
+  "f_df": [1, 96],
+  "passed": [true],
+  "interpretation": ["No significant serial correlation detected up to order 1"],
+  "description": ["Tests for serial correlation up to order 1. The LM (Chi-squared) statistic is asymptotically distributed as chi-squared with 1 degrees of freedom. The F statistic provides a finite-sample correction. Uses lmtest::bgtest."]
+}

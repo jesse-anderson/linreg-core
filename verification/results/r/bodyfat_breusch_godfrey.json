@@ -1,0 +1,16 @@
+{
+  "test_name": ["Breusch-Godfrey Test (R - lmtest::bgtest)"],
+  "dataset": ["bodyfat"],
+  "formula": ["Density ~ BodyFat + Age + Weight + Height + Neck + Chest + Abdomen + Hip + Thigh + Knee + Ankle + Biceps + Forearm + Wrist"],
+  "order": [1],
+  "statistic": [0.020270487079391677],
+  "p_value": [0.88678423422084363],
+  "test_type": ["Chisq"],
+  "df": [1],
+  "f_statistic": [0.018984999150424675],
+  "f_p_value": [0.89052698492794979],
+  "f_df": [1, 236],
+  "passed": [true],
+  "interpretation": ["No significant serial correlation detected up to order 1"],
+  "description": ["Tests for serial correlation up to order 1. The LM (Chi-squared) statistic is asymptotically distributed as chi-squared with 1 degrees of freedom. The F statistic provides a finite-sample correction. Uses lmtest::bgtest."]
+}

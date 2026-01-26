@@ -1,0 +1,9 @@
+{
+  "test_name": ["Breusch-Pagan Test (R - lmtest::bptest)"],
+  "dataset": ["faithful"],
+  "formula": ["Eruption.length..mins. ~ Eruption.wait..mins."],
+  "statistic": [1.553108194207151],
+  "p_value": [0.21267717320942828],
+  "passed": [true],
+  "description": ["Tests for heteroscedasticity by regressing squared residuals on predictors. R variant uses lmtest::bptest with studentize=TRUE."]
+}

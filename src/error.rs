@@ -166,3 +166,154 @@ pub fn error_json(msg: &str) -> String {
 pub fn error_to_json(err: &Error) -> String {
     error_json(&err.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Test Error::SingularMatrix Display implementation
+    #[test]
+    fn test_singular_matrix_display() {
+        let err = Error::SingularMatrix;
+        let msg = err.to_string();
+        assert!(msg.contains("singular"));
+        assert!(msg.contains("multicollinearity"));
+    }
+
+    /// Test Error::InsufficientData Display implementation
+    #[test]
+    fn test_insufficient_data_display() {
+        let err = Error::InsufficientData {
+            required: 10,
+            available: 5,
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("Insufficient data"));
+        assert!(msg.contains("10"));
+        assert!(msg.contains("5"));
+    }
+
+    /// Test Error::InvalidInput Display implementation
+    #[test]
+    fn test_invalid_input_display() {
+        let err = Error::InvalidInput("negative value".to_string());
+        let msg = err.to_string();
+        assert!(msg.contains("Invalid input"));
+        assert!(msg.contains("negative value"));
+    }
+
+    /// Test Error::DimensionMismatch Display implementation
+    ///
+    /// Covers lines 95-96: DimensionMismatch Display impl
+    #[test]
+    fn test_dimension_mismatch_display() {
+        let err = Error::DimensionMismatch("matrix 3x3 cannot multiply with 2x2".to_string());
+        let msg = err.to_string();
+        assert!(msg.contains("Dimension mismatch"));
+        assert!(msg.contains("matrix 3x3"));
+    }
+
+    /// Test Error::ComputationFailed Display implementation
+    ///
+    /// Covers lines 98-99: ComputationFailed Display impl
+    #[test]
+    fn test_computation_failed_display() {
+        let err = Error::ComputationFailed("QR decomposition failed".to_string());
+        let msg = err.to_string();
+        assert!(msg.contains("Computation failed"));
+        assert!(msg.contains("QR decomposition"));
+    }
+
+    /// Test Error::ParseError Display implementation
+    #[test]
+    fn test_parse_error_display() {
+        let err = Error::ParseError("invalid JSON syntax".to_string());
+        let msg = err.to_string();
+        assert!(msg.contains("Parse error"));
+        assert!(msg.contains("JSON"));
+    }
+
+    /// Test Error::DomainCheck Display implementation
+    #[test]
+    fn test_domain_check_display() {
+        let err = Error::DomainCheck("unauthorized domain".to_string());
+        let msg = err.to_string();
+        assert!(msg.contains("Domain check failed"));
+        assert!(msg.contains("unauthorized"));
+    }
+
+    /// Test error_json function
+    #[test]
+    fn test_error_json() {
+        let json = error_json("test error");
+        assert_eq!(json, r#"{"error":"test error"}"#);
+    }
+
+    /// Test error_to_json function with SingularMatrix
+    #[test]
+    fn test_error_to_json_singular_matrix() {
+        let err = Error::SingularMatrix;
+        let json = error_to_json(&err);
+        assert!(json.contains(r#""error":"#));
+        assert!(json.contains("singular"));
+    }
+
+    /// Test error_to_json function with DimensionMismatch
+    #[test]
+    fn test_error_to_json_dimension_mismatch() {
+        let err = Error::DimensionMismatch("incompatible dimensions".to_string());
+        let json = error_to_json(&err);
+        assert!(json.contains(r#""error":"#));
+        assert!(json.contains("Dimension"));
+    }
+
+    /// Test error_to_json function with ComputationFailed
+    #[test]
+    fn test_error_to_json_computation_failed() {
+        let err = Error::ComputationFailed("convergence failure".to_string());
+        let json = error_to_json(&err);
+        assert!(json.contains(r#""error":"#));
+        assert!(json.contains("Computation"));
+    }
+
+    /// Test Error PartialEq implementation
+    #[test]
+    fn test_error_partial_eq() {
+        let err1 = Error::SingularMatrix;
+        let err2 = Error::SingularMatrix;
+        let err3 = Error::InvalidInput("test".to_string());
+
+        assert_eq!(err1, err2);
+        assert_ne!(err1, err3);
+    }
+
+    /// Test Error Clone implementation
+    #[test]
+    fn test_error_clone() {
+        let err1 = Error::InvalidInput("test".to_string());
+        let err2 = err1.clone();
+        assert_eq!(err1, err2);
+    }
+
+    /// Test Error Debug implementation
+    #[test]
+    fn test_error_debug() {
+        let err = Error::ComputationFailed("test failure".to_string());
+        let debug_str = format!("{:?}", err);
+        assert!(debug_str.contains("ComputationFailed"));
+    }
+
+    /// Test Result type alias
+    #[test]
+    fn test_result_type_alias() {
+        fn returns_ok() -> Result<f64> {
+            Ok(42.0)
+        }
+        fn returns_err() -> Result<f64> {
+            Err(Error::InvalidInput("test".to_string()))
+        }
+
+        assert_eq!(returns_ok().unwrap(), 42.0);
+        assert!(returns_err().is_err());
+    }
+}

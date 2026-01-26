@@ -1,0 +1,9 @@
+{
+  "test_name": ["Anderson-Darling Test (R - nortest::ad.test)"],
+  "dataset": ["ToothGrowth"],
+  "formula": ["len ~ supp + dose"],
+  "statistic": [0.71869651232233878],
+  "p_value": [0.057652044982385652],
+  "passed": [true],
+  "description": ["Tests for normality of residuals. The Anderson-Darling test is particularly sensitive to deviations in the tails of the distribution. Uses nortest::ad.test."]
+}

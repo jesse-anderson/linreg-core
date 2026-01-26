@@ -1,0 +1,14 @@
+{
+  "test_name": "RESET Test (Python - statsmodels)",
+  "dataset": "ToothGrowth",
+  "formula": "len ~ supp + dose",
+  "statistic": 10.623245924596297,
+  "p_value": 0.00012558207008894762,
+  "passed": false,
+  "power": [
+    2,
+    3
+  ],
+  "type": "fitted",
+  "description": "Ramsey's RESET test for functional form misspecification. Tests whether powers of fitted values, regressors, or principal component significantly improve model fit."
+}

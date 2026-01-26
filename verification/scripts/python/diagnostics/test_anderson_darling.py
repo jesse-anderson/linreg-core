@@ -42,14 +42,9 @@ def convert_categorical_to_numeric(df, dataset_name):
         print("Converting categorical variables to numeric representations...")
 
         for col in non_numeric_cols:
-            unique_vals = df[col].nunique()
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-            if df[col].isna().any():
-                # If conversion produced NaNs, use factor encoding
-                df[col] = df[col].astype('category').cat.codes
-                print(f"  {col}: {unique_vals} unique values -> integer level encoding")
-            else:
-                print(f"  {col}: {unique_vals} unique values -> numeric encoding")
+            # Use factorize for reliable categorical encoding
+            df[col], uniques = pd.factorize(df[col])
+            print(f"  {col}: {len(uniques)} unique values -> integer level encoding")
 
     return df
 
@@ -68,12 +63,20 @@ def main():
         '--output',
         type=str,
         default='../../results/python',
+        help='Path to output directory (deprecated, use --output-dir)'
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default='../../results/python',
         help='Path to output directory'
     )
 
     args = parser.parse_args()
     csv_path = Path(args.csv)
-    output_dir = Path(args.output)
+    # Use --output-dir if provided, otherwise fall back to --output
+    output_path = args.output_dir if hasattr(args, 'output_dir') and args.output_dir != '../../results/python' else args.output
+    output_dir = Path(output_path)
 
     # Validate CSV path
     if not csv_path.exists():

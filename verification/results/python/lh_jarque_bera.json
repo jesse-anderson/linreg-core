@@ -1,0 +1,11 @@
+{
+  "test_name": "Jarque-Bera Test (Python - statsmodels)",
+  "dataset": "lh",
+  "formula": "time ~ value",
+  "statistic": 2.266652159932033,
+  "p_value": 0.3219606068277494,
+  "passed": true,
+  "skewness": -0.017905086267499853,
+  "kurtosis": 1.9360245719430218,
+  "description": "Tests for normality of residuals by examining skewness and kurtosis. Uses statsmodels.stats.stattools.jarque_bera."
+}

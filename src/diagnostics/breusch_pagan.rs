@@ -48,6 +48,22 @@ use crate::linalg::{vec_mean, Matrix};
 ///   and Random Coefficient Variation". Econometrica, 47(5), 1287-1294.
 /// - Koenker, R. (1981). "A Note on Studentizing a Test for Heteroscedasticity".
 ///   Journal of Econometrics, 17(1), 107-112.
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::diagnostics::breusch_pagan_test;
+/// let y = vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0];
+/// let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+/// let x2 = vec![2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+///
+/// let result = breusch_pagan_test(&y, &[x1, x2]).unwrap();
+///
+/// println!("LM statistic: {}", result.statistic);
+/// println!("P-value: {}", result.p_value);
+/// // Low p-value suggests heteroscedasticity (non-constant variance)
+/// # Ok::<(), linreg_core::Error>(())
+/// ```
 pub fn breusch_pagan_test(y: &[f64], x_vars: &[Vec<f64>]) -> Result<DiagnosticTestResult> {
     let n = y.len();
     let k = x_vars.len(); // number of non-intercept predictors

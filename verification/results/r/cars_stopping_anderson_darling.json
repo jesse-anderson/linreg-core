@@ -1,0 +1,9 @@
+{
+  "test_name": ["Anderson-Darling Test (R - nortest::ad.test)"],
+  "dataset": ["cars_stopping"],
+  "formula": ["speed ~ dist"],
+  "statistic": [0.24301968782664574],
+  "p_value": [0.75479969870439456],
+  "passed": [true],
+  "description": ["Tests for normality of residuals. The Anderson-Darling test is particularly sensitive to deviations in the tails of the distribution. Uses nortest::ad.test."]
+}

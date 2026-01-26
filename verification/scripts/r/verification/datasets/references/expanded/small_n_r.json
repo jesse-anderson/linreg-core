@@ -1,0 +1,58 @@
+{
+  "dataset_name": "small_n",
+  "coefficients": [1.02, 2, "NA"],
+  "std_errors": [0.1013, 0.0306],
+  "t_stats": [10.0667, 65.4654],
+  "p_values": [0.0021, 7.8536e-06],
+  "r_squared": 0.9993,
+  "adj_r_squared": 0.9991,
+  "f_statistic": 4285.7143,
+  "f_p_value": 0.0002,
+  "mse": 0.014,
+  "std_error": 0.1183,
+  "conf_int_lower": [0.6975, 1.9028, "NA"],
+  "conf_int_upper": [1.3425, 2.0972, "NA"],
+  "residuals": [0.08, -0.02, -0.12, -0.02, 0.08],
+  "standardized_residuals": [1.3093, -0.2474, -1.3887, -0.2474, 1.3093],
+  "leverage": [0.6, 0.3, 0.2, 0.3, 0.6],
+  "vif": [],
+  "rainbow": {
+    "statistic": null,
+    "p_value": null,
+    "passed": false
+  },
+  "harvey_collier": {
+    "statistic": null,
+    "p_value": null,
+    "passed": false
+  },
+  "breusch_pagan": {
+    "statistic": 3.9004e-28,
+    "p_value": 1,
+    "passed": true
+  },
+  "white": {
+    "statistic": 0.043,
+    "p_value": 0.9998,
+    "passed": true
+  },
+  "jarque_bera": {
+    "statistic": 0.3754,
+    "p_value": 0.8289,
+    "passed": true
+  },
+  "durbin_watson": {
+    "statistic": 1.4286,
+    "p_value": 0,
+    "passed": true
+  },
+  "breusch_godfrey": {
+    "statistic": 0.0314,
+    "p_value": 0.8594,
+    "passed": true
+  },
+  "n": 5,
+  "k": 2,
+  "df": 2,
+  "variable_names": ["Intercept", "x1", "x2"]
+}

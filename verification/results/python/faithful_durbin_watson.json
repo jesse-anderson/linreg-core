@@ -1,0 +1,10 @@
+{
+  "test_name": "Durbin-Watson Test (Python - statsmodels)",
+  "dataset": "faithful",
+  "formula": "Eruption length (mins) ~ Eruption wait (mins)",
+  "statistic": 2.561012444355793,
+  "p_value": null,
+  "passed": false,
+  "interpretation": "No positive autocorrelation",
+  "description": "Tests for autocorrelation in residuals. Values near 2 indicate no autocorrelation, values near 0 suggest positive autocorrelation, and values near 4 suggest negative autocorrelation. Uses statsmodels.stats.stattools.durbin_watson."
+}

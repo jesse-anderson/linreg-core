@@ -1,0 +1,14 @@
+{
+  "test_name": ["RESET Test (R - lmtest::resettest)"],
+  "dataset": ["synthetic_heteroscedastic"],
+  "formula": ["x ~ y"],
+  "statistic": [10.16404034763471],
+  "p_value": [9.9119745061544413e-05],
+  "passed": [false],
+  "power": [
+    [2],
+    [3]
+  ],
+  "type": ["fitted"],
+  "description": ["Ramsey's RESET test for functional form misspecification. Tests whether powers of fitted values, regressors, or principal component significantly improve model fit."]
+}

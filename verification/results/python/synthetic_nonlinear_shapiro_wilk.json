@@ -1,7 +1,7 @@
 {
   "test_name": "Shapiro-Wilk Test for Normality",
-  "statistic": 0.8840263376141861,
-  "p_value": 2.697456265152483e-07,
+  "statistic": 0.8840263376141866,
+  "p_value": 2.6974562651525825e-07,
   "is_passed": false,
   "interpretation": "p-value = 0.0000 is less than or equal to 0.05. Reject H0. Significant evidence that residuals deviate from normality.",
   "guidance": "Consider transforming the dependent variable (e.g., log, Box-Cox transformation), using robust standard errors, or applying a different estimation method."

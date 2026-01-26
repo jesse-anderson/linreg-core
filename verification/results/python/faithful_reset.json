@@ -1,0 +1,14 @@
+{
+  "test_name": "RESET Test (Python - statsmodels)",
+  "dataset": "faithful",
+  "formula": "Eruption length (mins) ~ Eruption wait (mins)",
+  "statistic": 51.336104242333185,
+  "p_value": 0.0,
+  "passed": false,
+  "power": [
+    2,
+    3
+  ],
+  "type": "fitted",
+  "description": "Ramsey's RESET test for functional form misspecification. Tests whether powers of fitted values, regressors, or principal component significantly improve model fit."
+}

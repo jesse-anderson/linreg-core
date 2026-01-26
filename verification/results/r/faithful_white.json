@@ -1,0 +1,9 @@
+{
+  "test_name": ["White Test (R - skedastic::white)"],
+  "dataset": ["faithful"],
+  "formula": ["Eruption.length..mins. ~ Eruption.wait..mins."],
+  "statistic": [13.679680700811222],
+  "p_value": [0.0010702742548514307],
+  "passed": [false],
+  "description": ["Tests for heteroscedasticity using squares and cross-products of predictors. R variant uses skedastic::white with original variables only."]
+}

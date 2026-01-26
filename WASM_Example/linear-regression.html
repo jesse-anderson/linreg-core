@@ -146,6 +146,7 @@ X1,X2,Y
                             <option value="ols">OLS (Ordinary Least Squares)</option>
                             <option value="ridge">Ridge (L2 Regularized)</option>
                             <option value="lasso">Lasso (L1 Regularized)</option>
+                            <option value="elastic_net">Elastic Net (L1 + L2)</option>
                         </select>
                     </div>
 
@@ -188,6 +189,53 @@ X1,X2,Y
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
                             <strong>Ridge</strong> shrinks coefficients toward zero (handles multicollinearity).<br>
                             <strong>Lasso</strong> can set coefficients to exactly zero (variable selection).
+                        </p>
+                    </div>
+
+                    <!-- Elastic Net Parameters -->
+                    <div id="elasticNetOptions" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px;">
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label for="enLambdaSlider">Lambda (λ): <span id="enLambdaValue">1.0</span></label>
+                            <input type="range" id="enLambdaSlider" min="0.01" max="10" step="0.01" value="1.0" style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                                <span>0.01 (weak)</span>
+                                <span>10 (strong)</span>
+                            </div>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label for="enAlphaSlider">Alpha (α): <span id="enAlphaValue">0.5</span></label>
+                            <input type="range" id="enAlphaSlider" min="0" max="1" step="0.01" value="0.5" style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                                <span>0 (Ridge)</span>
+                                <span>0.5 (Equal)</span>
+                                <span>1 (Lasso)</span>
+                            </div>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="enStandardizeCheck" checked>
+                                <span>Standardize predictors (recommended)</span>
+                            </label>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label for="enMaxIterInput">Max Iterations: <span id="enMaxIterValue">1000</span></label>
+                            <input type="range" id="enMaxIterSlider" min="100" max="10000" step="100" value="1000" style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                                <span>100</span>
+                                <span>10000</span>
+                            </div>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 8px;">
+                            <label for="enTolInput">Convergence Tolerance: <span id="enTolValue">1e-7</span></label>
+                            <select id="enTolSelect" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
+                                <option value="1e-10">1e-10 (Very precise)</option>
+                                <option value="1e-7" selected>1e-7 (Default)</option>
+                                <option value="1e-5">1e-5 (Relaxed)</option>
+                                <option value="1e-3">1e-3 (Loose)</option>
+                            </select>
+                        </div>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
+                            <strong>Elastic Net</strong> combines Ridge (α=0) and Lasso (α=1) penalties. Alpha controls the mix: 0.5 gives equal weight to both penalties.
                         </p>
                     </div>
                 </div>

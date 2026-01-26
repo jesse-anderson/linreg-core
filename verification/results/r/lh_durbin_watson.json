@@ -1,0 +1,10 @@
+{
+  "test_name": ["Durbin-Watson Test (R - lmtest::dwtest)"],
+  "dataset": ["lh"],
+  "formula": ["time ~ value"],
+  "statistic": [0.10886694825370095],
+  "p_value": [1.1766151811195545e-26],
+  "passed": [false],
+  "interpretation": ["Possible positive autocorrelation"],
+  "description": ["Tests for autocorrelation in residuals. Values near 2 indicate no autocorrelation, values near 0 suggest positive autocorrelation, and values near 4 suggest negative autocorrelation. Uses lmtest::dwtest."]
+}

@@ -62,11 +62,13 @@ diagnostic_scripts <- list(
   list(name = "White", script = "test_white.R", dir = script_dir, suffix = "white", args = ""),
   list(name = "Jarque-Bera", script = "test_jarque_bera.R", dir = script_dir, suffix = "jarque_bera", args = ""),
   list(name = "Durbin-Watson", script = "test_durbin_watson.R", dir = script_dir, suffix = "durbin_watson", args = ""),
+  list(name = "Breusch-Godfrey", script = "test_breusch_godfrey.R", dir = script_dir, suffix = "breusch_godfrey", args = ""),
   list(name = "Shapiro-Wilk", script = "test_shapiro_wilk.R", dir = script_dir, suffix = "shapiro_wilk", args = ""),
   list(name = "Anderson-Darling", script = "test_anderson_darling.R", dir = script_dir, suffix = "anderson_darling", args = ""),
   list(name = "Cooks-Distance", script = "test_cooks_distance.R", dir = script_dir, suffix = "cooks_distance", args = ""),
-  list(name = "Ridge", script = "test_ridge.R", dir = regularized_dir, suffix = "ridge", args = lambda_count),
-  list(name = "Lasso", script = "test_lasso.R", dir = regularized_dir, suffix = "lasso", args = lambda_count)
+  list(name = "RESET", script = "test_reset.R", dir = script_dir, suffix = "reset", args = ""),
+  list(name = "Ridge GLMNet", script = "test_ridge.R", dir = regularized_dir, suffix = "ridge_glmnet", args = lambda_count),
+  list(name = "Lasso GLMNet", script = "test_lasso.R", dir = regularized_dir, suffix = "lasso_glmnet", args = lambda_count)
 )
 
 # Counter for results

@@ -26,7 +26,7 @@ try:
     import statsmodels.api as sm
     from statsmodels.stats.diagnostic import (
         linear_rainbow, linear_harvey_collier, het_breuschpagan,
-        het_white, acorr_ljungbox
+        het_white, acorr_ljungbox, acorr_breusch_godfrey
     )
     from statsmodels.stats.outliers_influence import variance_inflation_factor
     from statsmodels.tools.tools import add_constant
@@ -271,6 +271,17 @@ def generate_reference(dataset_name, dataset):
     except Exception as e:
         dw_result = {'statistic': None, 'p_value': None, 'passed': False}
 
+    # Breusch-Godfrey test (order = 1)
+    try:
+        bg_lm_stat, bg_lm_pval, bg_f_stat, bg_f_pval = acorr_breusch_godfrey(model, order=1)
+        bg_result = {
+            'statistic': float(bg_lm_stat),
+            'p_value': float(bg_lm_pval),
+            'passed': bg_lm_pval > ALPHA
+        }
+    except Exception as e:
+        bg_result = {'statistic': None, 'p_value': None, 'passed': False}
+
     # Build output structure
     output = {
         'dataset_name': dataset_name,
@@ -296,6 +307,7 @@ def generate_reference(dataset_name, dataset):
         'white': white_result,
         'jarque_bera': jb_result,
         'durbin_watson': dw_result,
+        'breusch_godfrey': bg_result,
         'n': n,
         'k': k,
         'df': df_residual,
@@ -339,8 +351,8 @@ def main():
 
     # Print table of results
     if results:
-        print("\nDataset           R²       F-stat   Rainbow  HC       BP       White    JB       DW")
-        print("-" * 78)
+        print("\nDataset           R²       F-stat   Rainbow  HC       BP       White    JB       DW       BG")
+        print("-" * 90)
         for name, r in results.items():
             def pass_str(res_dict):
                 if res_dict.get('p_value') is None:
@@ -351,7 +363,8 @@ def main():
                   f"{pass_str(r['rainbow']):>3s}  {pass_str(r['harvey_collier']):>3s}  "
                   f"{pass_str(r['breusch_pagan']):>3s}  {pass_str(r['white']):>3s}  "
                   f"{pass_str(r['jarque_bera']):>3s}  "
-                  f"{f\"{r['durbin_watson']['statistic']:.2f}\" if r['durbin_watson']['statistic'] else 'N/A':>3s}")
+                  f"{f\"{r['durbin_watson']['statistic']:.2f}\" if r['durbin_watson']['statistic'] else 'N/A':>3s}  "
+                  f"{pass_str(r['breusch_godfrey']):>3s}")
 
     print()
 

@@ -43,7 +43,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-linreg-core = { version = "0.2", default-features = false }
+linreg-core = { version = "0.3", default-features = false }
 ```
 
 #### OLS Regression
@@ -331,7 +331,7 @@ const zScore = get_normal_inverse(0.975);
 For native Rust without WASM overhead:
 
 ```toml
-linreg-core = { version = "0.2", default-features = false }
+linreg-core = { version = "0.3", default-features = false }
 ```
 
 ## Regularization Path

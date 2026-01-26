@@ -1,0 +1,9 @@
+{
+  "test_name": "Anderson-Darling Test (Python - statsmodels.stats.diagnostic.normal_ad)",
+  "dataset": "longley",
+  "formula": "GNP.deflator ~ GNP + Unemployed + Armed Forces + Population + Year + Employed",
+  "statistic": 0.2423291583580891,
+  "p_value": 0.7254231609960511,
+  "passed": true,
+  "description": "Tests for normality of residuals. The Anderson-Darling test is particularly sensitive to deviations in the tails of the distribution. Uses statsmodels.stats.diagnostic.normal_ad."
+}

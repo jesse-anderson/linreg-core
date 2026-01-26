@@ -1,0 +1,10 @@
+{
+  "test_name": ["Durbin-Watson Test (R - lmtest::dwtest)"],
+  "dataset": ["ToothGrowth"],
+  "formula": ["len ~ supp + dose"],
+  "statistic": [1.5711929894527359],
+  "p_value": [0.025549816840760624],
+  "passed": [false],
+  "interpretation": ["No significant autocorrelation"],
+  "description": ["Tests for autocorrelation in residuals. Values near 2 indicate no autocorrelation, values near 0 suggest positive autocorrelation, and values near 4 suggest negative autocorrelation. Uses lmtest::dwtest."]
+}

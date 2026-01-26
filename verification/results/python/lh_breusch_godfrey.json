@@ -1,0 +1,21 @@
+{
+  "test_name": "Breusch-Godfrey Test (Python - statsmodels)",
+  "dataset": "lh",
+  "formula": "time ~ value",
+  "order": 1,
+  "statistic": 40.75596528627451,
+  "p_value": 1.72476133729661e-10,
+  "test_type": "Chisq",
+  "df": [
+    1.0
+  ],
+  "f_statistic": 253.1763734383248,
+  "f_p_value": 4.250620556123907e-20,
+  "f_df": [
+    1.0,
+    45.0
+  ],
+  "passed": false,
+  "interpretation": "Significant serial correlation detected at order <= 1",
+  "description": "Tests for serial correlation up to order 1. The LM (Chi-squared) statistic is asymptotically distributed as chi-squared with 1 degrees of freedom. The F statistic provides a finite-sample correction. Uses statsmodels.stats.diagnostic.acorr_breusch_godfrey."
+}
