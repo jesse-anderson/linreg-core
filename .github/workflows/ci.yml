@@ -118,6 +118,8 @@ jobs:
         run: pip install maturin pytest
       - name: Build Python extension
         run: maturin build --release --strip
+      - name: Install built wheel
+        run: pip install target/wheels/linreg_core*.whl
       - name: Run Python tests
         run: pytest tests/python/ -v
 
