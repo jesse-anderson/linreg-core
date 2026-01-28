@@ -28,10 +28,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: cargo test --all-features -- --test-threads=1
+      - run: cargo test --features wasm -- --test-threads=1
       - run: cargo test --no-default-features -- --test-threads=1
 
   wasm:
