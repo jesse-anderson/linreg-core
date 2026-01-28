@@ -5,8 +5,9 @@
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](LICENSE-MIT)
 [![Crates.io](https://img.shields.io/crates/v/linreg-core?color=orange)](https://crates.io/crates/linreg-core)
 [![npm](https://img.shields.io/npm/v/linreg-core?color=red)](https://www.npmjs.com/package/linreg-core)
+[![PyPI](https://img.shields.io/pypi/v/linreg-core)](https://pypi.org/project/linreg-core/)
 [![docs.rs](https://img.shields.io/badge/docs.rs-linreg__core-green)](https://docs.rs/linreg-core)
-[![PyPI](https://img.shields.io/badge/pypi-0.4.0-blue)](https://pypi.org/project/linreg-core/)
+
 
 A lightweight, self-contained linear regression library written in Rust. Compiles to WebAssembly for browser use, Python bindings via PyO3, or runs as a native Rust crate.
 
@@ -31,17 +32,18 @@ A lightweight, self-contained linear regression library written in Rust. Compile
 ## Features
 
 ### Regression Methods
-- **OLS Regression:** Coefficients, standard errors, t-statistics, p-values, confidence intervals
-- **Ridge Regression:** L2-regularized regression with optional standardization
-- **Lasso Regression:** L1-regularized regression via coordinate descent
-- **Elastic Net:** Combined L1 + L2 regularization for variable selection with multicollinearity handling
+- **OLS Regression:** Coefficients, standard errors, t-statistics, p-values, confidence intervals, model selection criteria (AIC, BIC, log-likelihood)
+- **Ridge Regression:** L2-regularized regression with optional standardization, effective degrees of freedom, model selection criteria
+- **Lasso Regression:** L1-regularized regression via coordinate descent with automatic variable selection, convergence tracking, model selection criteria
+- **Elastic Net:** Combined L1 + L2 regularization for variable selection with multicollinearity handling, active set convergence, model selection criteria
 - **Lambda Path Generation:** Create regularization paths for cross-validation
 
 ### Model Statistics
-- R-squared, Adjusted R-squared, F-statistic, F-test p-value
-- Residuals, fitted values, leverage (hat matrix diagonal)
-- Mean Squared Error (MSE)
-- Variance Inflation Factor (VIF) for multicollinearity detection
+- **Fit Metrics:** R-squared, Adjusted R-squared, F-statistic, F-test p-value
+- **Error Metrics:** Mean Squared Error (MSE), Root Mean Squared Error (RMSE), Mean Absolute Error (MAE)
+- **Model Selection:** Log-likelihood, AIC (Akaike Information Criterion), BIC (Bayesian Information Criterion)
+- **Residuals:** Raw residuals, standardized residuals, fitted values, leverage (hat matrix diagonal)
+- **Multicollinearity:** Variance Inflation Factor (VIF) for each predictor
 
 ### Diagnostic Tests
 | Category | Tests |
@@ -78,6 +80,9 @@ fn main() -> Result<(), linreg_core::Error> {
     println!("Coefficients: {:?}", result.coefficients);
     println!("R-squared: {:.4}", result.r_squared);
     println!("F-statistic: {:.4}", result.f_statistic);
+    println!("Log-likelihood: {:.4}", result.log_likelihood);
+    println!("AIC: {:.4}", result.aic);
+    println!("BIC: {:.4}", result.bic);
 
     Ok(())
 }
@@ -108,6 +113,10 @@ fn main() -> Result<(), linreg_core::Error> {
     let result = ridge_fit(&x, &y, &options)?;
     println!("Intercept: {}", result.intercept);
     println!("Coefficients: {:?}", result.coefficients);
+    println!("R-squared: {:.4}", result.r_squared);
+    println!("Effective degrees of freedom: {:.2}", result.effective_df);
+    println!("AIC: {:.4}", result.aic);
+    println!("BIC: {:.4}", result.bic);
 
     Ok(())
 }
@@ -140,6 +149,8 @@ fn main() -> Result<(), linreg_core::Error> {
     println!("Intercept: {}", result.intercept);
     println!("Coefficients: {:?}", result.coefficients);
     println!("Non-zero coefficients: {}", result.n_nonzero);
+    println!("AIC: {:.4}", result.aic);
+    println!("BIC: {:.4}", result.bic);
 
     Ok(())
 }
@@ -173,6 +184,8 @@ fn main() -> Result<(), linreg_core::Error> {
     println!("Intercept: {}", result.intercept);
     println!("Coefficients: {:?}", result.coefficients);
     println!("Non-zero coefficients: {}", result.n_nonzero);
+    println!("AIC: {:.4}", result.aic);
+    println!("BIC: {:.4}", result.bic);
 
     Ok(())
 }
@@ -266,6 +279,9 @@ async function run() {
     const result = JSON.parse(resultJson);
     console.log("Coefficients:", result.coefficients);
     console.log("R-squared:", result.r_squared);
+    console.log("Log-likelihood:", result.log_likelihood);
+    console.log("AIC:", result.aic);
+    console.log("BIC:", result.bic);
 }
 
 run();
@@ -283,6 +299,10 @@ const result = JSON.parse(ridge_regression(
 ));
 
 console.log("Coefficients:", result.coefficients);
+console.log("R-squared:", result.r_squared);
+console.log("Effective degrees of freedom:", result.effective_df);
+console.log("AIC:", result.aic);
+console.log("BIC:", result.bic);
 ```
 
 ### Lasso Regression (WASM)
@@ -300,6 +320,8 @@ const result = JSON.parse(lasso_regression(
 
 console.log("Coefficients:", result.coefficients);
 console.log("Non-zero coefficients:", result.n_nonzero);
+console.log("AIC:", result.aic);
+console.log("BIC:", result.bic);
 ```
 
 ### Elastic Net Regression (WASM)
@@ -318,6 +340,8 @@ const result = JSON.parse(elastic_net_regression(
 
 console.log("Coefficients:", result.coefficients);
 console.log("Non-zero coefficients:", result.n_nonzero);
+console.log("AIC:", result.aic);
+console.log("BIC:", result.bic);
 ```
 
 ### Lambda Path Generation (WASM)
@@ -520,7 +544,7 @@ print(result.summary())
 ```
 
 **Result objects** provide:
-- Direct attribute access (`result.r_squared`, `result.coefficients`)
+- Direct attribute access (`result.r_squared`, `result.coefficients`, `result.aic`, `result.bic`, `result.log_likelihood`)
 - `summary()` method for formatted output
 - `to_dict()` method for JSON serialization
 
@@ -537,6 +561,9 @@ result = linreg_core.ols_regression(y, x, names)
 print(f"Coefficients: {result.coefficients}")
 print(f"R-squared: {result.r_squared}")
 print(f"F-statistic: {result.f_statistic}")
+print(f"Log-likelihood: {result.log_likelihood}")
+print(f"AIC: {result.aic}")
+print(f"BIC: {result.bic}")
 ```
 
 ### Ridge Regression (Python)
@@ -549,6 +576,9 @@ result = linreg_core.ridge_regression(
 )
 print(f"Intercept: {result.intercept}")
 print(f"Coefficients: {result.coefficients}")
+print(f"Effective degrees of freedom: {result.effective_df:.2f}")
+print(f"AIC: {result.aic}")
+print(f"BIC: {result.bic}")
 ```
 
 ### Lasso Regression (Python)
@@ -565,6 +595,8 @@ print(f"Intercept: {result.intercept}")
 print(f"Coefficients: {result.coefficients}")
 print(f"Non-zero: {result.n_nonzero}")
 print(f"Converged: {result.converged}")
+print(f"AIC: {result.aic}")
+print(f"BIC: {result.bic}")
 ```
 
 ### Elastic Net Regression (Python)
@@ -581,6 +613,8 @@ result = linreg_core.elastic_net_regression(
 print(f"Intercept: {result.intercept}")
 print(f"Coefficients: {result.coefficients}")
 print(f"Non-zero: {result.n_nonzero}")
+print(f"AIC: {result.aic}")
+print(f"BIC: {result.bic}")
 ```
 
 ### Lambda Path Generation (Python)
