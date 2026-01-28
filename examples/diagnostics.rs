@@ -3,7 +3,7 @@
 //! Demonstrates running various diagnostic tests on regression results
 //! to validate assumptions like linearity, homoscedasticity, and normality.
 
-use linreg_core::diagnostics::{self, RainbowMethod, WhiteMethod};
+use linreg_core::diagnostics::{self, HarveyCollierMethod, RainbowMethod, WhiteMethod};
 
 fn main() {
     // Sample data from the classic "mtcars" dataset
@@ -46,7 +46,7 @@ fn main() {
     }
 
     // Harvey-Collier Test (uses recursive residuals)
-    match diagnostics::harvey_collier_test(&y, &x_vars) {
+    match diagnostics::harvey_collier_test(&y, &x_vars, HarveyCollierMethod::R) {
         Ok(hc) => {
             println!("Harvey-Collier Test:");
             println!("  statistic={:.4}, p-value={:.4}", hc.statistic, hc.p_value);

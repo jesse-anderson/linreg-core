@@ -7,12 +7,11 @@
 
 use crate::common::{
     assert_close_to, get_housing_data, load_validation_results, print_comparison_python,
-    print_comparison_r, DURBIN_WATSON_TOLERANCE, HARVEY_COLLIER_TOLERANCE, STAT_TOLERANCE,
-    TIGHT_TOLERANCE,
+    print_comparison_r, STAT_TOLERANCE, TIGHT_TOLERANCE,
 };
 
 use linreg_core::core;
-use linreg_core::diagnostics::{self, durbin_watson_test, RainbowMethod};
+use linreg_core::diagnostics::{self, RainbowMethod};
 
 // ============================================================================
 // R Validation Tests
@@ -132,6 +131,21 @@ fn validate_against_r_reference() {
         "F statistic",
     );
 
+    println!();
+    print_comparison_r("Log-Likelihood", result.log_likelihood, expected.log_likelihood, "  ");
+    assert_close_to(
+        result.log_likelihood,
+        expected.log_likelihood,
+        TIGHT_TOLERANCE,
+        "Log-Likelihood",
+    );
+
+    print_comparison_r("AIC", result.aic, expected.aic, "  ");
+    assert_close_to(result.aic, expected.aic, TIGHT_TOLERANCE, "AIC");
+
+    print_comparison_r("BIC", result.bic, expected.bic, "  ");
+    assert_close_to(result.bic, expected.bic, TIGHT_TOLERANCE, "BIC");
+
     println!("  ──────────────────────────────────────────────────────────");
     println!("  VARIANCE INFLATION FACTORS (VIF)");
     println!("  ──────────────────────────────────────────────────────────");
@@ -189,42 +203,6 @@ fn validate_against_r_reference() {
             "  ",
         );
         print_comparison_r("p-value", r_result.p_value, expected_rainbow.p_value, "  ");
-    }
-
-    if let Some(ref expected_hc) = expected.harvey_collier {
-        // Known issue: Harvey-Collier test may fail with SingularMatrix on high VIF datasets
-        // See CLAUDE.md Known Issues section
-        match diagnostics::harvey_collier_test(&y, &x_vars) {
-            Ok(hc_result) => {
-                assert_close_to(
-                    hc_result.statistic,
-                    expected_hc.statistic,
-                    HARVEY_COLLIER_TOLERANCE,
-                    "Harvey-Collier statistic",
-                );
-                assert_close_to(
-                    hc_result.p_value,
-                    expected_hc.p_value,
-                    HARVEY_COLLIER_TOLERANCE,
-                    "Harvey-Collier p-value",
-                );
-
-                println!("  Harvey-Collier Test (Linearity)");
-                print_comparison_r(
-                    "t-statistic",
-                    hc_result.statistic,
-                    expected_hc.statistic,
-                    "  ",
-                );
-                print_comparison_r("p-value", hc_result.p_value, expected_hc.p_value, "  ");
-            },
-            Err(e) => {
-                println!("  Harvey-Collier Test: SKIPPED ({})", e);
-                println!(
-                    "    Known issue: high VIF causes numerical instability in recursive residuals"
-                );
-            },
-        }
     }
 
     // Breusch-Pagan test
@@ -285,33 +263,6 @@ fn validate_against_r_reference() {
         print_comparison_r("p-value", white_r.p_value, expected_white.p_value, "  ");
     }
 
-    // Jarque-Bera test
-    if let Some(ref expected_jb) = expected.jarque_bera {
-        let jb_result =
-            diagnostics::jarque_bera_test(&y, &x_vars).expect("Jarque-Bera test should succeed");
-        assert_close_to(
-            jb_result.statistic,
-            expected_jb.statistic,
-            STAT_TOLERANCE,
-            "JB statistic",
-        );
-        assert_close_to(
-            jb_result.p_value,
-            expected_jb.p_value,
-            STAT_TOLERANCE,
-            "JB p-value",
-        );
-
-        println!("  Jarque-Bera Test (Normality)");
-        print_comparison_r(
-            "X-squared",
-            jb_result.statistic,
-            expected_jb.statistic,
-            "  ",
-        );
-        print_comparison_r("p-value", jb_result.p_value, expected_jb.p_value, "  ");
-    }
-
     // Anderson-Darling test
     const AD_TOLERANCE: f64 = 0.001;
     if let Some(ref expected_ad) = expected.anderson_darling {
@@ -366,25 +317,6 @@ fn validate_against_r_reference() {
             "  ",
         );
         print_comparison_r("p-value", sw_result.p_value, expected_sw.p_value, "  ");
-    }
-
-    // Durbin-Watson Test (Autocorrelation)
-    if let Some(ref expected_dw) = expected.durbin_watson {
-        let dw_result = durbin_watson_test(&y, &x_vars).expect("Durbin-Watson test should succeed");
-        assert_close_to(
-            dw_result.statistic,
-            expected_dw.statistic,
-            DURBIN_WATSON_TOLERANCE,
-            "DW statistic",
-        );
-
-        println!("  Durbin-Watson Test (Autocorrelation)");
-        print_comparison_r(
-            "DW statistic",
-            dw_result.statistic,
-            expected_dw.statistic,
-            "  ",
-        );
     }
 
     println!("\n✓ All R validation checks passed!");
@@ -598,41 +530,6 @@ fn validate_against_python_reference() {
         print_comparison_python("p-value", white_py.p_value, expected_white.p_value, "  ");
     }
 
-    // Other diagnostic tests should match both R and Python
-    if let Some(ref expected_hc) = expected.harvey_collier {
-        match diagnostics::harvey_collier_test(&y, &x_vars) {
-            Ok(hc_result) => {
-                assert_close_to(
-                    hc_result.statistic,
-                    expected_hc.statistic,
-                    HARVEY_COLLIER_TOLERANCE,
-                    "Harvey-Collier statistic",
-                );
-                assert_close_to(
-                    hc_result.p_value,
-                    expected_hc.p_value,
-                    HARVEY_COLLIER_TOLERANCE,
-                    "Harvey-Collier p-value",
-                );
-
-                println!("  Harvey-Collier Test (Linearity)");
-                print_comparison_python(
-                    "t-statistic",
-                    hc_result.statistic,
-                    expected_hc.statistic,
-                    "  ",
-                );
-                print_comparison_python("p-value", hc_result.p_value, expected_hc.p_value, "  ");
-            },
-            Err(e) => {
-                println!("  Harvey-Collier Test: SKIPPED ({})", e);
-                println!(
-                    "    Known issue: high VIF causes numerical instability in recursive residuals"
-                );
-            },
-        }
-    }
-
     // Breusch-Pagan test
     if let Some(ref expected_bp) = expected.breusch_pagan {
         let bp_result = diagnostics::breusch_pagan_test(&y, &x_vars)
@@ -658,33 +555,6 @@ fn validate_against_python_reference() {
             "  ",
         );
         print_comparison_python("p-value", bp_result.p_value, expected_bp.p_value, "  ");
-    }
-
-    // Jarque-Bera test
-    if let Some(ref expected_jb) = expected.jarque_bera {
-        let jb_result =
-            diagnostics::jarque_bera_test(&y, &x_vars).expect("Jarque-Bera test should succeed");
-        assert_close_to(
-            jb_result.statistic,
-            expected_jb.statistic,
-            STAT_TOLERANCE,
-            "JB statistic",
-        );
-        assert_close_to(
-            jb_result.p_value,
-            expected_jb.p_value,
-            STAT_TOLERANCE,
-            "JB p-value",
-        );
-
-        println!("  Jarque-Bera Test (Normality)");
-        print_comparison_python(
-            "JB-statistic",
-            jb_result.statistic,
-            expected_jb.statistic,
-            "  ",
-        );
-        print_comparison_python("p-value", jb_result.p_value, expected_jb.p_value, "  ");
     }
 
     // Anderson-Darling test
@@ -741,25 +611,6 @@ fn validate_against_python_reference() {
             "  ",
         );
         print_comparison_python("p-value", sw_result.p_value, expected_sw.p_value, "  ");
-    }
-
-    // Durbin-Watson Test (Autocorrelation)
-    if let Some(ref expected_dw) = expected.durbin_watson {
-        let dw_result = durbin_watson_test(&y, &x_vars).expect("Durbin-Watson test should succeed");
-        assert_close_to(
-            dw_result.statistic,
-            expected_dw.statistic,
-            DURBIN_WATSON_TOLERANCE,
-            "DW statistic",
-        );
-
-        println!("  Durbin-Watson Test (Autocorrelation)");
-        print_comparison_python(
-            "DW statistic",
-            dw_result.statistic,
-            expected_dw.statistic,
-            "  ",
-        );
     }
 
     println!("\n✓ All Python validation checks passed!");

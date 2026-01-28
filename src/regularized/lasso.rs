@@ -84,6 +84,9 @@ impl Default for LassoFitOptions {
 /// - `mse` - Mean squared error
 /// - `rmse` - Root mean squared error
 /// - `mae` - Mean absolute error
+/// - `log_likelihood` - Log-likelihood of the model (for model comparison)
+/// - `aic` - Akaike Information Criterion (lower = better)
+/// - `bic` - Bayesian Information Criterion (lower = better)
 ///
 /// # Example
 ///
@@ -103,6 +106,7 @@ impl Default for LassoFitOptions {
 /// // Access model coefficients
 /// println!("Intercept: {}", fit.intercept);
 /// println!("Slopes: {:?}", fit.coefficients);
+/// println!("AIC: {}", fit.aic);
 /// # Ok::<(), linreg_core::Error>(())
 /// ```
 #[derive(Clone, Debug)]
@@ -121,6 +125,9 @@ pub struct LassoFit {
     pub mse: f64,
     pub rmse: f64,
     pub mae: f64,
+    pub log_likelihood: f64,
+    pub aic: f64,
+    pub bic: f64,
 }
 
 /// Fits lasso regression for a single lambda value.
@@ -189,6 +196,9 @@ pub fn lasso_fit(x: &Matrix, y: &[f64], options: &LassoFitOptions) -> Result<Las
         mse: fit.mse,
         rmse: fit.rmse,
         mae: fit.mae,
+        log_likelihood: fit.log_likelihood,
+        aic: fit.aic,
+        bic: fit.bic,
     })
 }
 

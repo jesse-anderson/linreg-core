@@ -146,6 +146,11 @@ residuals <- as.vector(residuals(fit))
 mse <- sum(residuals^2) / df_residual
 std_error <- sqrt(mse)
 
+# Model selection criteria
+log_likelihood <- as.numeric(logLik(fit))
+aic_val <- AIC(fit)
+bic_val <- BIC(fit)
+
 # Confidence intervals (95%)
 ci <- confint(fit, level = 0.95)
 conf_int_lower <- as.vector(ci[, 1])
@@ -195,6 +200,9 @@ result <- list(
   f_p_value = f_p_value,
   mse = mse,
   std_error = std_error,
+  log_likelihood = log_likelihood,
+  aic = aic_val,
+  bic = bic_val,
   conf_int_lower = conf_int_lower,
   conf_int_upper = conf_int_upper,
   residuals = residuals,

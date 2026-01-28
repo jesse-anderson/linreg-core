@@ -8,8 +8,9 @@
 // Note: Excludes synthetic_collinear and synthetic_high_vif which are
 // designed to test multicollinearity edge cases (numerically unstable for OLS).
 
-use crate::common::{load_dataset_with_encoding, load_ols_by_dataset_result, TIGHT_TOLERANCE, CategoricalEncoding};
+use crate::common::{expect_ols_by_dataset_result, load_dataset_with_encoding, load_ols_by_dataset_result, TIGHT_TOLERANCE, CategoricalEncoding};
 use linreg_core::core;
+use linreg_core::{aic, aic_python, bic, bic_python};
 
 const TEST_DATASETS: &[&str] = &[
     "bodyfat",
@@ -48,13 +49,7 @@ fn validate_ols_r_dataset(dataset_name: &str) {
             .expect(&format!("Failed to load {} dataset", dataset_name));
 
     // Load R reference - panic loudly if not found
-    let r_ref = load_ols_by_dataset_result(&r_result_path).unwrap_or_else(|| {
-        panic!(
-            "R OLS result file not found: {}\n \
-             Run: Rscript verification/scripts/runners/run_all_diagnostics_r.R",
-            r_result_path.display()
-        )
-    });
+    let r_ref = expect_ols_by_dataset_result(&r_result_path);
 
     // Build variable names
     let mut names = vec!["Intercept".to_string()];
@@ -102,10 +97,120 @@ fn validate_ols_r_dataset(dataset_name: &str) {
         all_passed = false;
     }
 
+    // Validate log-likelihood
+    let ll_diff = (result.log_likelihood - r_ref.log_likelihood).abs();
+    if ll_diff > TIGHT_TOLERANCE {
+        println!(
+            "   LL: Rust = {:.8}, R = {:.8}, diff = {:.2e}",
+            result.log_likelihood, r_ref.log_likelihood, ll_diff
+        );
+        all_passed = false;
+    }
+
+    // Validate AIC (R-style, includes variance parameter)
+    let aic_diff = (result.aic - r_ref.aic).abs();
+    if aic_diff > TIGHT_TOLERANCE {
+        println!(
+            "   AIC: Rust = {:.8}, R = {:.8}, diff = {:.2e}",
+            result.aic, r_ref.aic, aic_diff
+        );
+        all_passed = false;
+    }
+
+    // Validate BIC (R-style, includes variance parameter)
+    let bic_diff = (result.bic - r_ref.bic).abs();
+    if bic_diff > TIGHT_TOLERANCE {
+        println!(
+            "   BIC: Rust = {:.8}, R = {:.8}, diff = {:.2e}",
+            result.bic, r_ref.bic, bic_diff
+        );
+        all_passed = false;
+    }
+
     if all_passed {
         println!("   {} OLS validation: PASS", dataset_name);
     } else {
         panic!("{} OLS validation: FAILED", dataset_name);
+    }
+}
+
+/// Validate OLS against Python reference for a specific dataset
+/// Uses Python/statsmodels convention for AIC/BIC (no variance parameter)
+fn validate_ols_python_dataset(dataset_name: &str) {
+    let current_dir = std::env::current_dir().expect("Failed to get current dir");
+    let python_results_dir = current_dir.join("verification/results/python");
+    let datasets_dir = current_dir.join("verification/datasets/csv");
+
+    let csv_path = datasets_dir.join(format!("{}.csv", dataset_name));
+    let python_result_path = python_results_dir.join(format!("{}_ols.json", dataset_name));
+
+    // Load dataset with Python-compatible 0-based categorical encoding
+    let dataset =
+        load_dataset_with_encoding(&csv_path, CategoricalEncoding::ZeroBased)
+            .expect(&format!("Failed to load {} dataset", dataset_name));
+
+    // Load Python reference - skip if not found
+    let py_ref = match load_ols_by_dataset_result(&python_result_path) {
+        Some(r) => r,
+        None => {
+            println!("   SKIP: Python reference not found for {}", dataset_name);
+            return;
+        }
+    };
+
+    // Build variable names
+    let mut names = vec!["Intercept".to_string()];
+    names.extend(dataset.variable_names);
+
+    // Run OLS regression
+    let result = match core::ols_regression(&dataset.y, &dataset.x_vars, &names) {
+        Ok(r) => r,
+        Err(e) => {
+            println!("   OLS regression failed: {}", e);
+            return;
+        },
+    };
+
+    let mut all_passed = true;
+    let n_coef = result.coefficients.len();
+    let n = result.n;
+
+    // Validate log-likelihood (should match exactly)
+    let ll_diff = (result.log_likelihood - py_ref.log_likelihood).abs();
+    if ll_diff > TIGHT_TOLERANCE {
+        println!(
+            "   LL: Rust = {:.8}, Python = {:.8}, diff = {:.2e}",
+            result.log_likelihood, py_ref.log_likelihood, ll_diff
+        );
+        all_passed = false;
+    }
+
+    // Validate AIC using Python convention
+    let rust_aic_python = aic_python(result.log_likelihood, n_coef);
+    let aic_diff = (rust_aic_python - py_ref.aic).abs();
+    if aic_diff > TIGHT_TOLERANCE {
+        println!(
+            "   AIC (Python): Rust = {:.8}, Python = {:.8}, diff = {:.2e}",
+            rust_aic_python, py_ref.aic, aic_diff
+        );
+        all_passed = false;
+    }
+
+    // Validate BIC using Python convention
+    let rust_bic_python = bic_python(result.log_likelihood, n_coef, n);
+    let bic_diff = (rust_bic_python - py_ref.bic).abs();
+    if bic_diff > TIGHT_TOLERANCE {
+        println!(
+            "   BIC (Python): Rust = {:.8}, Python = {:.8}, diff = {:.2e}",
+            rust_bic_python, py_ref.bic, bic_diff
+        );
+        all_passed = false;
+    }
+
+    if all_passed {
+        println!("   {} Python AIC/BIC validation: PASS", dataset_name);
+    } else {
+        panic!("{} Python AIC/BIC validation: FAILED", dataset_name);
     }
 }
 
@@ -116,5 +221,16 @@ fn validate_ols_r_all_datasets() {
     for dataset in TEST_DATASETS {
         println!("--- Dataset: {} ---", dataset);
         validate_ols_r_dataset(dataset);
+    }
+}
+
+#[test]
+fn validate_ols_python_aic_bic() {
+    println!("\n========== PER-DATASET AIC/BIC VALIDATION (Python) ==========\n");
+
+    // Use same datasets as R validation
+    for dataset in TEST_DATASETS {
+        println!("--- Dataset: {} ---", dataset);
+        validate_ols_python_dataset(dataset);
     }
 }

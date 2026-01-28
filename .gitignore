@@ -50,6 +50,7 @@ node_modules/
 venv/
 env/
 ENV/
+venv_py*/
 
 # Verification outputs (optional)
 # R_results.json
@@ -66,6 +67,7 @@ HANDOFF_TEST_COVERAGE_AUDIT.md
 COVERAGE_MATRIX.md
 AIC_BIC_TODO.md
 *TODO*.md
+docs*/
 # Large test data files
 test_data_*.csv
 *audit*.md
@@ -81,3 +83,4 @@ debug_*/
 criterion*/
 flamegraph*/
 tests/proptest*/
+coverage.json

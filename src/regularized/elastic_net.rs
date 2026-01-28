@@ -15,6 +15,7 @@
 //! Note on scaling: The internal implementation works with standardized data (unit norm columns).
 //! The lambda parameter is adjusted internally to match the scale expected by the formulation above.
 
+use crate::core::{aic, bic, log_likelihood};
 use crate::error::{Error, Result};
 use crate::linalg::Matrix;
 use crate::regularized::preprocess::{
@@ -183,6 +184,9 @@ impl Default for ElasticNetOptions {
 /// - `mse` - Mean squared error
 /// - `rmse` - Root mean squared error
 /// - `mae` - Mean absolute error
+/// - `log_likelihood` - Log-likelihood of the model (for model comparison)
+/// - `aic` - Akaike Information Criterion (lower = better)
+/// - `bic` - Bayesian Information Criterion (lower = better)
 ///
 /// # Example
 ///
@@ -199,6 +203,7 @@ impl Default for ElasticNetOptions {
 /// println!("Non-zero coefficients: {}", fit.n_nonzero);
 /// println!("Converged: {}", fit.converged);
 /// println!("R²: {}", fit.r_squared);
+/// println!("AIC: {}", fit.aic);
 /// # Ok::<(), linreg_core::Error>(())
 /// ```
 #[derive(Clone, Debug)]
@@ -218,6 +223,9 @@ pub struct ElasticNetFit {
     pub mse: f64,
     pub rmse: f64,
     pub mae: f64,
+    pub log_likelihood: f64,
+    pub aic: f64,
+    pub bic: f64,
 }
 
 use crate::regularized::path::{make_lambda_path, LambdaPathOptions};
@@ -390,6 +398,12 @@ pub fn elastic_net_path(
         };
         let mse = ss_res / (n as f64 - eff_df).max(1.0);
 
+        // Model selection criteria
+        let ll = log_likelihood(n, mse, ss_res);
+        let n_coef = beta_orig.len() + 1; // coefficients + intercept
+        let aic_val = aic(ll, n_coef);
+        let bic_val = bic(ll, n_coef, n);
+
         // Convert Internal lambda to Public (user-facing) lambda for reporting
         // Public = Internal * y_scale_var * n (to match R's glmnet reporting)
         let lambda_original_scale = lambda_standardized_value * lambda_conversion_factor;
@@ -409,6 +423,9 @@ pub fn elastic_net_path(
             mse,
             rmse: mse.sqrt(),
             mae,
+            log_likelihood: ll,
+            aic: aic_val,
+            bic: bic_val,
         });
     }
 
@@ -654,6 +671,13 @@ pub fn elastic_net_fit(x: &Matrix, y: &[f64], options: &ElasticNetOptions) -> Re
 
     let mse = ss_res / (n as f64 - eff_df).max(1.0);
 
+    // Model selection criteria
+    let ss_res: f64 = residuals.iter().map(|&r| r * r).sum();
+    let ll = log_likelihood(n, mse, ss_res);
+    let n_coef = beta_orig.len() + 1; // coefficients + intercept
+    let aic_val = aic(ll, n_coef);
+    let bic_val = bic(ll, n_coef, n);
+
     Ok(ElasticNetFit {
         lambda: options.lambda,
         alpha: options.alpha,
@@ -669,6 +693,9 @@ pub fn elastic_net_fit(x: &Matrix, y: &[f64], options: &ElasticNetOptions) -> Re
         mse,
         rmse: mse.sqrt(),
         mae,
+        log_likelihood: ll,
+        aic: aic_val,
+        bic: bic_val,
     })
 }
 

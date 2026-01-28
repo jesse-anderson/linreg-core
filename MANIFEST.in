@@ -1,0 +1,9 @@
+# Include type stubs for IDE support
+include linreg_core.pyi
+
+# Include documentation
+include README.md
+
+# Include license files
+include LICENSE-MIT
+include LICENSE-APACHE

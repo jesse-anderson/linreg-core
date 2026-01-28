@@ -288,6 +288,9 @@ export async function calculateRegression(yVar, xVars) {
         k: result.k,
         df: result.df,
         variableNames: result.variable_names,
+        logLikelihood: result.log_likelihood,
+        aic: result.aic,
+        bic: result.bic,
         method: 'ols'
     };
 }
@@ -343,6 +346,9 @@ export async function calculateRidgeRegression(yVar, xVars, lambda = 1.0, standa
         n: n,
         k: k,
         variableNames: names,
+        logLikelihood: result.log_likelihood,
+        aic: result.aic,
+        bic: result.bic,
         method: 'ridge'
     };
 }
@@ -401,6 +407,9 @@ export async function calculateLassoRegression(yVar, xVars, lambda = 1.0, standa
         n: n,
         k: k,
         variableNames: names,
+        logLikelihood: result.log_likelihood,
+        aic: result.aic,
+        bic: result.bic,
         method: 'lasso'
     };
 }
@@ -461,6 +470,9 @@ export async function calculateElasticNetRegression(yVar, xVars, lambda = 1.0, a
         n: n,
         k: k,
         variableNames: names,
+        logLikelihood: result.log_likelihood,
+        aic: result.aic,
+        bic: result.bic,
         method: 'elastic_net'
     };
 }

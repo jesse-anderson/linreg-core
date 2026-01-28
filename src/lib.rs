@@ -175,6 +175,11 @@ pub mod linalg;
 pub mod regularized;
 pub mod stats;
 
+// Python bindings (only compiled when "python" feature is enabled)
+// Module structure: src/python/ with mod.rs, error.rs, types.rs, results.rs
+#[cfg(feature = "python")]
+pub mod python;
+
 // Unit tests are now in tests/unit/ directory
 // - error_tests.rs -> tests/unit/error_tests.rs
 // - core_tests.rs -> tests/unit/core_tests.rs
@@ -183,7 +188,7 @@ pub mod stats;
 // - diagnostics_tests.rs: disabled (references unimplemented functions)
 
 // Re-export public API (always available)
-pub use core::{RegressionOutput, VifResult};
+pub use core::{aic, aic_python, bic, bic_python, log_likelihood, RegressionOutput, VifResult};
 pub use diagnostics::{
     BGTestType, BreuschGodfreyResult, CooksDistanceResult, DiagnosticTestResult,
     RainbowMethod, RainbowSingleResult, RainbowTestOutput, ResetType,
@@ -469,7 +474,7 @@ pub fn harvey_collier_test(y_json: &str, x_vars_json: &str) -> String {
         Err(e) => return error_json(&format!("Failed to parse x_vars: {}", e)),
     };
 
-    match diagnostics::harvey_collier_test(&y, &x_vars) {
+    match diagnostics::harvey_collier_test(&y, &x_vars, diagnostics::HarveyCollierMethod::R) {
         Ok(output) => serde_json::to_string(&output)
             .unwrap_or_else(|_| error_json("Failed to serialize Harvey-Collier test result")),
         Err(e) => error_json(&e.to_string()),

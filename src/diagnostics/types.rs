@@ -291,6 +291,20 @@ pub enum WhiteMethod {
     Both,
 }
 
+/// Method for computing the Harvey-Collier test.
+///
+/// Different statistical packages implement the Harvey-Collier test differently.
+/// R's `lmtest::harvtest` uses all recursive residuals, while Python's
+/// `statsmodels.stats.diagnostic.linear_harvey_collier` skips the first 3
+/// elements of the standardized recursive residuals.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum HarveyCollierMethod {
+    /// R's lmtest::harvtest (uses all recursive residuals)
+    R,
+    /// Python's statsmodels (skips first 3 recursive residuals)
+    Python,
+}
+
 /// Result of Cook's distance analysis.
 ///
 /// Cook's distance measures how much each observation influences the regression model.

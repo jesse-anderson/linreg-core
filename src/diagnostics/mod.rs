@@ -65,7 +65,7 @@ mod white;
 // Re-export types
 pub use types::{
     CooksDistanceResult, DiagnosticTestResult, RainbowMethod, RainbowSingleResult,
-    RainbowTestOutput, WhiteMethod, WhiteSingleResult, WhiteTestOutput,
+    RainbowTestOutput, WhiteMethod, WhiteSingleResult, WhiteTestOutput, HarveyCollierMethod,
 };
 
 // Re-export test functions

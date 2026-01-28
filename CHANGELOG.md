@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-01-27
+
+### Added
+- **Python bindings via PyO3** — Full Python API matching WASM and Rust functionality
+- **NumPy array support** — Efficient data passing between Python and Rust
+- **Type stubs** — `linreg_core.pyi` for IDE autocomplete and type checking
+- **Descriptive statistics** — `stats_mean`, `stats_variance`, `stats_stddev`, `stats_median`, `stats_quantile`, `stats_correlation`
+- **CSV parsing utility** — `parse_csv()` for WASM and Python
+- **Model selection criteria** — `log_likelihood`, `aic`, `bic` for OLS, Ridge, Lasso, and Elastic Net (R convention)
+
+### Changed
+- Streamlined and reorganized README with clearer structure
+- Improved diagnostic tests documentation
+
+### Fixed
+- **Harvey-Collier test** — Fixed numerical stability issues on high-VIF datasets
+
+### Priority Items
+- **Performance** - We really need to improve native rust/python performance. We will get ~10x with FAER in theory and same with SIMD FAER for WASM, but for now this feels like running the slow DBSCAN MATLAB implementation.
+
 ## [0.3.0] - 2026-01-26
 
 ### Added

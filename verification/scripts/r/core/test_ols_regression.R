@@ -84,7 +84,12 @@ perform_jarque_bera_test <- function(model) {
 capture_test <- function(name, model, data) {
     # Calculate MSE first
     mse_val <- sum(residuals(model)^2) / model$df.residual
-    
+
+    # Calculate model selection criteria
+    ll <- as.numeric(logLik(model))
+    aic_val <- AIC(model)
+    bic_val <- BIC(model)
+
     result <- list(
         test_name = name,
         n = nrow(data),
@@ -109,6 +114,11 @@ capture_test <- function(name, model, data) {
         # MSE and Std Error
         mse = mse_val,
         std_error = sqrt(mse_val),
+
+        # Model selection criteria
+        log_likelihood = ll,
+        aic = aic_val,
+        bic = bic_val,
 
         # Residuals
         residuals = as.vector(residuals(model)),
@@ -195,6 +205,9 @@ print_test_results <- function(result) {
     cat(sprintf("  Adjusted R^2: %.6f\n", result$adj_r_squared))
     cat(sprintf("  F-statistic: %.4f (p = %.6f)\n", result$f_statistic, result$f_p_value))
     cat(sprintf("  MSE: %.6f\n", result$mse))
+    cat(sprintf("  Log-Likelihood: %.4f\n", result$log_likelihood))
+    cat(sprintf("  AIC: %.4f\n", result$aic))
+    cat(sprintf("  BIC: %.4f\n", result$bic))
 
     # Diagnostic Tests
     cat("\n  Diagnostic Tests (Native Libraries Only):\n")
@@ -408,6 +421,9 @@ json_output <- sprintf('{
     "f_p_value": %.20f,
     "mse": %.10f,
     "std_error": %.10f,
+    "log_likelihood": %.15f,
+    "aic": %.15f,
+    "bic": %.15f,
     "conf_int_lower": %s,
     "conf_int_upper": %s,
     "residuals": %s,
@@ -435,6 +451,9 @@ json_output <- sprintf('{
     res$f_p_value,
     res$mse,
     res$std_error,
+    res$log_likelihood,
+    res$aic,
+    res$bic,
     format_vector(res$conf_int_lower),
     format_vector(res$conf_int_upper),
     format_vector(res$residuals),

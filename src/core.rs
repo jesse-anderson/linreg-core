@@ -143,6 +143,12 @@ pub struct RegressionOutput {
     pub df: usize,
     /// Names of variables (including intercept)
     pub variable_names: Vec<String>,
+    /// Log-likelihood of the model (useful for AIC/BIC calculation and model comparison)
+    pub log_likelihood: f64,
+    /// Akaike Information Criterion (lower = better model, penalizes complexity)
+    pub aic: f64,
+    /// Bayesian Information Criterion (lower = better model, penalizes complexity more heavily than AIC)
+    pub bic: f64,
 }
 
 // ============================================================================
@@ -281,6 +287,155 @@ pub fn compute_leverage(x: &Matrix, xtx_inv: &Matrix) -> Vec<f64> {
         leverage[i] = vec_dot(&temp_vec, &row_vec);
     }
     leverage
+}
+
+// ============================================================================
+// Model Selection Criteria
+// ============================================================================
+//
+// Log-likelihood, AIC, and BIC for model comparison.
+
+/// Computes the log-likelihood of the OLS model.
+///
+/// For a linear regression with normally distributed errors, the log-likelihood is:
+///
+/// ```text
+/// log L = -n/2 * ln(2π) - n/2 * ln(SSR/n) - n/2
+///       = -n/2 * ln(2π*SSR/n) - n/2
+/// ```
+///
+/// where SSR is the sum of squared residuals and n is the number of observations.
+/// This matches R's `logLik.lm()` implementation.
+///
+/// # Arguments
+///
+/// * `n` - Number of observations
+/// * `mse` - Mean squared error (estimate of σ², but NOT directly used in formula)
+/// * `ssr` - Sum of squared residuals
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::core::log_likelihood;
+/// let ll = log_likelihood(100, 4.5, 450.0);
+/// assert!(ll < 0.0);  // Log-likelihood is negative for typical data
+/// ```
+pub fn log_likelihood(n: usize, _mse: f64, ssr: f64) -> f64 {
+    let n_f64 = n as f64;
+    let two_pi = 2.0 * std::f64::consts::PI;
+
+    // R's logLik.lm formula: -n/2 * log(2*pi*SSR/n) - n/2
+    // This is equivalent to: -n/2 * (log(2*pi) + log(SSR/n) + 1)
+    -0.5 * n_f64 * (two_pi * ssr / n_f64).ln() - n_f64 / 2.0
+}
+
+/// Computes the Akaike Information Criterion (AIC).
+///
+/// AIC = 2k - 2logL
+///
+/// where k is the number of estimated parameters and logL is the log-likelihood.
+/// Lower AIC indicates a better model, with a penalty for additional parameters.
+///
+/// Note: R's AIC for lm models counts k as (n_coef + 1) where n_coef is the
+/// number of coefficients (including intercept) and +1 is for the estimated
+/// variance parameter. This implementation follows that convention.
+///
+/// # Arguments
+///
+/// * `log_likelihood` - Log-likelihood of the model
+/// * `n_coef` - Number of coefficients (including intercept)
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::core::aic;
+/// let aic_value = aic(-150.5, 3);  // 3 coefficients
+/// ```
+pub fn aic(log_likelihood: f64, n_coef: usize) -> f64 {
+    // R's AIC for lm: 2k - 2*logL
+    // where k = n_coef + 1 (coefficients + variance parameter)
+    let k = n_coef + 1;
+    2.0 * k as f64 - 2.0 * log_likelihood
+}
+
+/// Computes the Bayesian Information Criterion (BIC).
+///
+/// BIC = k*ln(n) - 2logL
+///
+/// where k is the number of estimated parameters, n is the sample size, and
+/// logL is the log-likelihood. BIC penalizes model complexity more heavily
+/// than AIC for larger sample sizes.
+///
+/// Note: R's BIC for lm models counts k as (n_coef + 1) where n_coef is the
+/// number of coefficients (including intercept) and +1 is for the estimated
+/// variance parameter. This implementation follows that convention.
+///
+/// # Arguments
+///
+/// * `log_likelihood` - Log-likelihood of the model
+/// * `n_coef` - Number of coefficients (including intercept)
+/// * `n_obs` - Number of observations
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::core::bic;
+/// let bic_value = bic(-150.5, 3, 100);  // 3 coefficients, 100 obs
+/// ```
+pub fn bic(log_likelihood: f64, n_coef: usize, n_obs: usize) -> f64 {
+    // R's BIC for lm: k * ln(n) - 2*logL
+    // where k = n_coef + 1 (coefficients + variance parameter)
+    let k = n_coef + 1;
+    k as f64 * (n_obs as f64).ln() - 2.0 * log_likelihood
+}
+
+/// Computes AIC using Python/statsmodels convention.
+///
+/// AIC = 2k - 2logL
+///
+/// where k is the number of coefficients (NOT including variance parameter).
+/// This matches Python's statsmodels OLS.aic behavior.
+///
+/// # Arguments
+///
+/// * `log_likelihood` - Log-likelihood of the model
+/// * `n_coef` - Number of coefficients (including intercept)
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::core::aic_python;
+/// let aic_value = aic_python(-150.5, 3);  // 3 coefficients
+/// ```
+pub fn aic_python(log_likelihood: f64, n_coef: usize) -> f64 {
+    // Python's statsmodels AIC: 2k - 2*logL
+    // where k = n_coef (does NOT include variance parameter)
+    2.0 * n_coef as f64 - 2.0 * log_likelihood
+}
+
+/// Computes BIC using Python/statsmodels convention.
+///
+/// BIC = k*ln(n) - 2logL
+///
+/// where k is the number of coefficients (NOT including variance parameter).
+/// This matches Python's statsmodels OLS.bic behavior.
+///
+/// # Arguments
+///
+/// * `log_likelihood` - Log-likelihood of the model
+/// * `n_coef` - Number of coefficients (including intercept)
+/// * `n_obs` - Number of observations
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::core::bic_python;
+/// let bic_value = bic_python(-150.5, 3, 100);  // 3 coefficients, 100 obs
+/// ```
+pub fn bic_python(log_likelihood: f64, n_coef: usize, n_obs: usize) -> f64 {
+    // Python's statsmodels BIC: k * ln(n) - 2*logL
+    // where k = n_coef (does NOT include variance parameter)
+    n_coef as f64 * (n_obs as f64).ln() - 2.0 * log_likelihood
 }
 
 // ============================================================================
@@ -630,6 +785,12 @@ pub fn ols_regression(
     // VIF
     let vif = calculate_vif(x_vars, &names, n);
 
+    // Model selection criteria (for model comparison)
+    let ll = log_likelihood(n, mse, ss_residual);
+    let n_coef = k + 1;  // predictors + intercept
+    let aic_val = aic(ll, n_coef);
+    let bic_val = bic(ll, n_coef, n);
+
     Ok(RegressionOutput {
         coefficients: beta,
         std_errors,
@@ -654,5 +815,279 @@ pub fn ols_regression(
         k,
         df,
         variable_names: names,
+        log_likelihood: ll,
+        aic: aic_val,
+        bic: bic_val,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_aic_bic_formulas_known_values() {
+        // Test formulas with simple known inputs
+        let ll = -100.0;
+        let n_coef = 3; // 3 coefficients (e.g., intercept + 2 predictors)
+        let n_obs = 100;
+
+        let aic_val = aic(ll, n_coef);
+        let bic_val = bic(ll, n_coef, n_obs);
+
+        // AIC = 2k - 2logL where k = n_coef + 1 (variance parameter)
+        // AIC = 2*4 - 2*(-100) = 8 + 200 = 208
+        assert!((aic_val - 208.0).abs() < 1e-10);
+
+        // BIC = k*ln(n) - 2logL where k = n_coef + 1
+        // BIC = 4*ln(100) - 2*(-100) = 4*4.605... + 200
+        let expected_bic = 4.0 * (100.0_f64).ln() + 200.0;
+        assert!((bic_val - expected_bic).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_bic_greater_than_aic_for_reasonable_n() {
+        // For n >= 8, ln(n) > 2, so BIC > AIC (both have -2logL term)
+        // BIC uses k*ln(n) while AIC uses 2k, so when ln(n) > 2, BIC > AIC
+        let ll = -50.0;
+        let n_coef = 2;
+
+        let aic_val = aic(ll, n_coef);
+        let bic_val = bic(ll, n_coef, 100); // n=100, ln(100) ≈ 4.6 > 2
+
+        assert!(bic_val > aic_val);
+    }
+
+    #[test]
+    fn test_log_likelihood_returns_finite() {
+        // Ensure log_likelihood returns finite values for valid inputs
+        let n = 10;
+        let mse = 4.0;
+        let ssr = mse * (n - 2) as f64;
+
+        let ll = log_likelihood(n, mse, ssr);
+        assert!(ll.is_finite());
+    }
+
+    #[test]
+    fn test_log_likelihood_increases_with_better_fit() {
+        // Lower SSR (better fit) should give higher log-likelihood
+        let n = 10;
+
+        // Worse fit (higher residuals)
+        let ll_worse = log_likelihood(n, 10.0, 80.0);
+
+        // Better fit (lower residuals)
+        let ll_better = log_likelihood(n, 2.0, 16.0);
+
+        assert!(ll_better > ll_worse);
+    }
+
+    #[test]
+    fn test_model_selection_criteria_present_in_output() {
+        // Basic sanity check that the fields are populated
+        let y = vec![2.0, 4.0, 5.0, 4.0, 5.0];
+        let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let names = vec!["Intercept".to_string(), "X1".to_string()];
+
+        let result = ols_regression(&y, &[x1], &names).unwrap();
+
+        // All three should be finite
+        assert!(result.log_likelihood.is_finite());
+        assert!(result.aic.is_finite());
+        assert!(result.bic.is_finite());
+
+        // AIC and BIC should be positive for typical cases
+        // (since log_likelihood is usually negative and bounded)
+        assert!(result.aic > 0.0);
+        assert!(result.bic > 0.0);
+    }
+
+    #[test]
+    fn test_regression_output_has_correct_dimensions() {
+        // Verify AIC/BIC use k = n_coef + 1 (coefficients + variance parameter)
+        let y = vec![3.0, 5.0, 7.0, 9.0, 11.0, 13.0, 15.0, 17.0];
+        let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+        let x2 = vec![3.0, 2.0, 4.0, 3.0, 5.0, 4.0, 6.0, 5.0];
+        let names = vec!["Intercept".into(), "X1".into(), "X2".into()];
+
+        let result = ols_regression(&y, &[x1, x2], &names).unwrap();
+
+        // n_coef = 3 (intercept + 2 predictors)
+        // k = n_coef + 1 = 4 (including variance parameter, following R convention)
+        let n_coef = 3;
+        let k = n_coef + 1; // R's convention includes variance parameter
+
+        // Verify by recalculating AIC from log_likelihood
+        let expected_aic = 2.0 * k as f64 - 2.0 * result.log_likelihood;
+        assert!((result.aic - expected_aic).abs() < 1e-10);
+
+        // Verify by recalculating BIC from log_likelihood
+        let expected_bic = k as f64 * (result.n as f64).ln() - 2.0 * result.log_likelihood;
+        assert!((result.bic - expected_bic).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_aic_python_convention() {
+        // Python's statsmodels uses k = n_coef (no variance parameter)
+        let ll = -100.0;
+        let n_coef = 3;
+
+        let aic_py = aic_python(ll, n_coef);
+        // AIC = 2k - 2logL where k = n_coef (Python convention)
+        // AIC = 2*3 - 2*(-100) = 6 + 200 = 206
+        assert!((aic_py - 206.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_bic_python_convention() {
+        // Python's statsmodels uses k = n_coef (no variance parameter)
+        let ll = -100.0;
+        let n_coef = 3;
+        let n_obs = 100;
+
+        let bic_py = bic_python(ll, n_coef, n_obs);
+        // BIC = k*ln(n) - 2logL where k = n_coef (Python convention)
+        // BIC = 3*ln(100) - 2*(-100) = 3*4.605... + 200
+        let expected_bic = 3.0 * (100.0_f64).ln() + 200.0;
+        assert!((bic_py - expected_bic).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_python_aic_smaller_than_r_aic() {
+        // Python convention uses k = n_coef, R uses k = n_coef + 1
+        // So Python AIC should be 2 smaller than R AIC
+        let ll = -50.0;
+        let n_coef = 2;
+
+        let aic_r = aic(ll, n_coef);
+        let aic_py = aic_python(ll, n_coef);
+
+        assert_eq!(aic_r - aic_py, 2.0);
+    }
+
+    #[test]
+    fn test_log_likelihood_formula_matches_r() {
+        // Test against R's logLik.lm() formula
+        // For a model with n=100, SSR=450, logL = -n/2 * log(2*pi*SSR/n) - n/2
+        let n = 100;
+        let ssr = 450.0;
+        let mse = ssr / (n as f64 - 2.0); // 2 parameters
+
+        let ll = log_likelihood(n, mse, ssr);
+
+        // Calculate expected value manually
+        let two_pi = 2.0 * std::f64::consts::PI;
+        let expected = -0.5 * n as f64 * (two_pi * ssr / n as f64).ln() - n as f64 / 2.0;
+
+        assert!((ll - expected).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_aic_bic_with_perfect_fit() {
+        // Perfect fit (zero residuals) - edge case
+        let n = 10;
+        let ssr = 0.001; // Very small but non-zero to avoid log(0)
+        let mse = ssr / (n as f64 - 2.0);
+
+        let ll = log_likelihood(n, mse, ssr);
+        let aic_val = aic(ll, 2);
+        let bic_val = bic(ll, 2, n);
+
+        // Perfect fit gives very high log-likelihood
+        assert!(ll > 0.0);
+        // AIC/BIC penalize complexity, so may be negative for very good fits
+        assert!(aic_val.is_finite());
+        assert!(bic_val.is_finite());
+    }
+
+    #[test]
+    fn test_aic_bic_model_selection() {
+        // Simulate model comparison: simpler model vs complex model
+        // Both models fit same data with similar R² but different complexity
+        let n = 100;
+
+        // Simple model (2 params): better log-likelihood due to less penalty
+        let ll_simple = -150.0;
+        let aic_simple = aic(ll_simple, 2);
+        let bic_simple = bic(ll_simple, 2, n);
+
+        // Complex model (5 params): slightly better fit but more parameters
+        let ll_complex = -148.0; // Better fit (less negative)
+        let aic_complex = aic(ll_complex, 5);
+        let bic_complex = bic(ll_complex, 5, n);
+
+        // AIC might favor complex model (2*2 - 2*(-150) = 304 vs 2*6 - 2*(-148) = 308)
+        // Actually: 4 + 300 = 304 vs 12 + 296 = 308, so simple wins
+        assert!(aic_simple < aic_complex);
+
+        // BIC more heavily penalizes complexity, so simple should win
+        assert!(bic_simple < bic_complex);
+    }
+
+    #[test]
+    fn test_log_likelihood_scale_invariance() {
+        // Log-likelihood scales with sample size for same per-observation fit quality
+        let ssr_per_obs = 1.0;
+
+        let n1 = 50;
+        let ssr1 = ssr_per_obs * n1 as f64;
+        let ll1 = log_likelihood(n1, ssr1 / (n1 as f64 - 2.0), ssr1);
+
+        let n2 = 100;
+        let ssr2 = ssr_per_obs * n2 as f64;
+        let ll2 = log_likelihood(n2, ssr2 / (n2 as f64 - 2.0), ssr2);
+
+        // The log-likelihood should become more negative with larger n for the same SSR/n ratio
+        // because -n/2 * ln(2*pi*SSR/n) - n/2 becomes more negative as n increases
+        assert!(ll2 < ll1);
+
+        // But when normalized by n, they should be similar
+        let ll_per_obs1 = ll1 / n1 as f64;
+        let ll_per_obs2 = ll2 / n2 as f64;
+        assert!((ll_per_obs1 - ll_per_obs2).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_regularized_regression_has_model_selection_criteria() {
+        // Test that Ridge regression also calculates AIC/BIC/log_likelihood
+        let y = vec![2.0, 4.0, 6.0, 8.0, 10.0];
+        let x_data = vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0, 1.0, 5.0];
+        let x = crate::linalg::Matrix::new(5, 2, x_data);
+
+        let options = crate::regularized::ridge::RidgeFitOptions {
+            lambda: 0.1,
+            intercept: true,
+            standardize: false,
+            ..Default::default()
+        };
+
+        let fit = crate::regularized::ridge::ridge_fit(&x, &y, &options).unwrap();
+
+        assert!(fit.log_likelihood.is_finite());
+        assert!(fit.aic.is_finite());
+        assert!(fit.bic.is_finite());
+    }
+
+    #[test]
+    fn test_elastic_net_regression_has_model_selection_criteria() {
+        // Test that Elastic Net regression also calculates AIC/BIC/log_likelihood
+        let y = vec![2.0, 4.0, 6.0, 8.0, 10.0];
+        let x_data = vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0, 1.0, 5.0];
+        let x = crate::linalg::Matrix::new(5, 2, x_data);
+
+        let options = crate::regularized::elastic_net::ElasticNetOptions {
+            lambda: 0.1,
+            alpha: 0.5,
+            intercept: true,
+            standardize: false,
+            ..Default::default()
+        };
+
+        let fit = crate::regularized::elastic_net::elastic_net_fit(&x, &y, &options).unwrap();
+
+        assert!(fit.log_likelihood.is_finite());
+        assert!(fit.aic.is_finite());
+        assert!(fit.bic.is_finite());
+    }
 }

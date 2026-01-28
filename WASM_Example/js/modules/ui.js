@@ -209,6 +209,9 @@ function updateStatisticsCards(results, isRegularized) {
     const maeEl = document.getElementById('mae');
     const fStatEl = document.getElementById('fStat');
     const pValueEl = document.getElementById('pValue');
+    const aicEl = document.getElementById('aic');
+    const bicEl = document.getElementById('bic');
+    const logLikelihoodEl = document.getElementById('logLikelihood');
 
     if (rSquaredEl) rSquaredEl.textContent = isNaN(results.rSquared) ? 'N/A' : results.rSquared.toFixed(4);
     if (adjRSquaredEl) adjRSquaredEl.textContent = isNaN(results.adjRSquared) ? 'N/A' : results.adjRSquared.toFixed(4);
@@ -221,6 +224,29 @@ function updateStatisticsCards(results, isRegularized) {
     } else {
         if (fStatEl) fStatEl.textContent = results.fStat?.toFixed(4) || 'N/A';
         if (pValueEl) pValueEl.textContent = formatPValue(results.fPValue);
+    }
+
+    // Model selection criteria (available for all regression methods)
+    if (aicEl) {
+        if (results.aic !== undefined && !isNaN(results.aic)) {
+            aicEl.textContent = results.aic.toFixed(2);
+        } else {
+            aicEl.textContent = 'N/A';
+        }
+    }
+    if (bicEl) {
+        if (results.bic !== undefined && !isNaN(results.bic)) {
+            bicEl.textContent = results.bic.toFixed(2);
+        } else {
+            bicEl.textContent = 'N/A';
+        }
+    }
+    if (logLikelihoodEl) {
+        if (results.logLikelihood !== undefined && !isNaN(results.logLikelihood)) {
+            logLikelihoodEl.textContent = results.logLikelihood.toFixed(2);
+        } else {
+            logLikelihoodEl.textContent = 'N/A';
+        }
     }
 }
 

@@ -195,7 +195,7 @@ fn calculate_vif(y: &[f64], x_vars: &[Vec<f64>]) -> Option<Vec<f64>> {
 }
 
 fn run_diagnostics(y: &[f64], x_vars: &[Vec<f64>]) {
-    use linreg_core::diagnostics::{self, RainbowMethod};
+    use linreg_core::diagnostics::{self, HarveyCollierMethod, RainbowMethod};
 
     // Helper to print test result
     fn print_test(name: &str, stat: f64, p: f64, interpretation: &str) {
@@ -218,7 +218,7 @@ fn run_diagnostics(y: &[f64], x_vars: &[Vec<f64>]) {
             );
         }
     }
-    if let Ok(hc) = diagnostics::harvey_collier_test(y, x_vars) {
+    if let Ok(hc) = diagnostics::harvey_collier_test(y, x_vars, HarveyCollierMethod::R) {
         print_test(
             "Harvey-Collier",
             hc.statistic,

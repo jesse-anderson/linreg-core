@@ -77,6 +77,9 @@ pub struct RegressionResult {
     pub mse: f64,
     #[allow(dead_code)]
     pub std_error: f64,
+    pub log_likelihood: f64,
+    pub aic: f64,
+    pub bic: f64,
     #[allow(dead_code)]
     pub conf_int_lower: Vec<f64>,
     #[allow(dead_code)]
@@ -158,6 +161,10 @@ pub struct PythonDiagnosticResult {
     #[serde(default)]
     #[allow(dead_code)]
     pub f_p_value: Option<f64>,
+    /// Indicates if the test was skipped (e.g., due to multicollinearity)
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub skipped: bool,
 }
 
 // ============================================================================
@@ -473,12 +480,46 @@ pub fn get_housing_data() -> (Vec<f64>, Vec<Vec<f64>>) {
 }
 
 /// Load validation results from JSON file
+///
+/// # Panics
+///
+/// Panics with a helpful error message if the file is not found or cannot be parsed,
+/// including instructions on how to generate the missing reference file.
 pub fn load_validation_results(json_path: &Path) -> RegressionResult {
-    let json_content = fs::read_to_string(json_path)
-        .unwrap_or_else(|e| panic!("Failed to read validation file {:?}: {}", json_path, e));
+    // Check file existence first to provide a better error message
+    if !json_path.exists() {
+        let script_name = if json_path.to_string_lossy().contains("/r/") {
+            "verification/scripts/runners/run_all_diagnostics_r.R"
+        } else {
+            "verification/scripts/runners/run_all_diagnostics_python.py"
+        };
+        panic!(
+            "Validation file not found: {}\n\
+             \n\
+             To generate this file, run:\n\
+               {}",
+            json_path.display(),
+            script_name
+        );
+    }
 
-    let wrapper: ValidationWrapper = serde_json::from_str(&json_content)
-        .unwrap_or_else(|e| panic!("Failed to parse JSON from {:?}: {}", json_path, e));
+    let json_content = fs::read_to_string(json_path).unwrap_or_else(|e| {
+        panic!(
+            "Failed to read validation file {:?}: {}\n\
+             \n\
+             To generate this file, run the appropriate validation script from verification/scripts/runners/",
+            json_path, e
+        )
+    });
+
+    let wrapper: ValidationWrapper = serde_json::from_str(&json_content).unwrap_or_else(|e| {
+        panic!(
+            "Failed to parse JSON from {:?}: {}\n\
+             \n\
+             The file may be corrupted. Try regenerating it by running the appropriate validation script from verification/scripts/runners/",
+            json_path, e
+        )
+    });
 
     wrapper.housing_regression
 }
@@ -509,6 +550,30 @@ pub fn load_dataset(csv_path: &Path) -> Result<Dataset, Box<dyn std::error::Erro
     load_dataset_with_encoding(csv_path, CategoricalEncoding::ZeroBased)
 }
 
+/// Custom error for dataset loading failures
+#[derive(Debug)]
+pub struct DatasetLoadError {
+    pub path: String,
+    pub reason: String,
+}
+
+impl std::fmt::Display for DatasetLoadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Failed to load dataset from {}: {}\n\
+             \n\
+             Dataset files should be in verification/datasets/csv/\n\
+             \n\
+             Available datasets: bodyfat, cars_stopping, faithful, iris, lh, longley,\n\
+                                 mtcars, prostate, ToothGrowth, synthetic_*.csv",
+            self.path, self.reason
+        )
+    }
+}
+
+impl std::error::Error for DatasetLoadError {}
+
 /// Load a dataset from a CSV file with specified categorical encoding
 pub fn load_dataset_with_encoding(
     csv_path: &Path,
@@ -520,9 +585,22 @@ pub fn load_dataset_with_encoding(
         .to_string_lossy()
         .to_string();
 
+    // Check file existence first for a better error message
+    if !csv_path.exists() {
+        return Err(Box::new(DatasetLoadError {
+            path: csv_path.display().to_string(),
+            reason: "file not found".to_string(),
+        }));
+    }
+
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(true)
-        .from_path(csv_path)?;
+        .from_path(csv_path).map_err(|e| {
+            Box::new(DatasetLoadError {
+                path: csv_path.display().to_string(),
+                reason: format!("IO error: {}", e),
+            }) as Box<dyn std::error::Error>
+        })?;
 
     let headers = rdr.headers()?.clone();
 
@@ -655,6 +733,26 @@ pub fn load_python_diagnostic_result(json_path: &Path) -> Option<PythonDiagnosti
     serde_json::from_str(&content).ok()
 }
 
+/// Check if a Python result file was marked as skipped (e.g., due to multicolllinearity)
+/// Returns Some(true) if skipped, Some(false) if not skipped, None if file doesn't exist or can't be parsed
+pub fn check_python_result_skipped(json_path: &Path) -> Option<bool> {
+    if !json_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(json_path).ok()?;
+    // Parse just the "skipped" field to avoid issues with null values
+    #[derive(Deserialize)]
+    struct SkippedOnly {
+        #[serde(default)]
+        skipped: bool,
+    }
+    let parsed: Result<SkippedOnly, _> = serde_json::from_str(&content);
+    match parsed {
+        Ok(s) => Some(s.skipped),
+        Err(_) => None, // File exists but can't parse - treat as not skipped
+    }
+}
+
 /// Load R Breusch-Pagan result from JSON
 pub fn load_r_bp_result(json_path: &Path) -> Option<RBreuschPaganResult> {
     if !json_path.exists() {
@@ -774,6 +872,9 @@ pub struct OlsByDatasetResult {
     pub f_p_value: f64,
     pub mse: f64,
     pub std_error: f64,
+    pub log_likelihood: f64,
+    pub aic: f64,
+    pub bic: f64,
     pub conf_int_lower: Vec<f64>,
     pub conf_int_upper: Vec<f64>,
     #[allow(dead_code)]
@@ -796,6 +897,133 @@ pub fn load_ols_by_dataset_result(json_path: &Path) -> Option<OlsByDatasetResult
     }
     let content = fs::read_to_string(json_path).ok()?;
     serde_json::from_str(&content).ok()
+}
+
+// ============================================================================
+// Loud Failure Helpers (panic with instructions)
+// ============================================================================
+
+/// Load R diagnostic result, panicking loudly with instructions if file not found
+pub fn expect_r_diagnostic_result(json_path: &Path, test_name: &str) -> RDiagnosticResult {
+    if !json_path.exists() {
+        panic!(
+            "R diagnostic result file not found: {}\n\
+             \n\
+             Test: {}\n\
+             \n\
+             To generate this file, run:\n\
+               cd verification/scripts/runners && Rscript run_all_diagnostics_r.R\n\
+             \n\
+             Or generate individual test results from verification/scripts/r/diagnostics/",
+            json_path.display(),
+            test_name
+        );
+    }
+    load_r_diagnostic_result(json_path).unwrap_or_else(|| {
+        panic!(
+            "Failed to parse R diagnostic result file: {}\n\
+             \n\
+             The file may be corrupted. Try regenerating it by running:\n\
+               cd verification/scripts/runners && Rscript run_all_diagnostics_r.R",
+            json_path.display()
+        )
+    })
+}
+
+/// Load Python diagnostic result, panicking loudly with instructions if file not found
+pub fn expect_python_diagnostic_result(json_path: &Path, test_name: &str) -> PythonDiagnosticResult {
+    if !json_path.exists() {
+        panic!(
+            "Python diagnostic result file not found: {}\n\
+             \n\
+             Test: {}\n\
+             \n\
+             To generate this file, run:\n\
+               cd verification/scripts/runners && python run_all_diagnostics_python.py\n\
+             \n\
+             Or generate individual test results from verification/scripts/python/diagnostics/",
+            json_path.display(),
+            test_name
+        );
+    }
+    load_python_diagnostic_result(json_path).unwrap_or_else(|| {
+        panic!(
+            "Failed to parse Python diagnostic result file: {}\n\
+             \n\
+             The file may be corrupted. Try regenerating it by running:\n\
+               cd verification/scripts/runners && python run_all_diagnostics_python.py",
+            json_path.display()
+        )
+    })
+}
+
+/// Load ridge result, panicking loudly with instructions if file not found
+pub fn expect_ridge_result(json_path: &Path) -> RRidgeResult {
+    if !json_path.exists() {
+        panic!(
+            "Ridge result file not found: {}\n\
+             \n\
+             To generate this file, run:\n\
+               cd verification/scripts/r/regularized && Rscript test_ridge.R\n\
+             \n\
+             Or generate all regularized results:\n\
+               cd verification/scripts/r/regularized && Rscript generate_all_references.R",
+            json_path.display()
+        );
+    }
+    load_ridge_result(json_path).unwrap_or_else(|| {
+        panic!(
+            "Failed to parse ridge result file: {}\n\
+             \n\
+             The file may be corrupted. Try regenerating it.",
+            json_path.display()
+        )
+    })
+}
+
+/// Load lasso result, panicking loudly with instructions if file not found
+pub fn expect_lasso_result(json_path: &Path) -> RLassoResult {
+    if !json_path.exists() {
+        panic!(
+            "Lasso result file not found: {}\n\
+             \n\
+             To generate this file, run:\n\
+               cd verification/scripts/r/regularized && Rscript test_lasso.R\n\
+             \n\
+             Or generate all regularized results:\n\
+               cd verification/scripts/r/regularized && Rscript generate_all_references.R",
+            json_path.display()
+        );
+    }
+    load_lasso_result(json_path).unwrap_or_else(|| {
+        panic!(
+            "Failed to parse lasso result file: {}\n\
+             \n\
+             The file may be corrupted. Try regenerating it.",
+            json_path.display()
+        )
+    })
+}
+
+/// Load OLS by dataset result, panicking loudly with instructions if file not found
+pub fn expect_ols_by_dataset_result(json_path: &Path) -> OlsByDatasetResult {
+    if !json_path.exists() {
+        panic!(
+            "OLS result file not found: {}\n\
+             \n\
+             To generate this file, run:\n\
+               cd verification/scripts/runners && Rscript run_all_diagnostics_r.R",
+            json_path.display()
+        );
+    }
+    load_ols_by_dataset_result(json_path).unwrap_or_else(|| {
+        panic!(
+            "Failed to parse OLS result file: {}\n\
+             \n\
+             The file may be corrupted. Try regenerating it.",
+            json_path.display()
+        )
+    })
 }
 
 // ============================================================================

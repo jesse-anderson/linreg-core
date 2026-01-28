@@ -12,7 +12,7 @@
 // - Predictions at various lambda values
 
 use crate::common::{
-    assert_close_to, load_dataset, load_lasso_result, load_ridge_result, LASSO_TOLERANCE,
+    assert_close_to, expect_lasso_result, expect_ridge_result, load_dataset, LASSO_TOLERANCE,
     LASSO_TOLERANCE_LOOSE, RIDGE_TOLERANCE, RIDGE_TOLERANCE_LOOSE,
 };
 
@@ -78,15 +78,7 @@ fn validate_ridge_mtcars() {
 
     // Load R reference - panic loudly if not found
     let r_result_path = r_results_dir.join("mtcars_ridge_glmnet.json");
-    eprintln!("DEBUG: r_result_path = {}", r_result_path.display());
-    eprintln!("DEBUG: r_result_path.exists() = {}", r_result_path.exists());
-    let r_ref = load_ridge_result(&r_result_path).unwrap_or_else(|| {
-        panic!(
-            "R ridge result file not found: {}\n \
-             Run: cd verification/scripts/r/regularized && Rscript test_ridge.R",
-            r_result_path.display()
-        )
-    });
+    let r_ref = expect_ridge_result(&r_result_path);
 
     println!("  glmnet version: {}", r_ref.glmnet_version);
     println!("  Lambda sequence: {} lambdas", r_ref.lambda_sequence.len());
@@ -309,13 +301,7 @@ fn validate_lasso_mtcars() {
 
     // Load R reference - panic loudly if not found
     let r_result_path = r_results_dir.join("mtcars_lasso_glmnet.json");
-    let r_ref = load_lasso_result(&r_result_path).unwrap_or_else(|| {
-        panic!(
-            "R lasso result file not found: {}\n \
-             Run: cd verification/scripts/r/regularized && Rscript test_lasso.R",
-            r_result_path.display()
-        )
-    });
+    let r_ref = expect_lasso_result(&r_result_path);
 
     println!("  glmnet version: {}", r_ref.glmnet_version);
     println!("  Lambda sequence: {} lambdas", r_ref.lambda_sequence.len());
@@ -529,13 +515,7 @@ fn validate_ridge_dataset(dataset_name: &str) {
         load_dataset(&csv_path).expect(&format!("Failed to load {} dataset", dataset_name));
 
     // Load R reference - panic loudly if not found
-    let r_ref = load_ridge_result(&r_result_path).unwrap_or_else(|| {
-        panic!(
-            "R ridge result file not found: {}\n \
-             Run: Rscript verification/scripts/runners/run_all_diagnostics_r.R",
-            r_result_path.display()
-        )
-    });
+    let r_ref = expect_ridge_result(&r_result_path);
 
     let n = dataset.y.len();
     let p = dataset.x_vars.len();
@@ -718,13 +698,7 @@ fn validate_lasso_dataset(dataset_name: &str) {
         load_dataset(&csv_path).expect(&format!("Failed to load {} dataset", dataset_name));
 
     // Load R reference - panic loudly if not found
-    let r_ref = load_lasso_result(&r_result_path).unwrap_or_else(|| {
-        panic!(
-            "R lasso result file not found: {}\n \
-             Run: Rscript verification/scripts/runners/run_all_diagnostics_r.R",
-            r_result_path.display()
-        )
-    });
+    let r_ref = expect_lasso_result(&r_result_path);
 
     let n = dataset.y.len();
     let p = dataset.x_vars.len();

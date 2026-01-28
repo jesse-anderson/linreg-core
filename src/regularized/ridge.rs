@@ -2,6 +2,7 @@
 //!
 //! This module provides a wrapper around the elastic net implementation with `alpha=0.0`.
 
+use crate::core::{aic, bic, log_likelihood};
 use crate::error::Result;
 use crate::linalg::Matrix;
 use crate::regularized::elastic_net::{elastic_net_fit, ElasticNetOptions};
@@ -77,6 +78,9 @@ impl Default for RidgeFitOptions {
 /// - `mse` - Mean squared error
 /// - `rmse` - Root mean squared error
 /// - `mae` - Mean absolute error
+/// - `log_likelihood` - Log-likelihood of the model (for model comparison)
+/// - `aic` - Akaike Information Criterion (lower = better)
+/// - `bic` - Bayesian Information Criterion (lower = better)
 ///
 /// # Example
 ///
@@ -95,6 +99,7 @@ impl Default for RidgeFitOptions {
 /// // Access predictions and diagnostics
 /// println!("R²: {}", fit.r_squared);
 /// println!("RMSE: {}", fit.rmse);
+/// println!("AIC: {}", fit.aic);
 /// # Ok::<(), linreg_core::Error>(())
 /// ```
 #[derive(Clone, Debug)]
@@ -111,6 +116,9 @@ pub struct RidgeFit {
     pub mse: f64,
     pub rmse: f64,
     pub mae: f64,
+    pub log_likelihood: f64,
+    pub aic: f64,
+    pub bic: f64,
 }
 
 /// Fits ridge regression for a single lambda value.
@@ -187,6 +195,14 @@ pub fn ridge_fit(x: &Matrix, y: &[f64], options: &RidgeFitOptions) -> Result<Rid
     let p = x.cols;
     let df = (p as f64) / (1.0 + options.lambda);
 
+    // Model selection criteria
+    let n = y.len();
+    let ss_res: f64 = fit.residuals.iter().map(|&r| r * r).sum();
+    let ll = log_likelihood(n, fit.mse, ss_res);
+    let n_coef = fit.coefficients.len() + 1; // coefficients + intercept
+    let aic_val = aic(ll, n_coef);
+    let bic_val = bic(ll, n_coef, n);
+
     Ok(RidgeFit {
         lambda: fit.lambda,
         intercept: fit.intercept,
@@ -199,6 +215,9 @@ pub fn ridge_fit(x: &Matrix, y: &[f64], options: &RidgeFitOptions) -> Result<Rid
         mse: fit.mse,
         rmse: fit.rmse,
         mae: fit.mae,
+        log_likelihood: ll,
+        aic: aic_val,
+        bic: bic_val,
     })
 }
 

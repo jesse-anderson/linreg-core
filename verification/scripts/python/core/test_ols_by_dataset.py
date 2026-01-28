@@ -39,20 +39,25 @@ class NumpyEncoder(json.JSONEncoder):
 
 
 def convert_categorical_to_numeric(data, dataset_name):
-    """Convert categorical columns to numeric representations."""
+    """Convert categorical columns to numeric representations (0-based factor codes)."""
     non_numeric_cols = data.select_dtypes(exclude=[np.number]).columns.tolist()
 
     if len(non_numeric_cols) > 0:
         print(f"INFO: Dataset '{dataset_name}' contains non-numeric columns: "
               f"{', '.join(non_numeric_cols)}")
-        print("Converting categorical variables to numeric representations...")
+        print("Converting categorical variables to numeric factor codes...")
 
         for col in non_numeric_cols:
-            data[col] = pd.to_numeric(data[col], errors='coerce')
-            if data[col].isna().any():
-                mode_val = data[col].mode()
-                if len(mode_val) > 0:
-                    data[col].fillna(mode_val[0], inplace=True)
+            # First try to convert to numeric directly (handles numeric strings)
+            numeric_vals = pd.to_numeric(data[col], errors='coerce')
+            if not numeric_vals.isna().any():
+                # All values converted successfully - use numeric values
+                data[col] = numeric_vals
+            else:
+                # Contains non-numeric strings - convert to factor codes (0-based)
+                codes, _ = pd.factorize(data[col])
+                data[col] = codes.astype(float)
+                print(f"  Column '{col}' encoded as 0-based factor codes")
 
     return data
 
@@ -126,6 +131,11 @@ def main():
     mse = results.mse_resid
     std_error = np.sqrt(mse)
 
+    # Model selection criteria
+    log_likelihood = results.llf
+    aic_val = results.aic
+    bic_val = results.bic
+
     # Confidence intervals (95%)
     ci = results.conf_int(alpha=0.05)
     conf_int_lower = ci[:, 0].tolist()
@@ -170,6 +180,9 @@ def main():
         "f_p_value": f_p_value,
         "mse": mse,
         "std_error": std_error,
+        "log_likelihood": log_likelihood,
+        "aic": aic_val,
+        "bic": bic_val,
         "conf_int_lower": conf_int_lower,
         "conf_int_upper": conf_int_upper,
         "residuals": residuals,
