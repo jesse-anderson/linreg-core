@@ -4,6 +4,7 @@
 [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/jesse-anderson/linreg-core/main/.github/coverage-badge.json)](https://github.com/jesse-anderson/linreg-core/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](LICENSE-MIT)
 [![Crates.io](https://img.shields.io/crates/v/linreg-core?color=orange)](https://crates.io/crates/linreg-core)
+[![npm](https://img.shields.io/npm/v/linreg-core?color=red)](https://www.npmjs.com/package/linreg-core)
 [![docs.rs](https://img.shields.io/badge/docs.rs-linreg__core-green)](https://docs.rs/linreg-core)
 [![PyPI](https://img.shields.io/badge/pypi-0.4.0-blue)](https://pypi.org/project/linreg-core/)
 
