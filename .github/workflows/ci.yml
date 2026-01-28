@@ -116,6 +116,7 @@ jobs:
       - name: Build Python extension
         run: maturin build --release --strip
       - name: Install built wheel
+        shell: bash
         run: pip install target/wheels/linreg_core*.whl
       - name: Run Python tests
         run: pytest tests/python/ -v
