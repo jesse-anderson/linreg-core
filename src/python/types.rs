@@ -13,7 +13,7 @@ use pyo3::exceptions::{PyTypeError, PyValueError};
 // Type extraction traits and functions
 // ============================================================================
 
-/// Extract a Vec<f64> from various Python types.
+/// Extract a `Vec<f64>` from various Python types.
 ///
 /// Supports:
 /// - Python list of floats/ints
@@ -55,7 +55,7 @@ pub fn extract_f64_vec(obj: &Bound<PyAny>) -> PyResult<Vec<f64>> {
 #[cfg(feature = "python")]
 pub use extract_f64_vec as extract_f64_sequence;
 
-/// Extract a Vec<Vec<f64>> from various Python types.
+/// Extract a `Vec<Vec<f64>>` from various Python types.
 ///
 /// Supports:
 /// - List of lists of floats/ints
@@ -156,7 +156,7 @@ pub fn extract_f64_matrix(obj: &Bound<PyAny>) -> PyResult<Vec<Vec<f64>>> {
     ))
 }
 
-/// Extract a Vec<String> from Python list of strings.
+/// Extract a `Vec<String>` from Python list of strings.
 #[cfg(feature = "python")]
 pub fn extract_string_list(obj: &Bound<PyAny>) -> PyResult<Vec<String>> {
     if let Ok(list) = obj.downcast::<PyList>() {
@@ -170,7 +170,7 @@ pub fn extract_string_list(obj: &Bound<PyAny>) -> PyResult<Vec<String>> {
     Err(PyTypeError::new_err("Expected list[str] or tuple[str]"))
 }
 
-/// Extract a Vec<usize> from Python list of ints.
+/// Extract a `Vec<usize>` from Python list of ints.
 #[cfg(feature = "python")]
 pub fn extract_usize_list(obj: &Bound<PyAny>) -> PyResult<Vec<usize>> {
     if let Ok(list) = obj.downcast::<PyList>() {
@@ -188,13 +188,13 @@ pub fn extract_usize_list(obj: &Bound<PyAny>) -> PyResult<Vec<usize>> {
 // Conversion from Rust to Python types
 // ============================================================================
 
-/// Convert a Vec<f64> to a Python list.
+/// Convert a `Vec<f64>` to a Python list.
 #[cfg(feature = "python")]
 pub fn vec_f64_to_pylist<'a>(py: Python<'a>, data: &'a [f64]) -> PyResult<Bound<'a, PyList>> {
     Ok(PyList::new_bound(py, data.iter().copied()))
 }
 
-/// Convert a Vec<Vec<f64>> to a Python list of lists.
+/// Convert a `Vec<Vec<f64>>` to a Python list of lists.
 #[cfg(feature = "python")]
 pub fn vec_vec_f64_to_pylist<'a>(py: Python<'a>, data: &'a [Vec<f64>]) -> PyResult<Bound<'a, PyList>> {
     let inner_lists: PyResult<Vec<Bound<'a, PyList>>> = data.iter().map(|inner| vec_f64_to_pylist(py, inner)).collect();
@@ -202,13 +202,13 @@ pub fn vec_vec_f64_to_pylist<'a>(py: Python<'a>, data: &'a [Vec<f64>]) -> PyResu
     Ok(PyList::new_bound(py, inner_lists))
 }
 
-/// Convert a Vec<String> to a Python list of strings.
+/// Convert a `Vec<String>` to a Python list of strings.
 #[cfg(feature = "python")]
 pub fn vec_string_to_pylist<'a>(py: Python<'a>, data: &'a [String]) -> PyResult<Bound<'a, PyList>> {
     Ok(PyList::new_bound(py, data.iter()))
 }
 
-/// Convert a Vec<usize> to a Python list of ints.
+/// Convert a `Vec<usize>` to a Python list of ints.
 #[cfg(feature = "python")]
 pub fn vec_usize_to_pylist<'a>(py: Python<'a>, data: &'a [usize]) -> PyResult<Bound<'a, PyList>> {
     Ok(PyList::new_bound(py, data.iter()))
