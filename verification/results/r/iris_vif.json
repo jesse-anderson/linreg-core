@@ -1,0 +1,27 @@
+{
+  "test_name": ["VIF Test (R - car::vif)"],
+  "dataset": ["iris"],
+  "formula": ["Sepal.Length ~ Sepal.Width + Petal.Length + Petal.Width + Species"],
+  "vif_results": [
+    {
+      "vif_result": 1.8950240072658473,
+      "_row": "Sepal.Width"
+    },
+    {
+      "vif_result": 38.264830758034705,
+      "_row": "Petal.Length"
+    },
+    {
+      "vif_result": 27.293589841621582,
+      "_row": "Petal.Width"
+    },
+    {
+      "vif_result": 41.222082670275128,
+      "_row": "Species"
+    }
+  ],
+  "vif_numeric": [1.8950240072658473, 38.264830758034705, 27.293589841621582, 41.222082670275128],
+  "max_vif": [41.222082670275128],
+  "interpretation": ["Severe multicollinearity detected (VIF > 10)"],
+  "description": ["Variance Inflation Factor measures multicollinearity among predictors. Uses car::vif()."]
+}

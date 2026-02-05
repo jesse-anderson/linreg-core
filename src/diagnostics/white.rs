@@ -118,35 +118,35 @@ pub fn white_test(y: &[f64], x_vars: &[Vec<f64>], method: WhiteMethod) -> Result
 
     #[cfg(test)]
     {
-        eprintln!("Z matrix: {} rows x {} cols", n, z_cols);
-        let qr_result = z_matrix.qr_linpack(None);
-        eprintln!("Z rank: {}", qr_result.rank);
-        eprintln!("Pivot order: {:?}", qr_result.pivot);
+        // eprintln!("Z matrix: {} rows x {} cols", n, z_cols);
+        // let qr_result = z_matrix.qr_linpack(None);
+        // eprintln!("Z rank: {}", qr_result.rank);
+        // eprintln!("Pivot order: {:?}", qr_result.pivot);
 
         // Show which columns were dropped (those at the end of pivot order)
-        for j in qr_result.rank..z_cols {
-            let dropped_col = qr_result.pivot[j] - 1;
-            eprintln!("Dropped column {} (pivot position {})", dropped_col, j);
-        }
+        // for j in qr_result.rank..z_cols {
+        //     let dropped_col = qr_result.pivot[j] - 1;
+        //     eprintln!("Dropped column {} (pivot position {})", dropped_col, j);
+        // }
 
         // Show the coefficients
-        let beta = fit_ols_linpack(&e_squared, &z_matrix);
-        if let Some(ref b) = beta {
-            eprintln!("First 10 coefficients: {:?}", &b[..10.min(b.len())]);
-            eprintln!("Last 5 coefficients: {:?}", &b[b.len().saturating_sub(5)..]);
-        }
+        // let beta = fit_ols_linpack(&e_squared, &z_matrix);
+        // if let Some(ref b) = beta {
+        //     eprintln!("First 10 coefficients: {:?}", &b[..10.min(b.len())]);
+        //     eprintln!("Last 5 coefficients: {:?}", &b[b.len().saturating_sub(5)..]);
+        // }
     }
 
     let pred_aux = fit_and_predict_linpack(&e_squared, &z_matrix).ok_or(Error::SingularMatrix)?;
 
     #[cfg(test)]
     {
-        eprintln!(
-            "First few pred_aux: {:?}",
-            &pred_aux[..5.min(pred_aux.len())]
-        );
-        let has_nan = pred_aux.iter().any(|&x| x.is_nan());
-        eprintln!("pred_aux has NaN: {}", has_nan);
+        // eprintln!(
+        //     "First few pred_aux: {:?}",
+        //     &pred_aux[..5.min(pred_aux.len())]
+        // );
+        // let has_nan = pred_aux.iter().any(|&x| x.is_nan());
+        // eprintln!("pred_aux has NaN: {}", has_nan);
     }
 
     // Compute R² and LM test statistic

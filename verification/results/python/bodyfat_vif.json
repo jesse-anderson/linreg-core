@@ -1,0 +1,40 @@
+{
+  "test_name": "VIF Test (Python - statsmodels)",
+  "dataset": "bodyfat",
+  "formula": "Density ~ BodyFat + Age + Weight + Height + Neck + Chest + Abdomen + Hip + Thigh + Knee + Ankle + Biceps + Forearm + Wrist",
+  "vif_values": [
+    3.9848570514456516,
+    2.2852726373283367,
+    33.89374360747544,
+    1.6782876844825458,
+    4.398925374438392,
+    9.463180292592869,
+    17.797924728489363,
+    14.922301990297314,
+    7.865281436125754,
+    4.6122240205292515,
+    1.9129092572327766,
+    3.6368719420769127,
+    2.2399618927153213,
+    3.507763429628098
+  ],
+  "variable_names": [
+    "BodyFat",
+    "Age",
+    "Weight",
+    "Height",
+    "Neck",
+    "Chest",
+    "Abdomen",
+    "Hip",
+    "Thigh",
+    "Knee",
+    "Ankle",
+    "Biceps",
+    "Forearm",
+    "Wrist"
+  ],
+  "max_vif": 33.89374360747544,
+  "interpretation": "Severe multicollinearity detected (VIF > 10)",
+  "description": "Variance Inflation Factor measures multicollinearity among predictors. Uses statsmodels.stats.outliers_influence.variance_inflation_factor."
+}

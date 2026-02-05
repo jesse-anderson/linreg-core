@@ -1,0 +1,43 @@
+{
+  "test_name": ["VIF Test (R - car::vif)"],
+  "dataset": ["prostate"],
+  "formula": ["lcavol ~ lweight + age + lbph + svi + lcp + gleason + pgg45 + lpsa"],
+  "vif_results": [
+    {
+      "vif_result": 1.6113739154996951,
+      "_row": "lweight"
+    },
+    {
+      "vif_result": 1.3316217814105697,
+      "_row": "age"
+    },
+    {
+      "vif_result": 1.3883309400165065,
+      "_row": "lbph"
+    },
+    {
+      "vif_result": 2.1686972403068641,
+      "_row": "svi"
+    },
+    {
+      "vif_result": 2.5608410842512401,
+      "_row": "lcp"
+    },
+    {
+      "vif_result": 2.4265915572546639,
+      "_row": "gleason"
+    },
+    {
+      "vif_result": 2.9197090045322507,
+      "_row": "pgg45"
+    },
+    {
+      "vif_result": 2.0221626339199319,
+      "_row": "lpsa"
+    }
+  ],
+  "vif_numeric": [1.6113739154996951, 1.3316217814105697, 1.3883309400165065, 2.1686972403068641, 2.5608410842512401, 2.4265915572546639, 2.9197090045322507, 2.0221626339199319],
+  "max_vif": [2.9197090045322507],
+  "interpretation": ["Low multicollinearity (VIF ≤ 5)"],
+  "description": ["Variance Inflation Factor measures multicollinearity among predictors. Uses car::vif()."]
+}

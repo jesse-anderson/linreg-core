@@ -283,9 +283,17 @@ export const STATE = {
     charts: {
         main: null,
         residuals: null,
-        qq: null
+        qq: null,
+        leverage: null
     },
-    pendingWorkbook: null  // For sheet selector modal
+    pendingWorkbook: null,  // For sheet selector modal
+    pendingFileName: null,  // For tracking file name during import
+    residualsData: null,    // Residuals table data for sorting/filtering
+    residualsSortColumn: null,
+    residualsSortDirection: 'desc',
+    selectedObservation: null,
+    savedModels: null,      // Array of saved models for comparison
+    dataSourceName: null    // Name of the data source (file name or example name)
 };
 
 /**

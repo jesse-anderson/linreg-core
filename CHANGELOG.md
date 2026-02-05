@@ -2,6 +2,76 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-01-30
+
+### Added
+
+#### LOESS Regression
+- **LOESS (Locally Estimated Scatterplot Smoothing)** — Non-parametric regression method for fitting smooth curves through data without assuming a functional form
+  - `loess_fit()` — Main LOESS fitting function with configurable options
+  - `LoessOptions` — Configuration including span (smoothing parameter), degree (0=constant, 1=linear, 2=quadratic), robust iterations
+  - `LoessFit` — Result struct with fitted values, residuals, diagnostics, and parameters
+  - `LoessSurface` enum — Surface method (currently only `Direct` is implemented; `Interpolate` is accepted but behaves as `Direct`)
+  - `tricube_weight()` — Tricube kernel weighting function
+  - K-nearest neighbors search for local subsets
+  - Weighted least squares polynomial fitting
+  - Optional robust fitting with biweight function for outlier resistance
+  - Multi-predictor support (native Rust; Python/WASM restricted to single predictor)
+  - Output validates against R's `stats::loess()` with `surface = "direct"`
+
+#### New Diagnostic Tests
+- **DFBETAS** — Measures influence of each observation on each regression coefficient
+  - `dfbetas_test()` — Compute DFBETAS matrix (n × p)
+  - `DfbetasResult` — Includes threshold (2/√n), influential observations by coefficient, interpretation guidance
+  - Efficient closed-form computation using leave-one-out formula (avoids refitting n times)
+  - Output validates against R's `stats::dfbetas()`
+
+- **DFFITS** — Measures influence of each observation on its own fitted value
+  - `dffits_test()` — Compute DFFITS vector (one per observation)
+  - `DffitsResult` — Includes threshold (2*√(p/n)), list of influential observations, interpretation guidance
+  - Efficient computation using studentized residuals and leverage
+  - Output validates against R's `stats::dffits()`
+
+- **VIF Diagnostic Test** — Standalone VIF analysis for multicollinearity detection
+  - `vif_test()` — Compute Variance Inflation Factor for all predictors
+  - `VifDiagnosticResult` — Detailed VIF results with interpretation by threshold (acceptable <5, concerning 5-10, severe >10)
+  - Output validates against R's `car::vif()`
+
+#### WASM/JavaScript Bindings
+- **LOESS regression** — `loess_fit()` function with span, degree, surface parameter (stored but only Direct method implemented), and robust fitting parameters
+- **LOESS-specific UI** — Parameter controls (span slider, degree selector, surface method selector, robust checkbox)
+- **Model comparison panel** — Save multiple models and compare side-by-side with sortable results table
+- **Enhanced residuals table** — Sortable columns, observation detail panel, leverage highlighting, quick filter buttons (influential observations, outliers, reset)
+- **Residuals vs Leverage chart** — New visualization for detecting high-leverage/influential points
+- **Export augmented data** — Export residuals with all diagnostic metrics (Cook's D, DFFITS, DFBETAS, leverage)
+- **Quick action buttons** — Filter by influential observations, outliers; save/compare models
+
+#### Python Bindings (PyO3)
+- **LOESS support** — `loess_fit(y, x, span, degree, surface, robust)` and `loess_predict()` functions (single predictor only; surface parameter accepted but only Direct method implemented)
+- **New diagnostic tests** — `dfbetas()`, `dffits()`, `vif()` functions with NumPy array support
+- **Updated result types** — `PyDfbetasResult`, `PyDffitsResult`, `PyVifTestResult`, `PyVifDetail`
+
+#### Testing & Validation
+- **LOESS integration tests** — `tests/loess_integration_test.rs` with comprehensive tests
+- **WASM diagnostic tests** — Added tests for LOESS, DFBETAS, DFFITS, VIF in `tests/wasm/diagnostic_tests.rs`
+- **Python tests** — Added LOESS and new diagnostic tests in `tests/python/test_diagnostics.py`
+- **Validation runners** — R and Python scripts for running all diagnostics across 19 datasets
+  - `verification/scripts/runners/run_all_diagnostics_r.R` — Runs all R reference tests
+  - `verification/scripts/runners/run_all_diagnostics_python.py` — Runs all Python reference tests
+- **Reference result scripts** — Individual R and Python scripts for LOESS (6 variants per dataset), DFBETAS, DFFITS, VIF
+
+#### Documentation
+- **npm and PyPI badges** — Added to README for better package visibility
+- **README updates** — Added LOESS to regression methods; updated diagnostic tests table
+
+### Changed
+- **Performance test thresholds** — Relaxed from 5s to 10s for large dataset tests to accommodate CI environment variability
+- **Python type documentation** — Added proper backtick formatting to type references in `src/python/types.rs`
+
+### Fixed
+- **CI configuration** — Fixed Rust test command from `--all-features` to `--features wasm` to avoid Python feature conflicts
+- **CI Python wheel installation** — Added explicit wheel installation step before running Python tests
+
 ## [0.4.0] - 2026-01-27
 
 ### Added

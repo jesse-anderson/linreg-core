@@ -11,6 +11,7 @@ import { WasmRegression } from './core.js';
 
 export const EXAMPLES = {
     simple: {
+        name: 'Study Hours vs Test Scores',
         description: 'Basic simple linear regression with a clear linear relationship between study hours and test scores.',
         csv: `Study_Hours,Test_Score
 1,52
@@ -38,6 +39,7 @@ export const EXAMPLES = {
         toast: 'Simple X,Y loaded (20 samples)'
     },
     housing: {
+        name: 'Housing Prices Dataset',
         description: 'Demonstrates multiple regression with real-world relationships between price, square footage, bedrooms, and age.',
         csv: `Price,Square_Feet,Bedrooms,Age,Distance_to_City
 245.5,1200,3,15,8.2
@@ -70,6 +72,7 @@ export const EXAMPLES = {
         toast: 'Housing Prices loaded (25 samples, 5 variables)'
     },
     singular: {
+        name: 'Singular Matrix (Multicollinear)',
         description: 'This dataset contains perfect multicollinearity (X3 = X1 + X2 exactly). The matrix cannot be inverted, demonstrating a fundamental limitation of OLS.',
         csv: `Y,X1,X2,X3
 10,1,2,3
@@ -87,6 +90,7 @@ export const EXAMPLES = {
         toast: 'Singular matrix example loaded (will fail regression)'
     },
     messy: {
+        name: 'Store Sales (Confounded)',
         description: 'Sales data from 3 different store tiers (Budget, Mid-range, Luxury). The confounding variable (Store_Tier) creates 3 distinct clusters. A single regression line will have poor fit—the data should be analyzed separately by tier.',
         csv: `Store_Tier,Marketing_Spend,Sales
 Budget,1000,15000
@@ -142,7 +146,8 @@ export function loadExampleDataset(exampleKey) {
     // Set up the regression configuration for this example
     updateState({
         yVariable: example.yVar,
-        xVariables: [...example.xVars]
+        xVariables: [...example.xVars],
+        dataSourceName: example.name || exampleKey
     });
 
     // Re-render column selectors with the correct pre-selected values
@@ -211,13 +216,16 @@ export async function handleExcelFile(file) {
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer);
 
+    // Store the file name for later use
+    const fileName = file.name.replace(/\.[^/.]+$/, '');
+
     if (workbook.SheetNames.length > 1) {
         // Show sheet selector modal
-        updateState({ pendingWorkbook: workbook });
+        updateState({ pendingWorkbook: workbook, pendingFileName: fileName });
         showSheetSelector(workbook.SheetNames);
     } else {
         // Single sheet - import directly
-        await importExcelSheet(workbook, workbook.SheetNames[0]);
+        await importExcelSheet(workbook, workbook.SheetNames[0], fileName);
     }
 }
 
@@ -225,11 +233,18 @@ export async function handleExcelFile(file) {
  * Import a specific sheet from an Excel workbook
  * @param {Object} workbook - XLSX workbook object
  * @param {string} sheetName - Sheet name to import
+ * @param {string} fileName - Original file name (optional)
  */
-export async function importExcelSheet(workbook, sheetName) {
+export async function importExcelSheet(workbook, sheetName, fileName = null) {
     const worksheet = workbook.Sheets[sheetName];
     const csv = XLSX.utils.sheet_to_csv(worksheet);
     await parseCSVData(csv);
+
+    // Set data source name
+    if (fileName) {
+        updateState({ dataSourceName: fileName });
+    }
+
     showToast(`Imported sheet: ${sheetName}`, 'success');
 }
 
@@ -240,6 +255,9 @@ export async function importExcelSheet(workbook, sheetName) {
 export async function handleCSVFile(file) {
     const text = await file.text();
     await parseCSVData(text);
+    // Store the file name (without extension) as data source name
+    const fileName = file.name.replace(/\.[^/.]+$/, '');
+    updateState({ dataSourceName: fileName });
     showToast('CSV file imported successfully', 'success');
 }
 
@@ -354,9 +372,10 @@ function showSheetSelector(sheetNames) {
     modal.querySelectorAll('.sheet-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const sheetName = btn.dataset.sheet;
-            importExcelSheet(STATE.pendingWorkbook, sheetName);
+            const fileName = STATE.pendingFileName;
+            importExcelSheet(STATE.pendingWorkbook, sheetName, fileName);
             modal.remove();
-            updateState({ pendingWorkbook: null });
+            updateState({ pendingWorkbook: null, pendingFileName: null });
         });
     });
 }

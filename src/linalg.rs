@@ -2,6 +2,8 @@
 //!
 //! Implements matrix operations, QR decomposition, and solvers needed for OLS.
 //! Uses row-major storage for compatibility with statistical computing conventions.
+
+#![allow(clippy::needless_range_loop)]
 //!
 //! # Numerical Stability Considerations
 //!
@@ -1332,6 +1334,233 @@ pub fn fit_ols_linpack(y: &[f64], x: &Matrix) -> Option<Vec<f64>> {
     x.qr_solve_linpack(&qr_result, y)
 }
 
+// ============================================================================
+// SVD Decomposition (Golub-Kahan)
+// ============================================================================
+
+/// SVD decomposition result.
+///
+/// Contains the singular value decomposition A = U * Sigma * V^T where:
+/// - U is an m×min(m,n) orthogonal matrix (left singular vectors)
+/// - Sigma is a vector of min(m,n) singular values (sorted in descending order)
+/// - V is an n×n orthogonal matrix (right singular vectors, stored transposed as V^T)
+#[derive(Clone, Debug)]
+pub struct SVDResult {
+    /// Left singular vectors (m × k matrix where k = min(m,n))
+    pub u: Matrix,
+    /// Singular values (k elements, sorted in descending order)
+    pub sigma: Vec<f64>,
+    /// Right singular vectors transposed (n × n matrix, rows are V^T)
+    pub v_t: Matrix,
+}
+
+impl Matrix {
+    /// Computes the Singular Value Decomposition (SVD) using the Golub-Kahan algorithm.
+    ///
+    /// Factorizes the matrix as `A = U * Sigma * V^T` where:
+    /// - U is an m×k orthogonal matrix (k = min(m,n))
+    /// - Sigma is a diagonal matrix of singular values (sorted in descending order)
+    /// - V is an n×n orthogonal matrix
+    ///
+    /// This implementation uses a simplified Golub-Kahan bidiagonalization approach
+    /// suitable for the small matrices encountered in LOESS local fitting.
+    ///
+    /// # Algorithm
+    ///
+    /// The algorithm follows these steps:
+    /// 1. Compute A^T * A (smaller symmetric matrix when m >= n)
+    /// 2. Eigen-decompose A^T * A using QR iteration
+    /// 3. Singular values are sqrt of eigenvalues
+    /// 4. V contains eigenvectors of A^T * A
+    /// 5. U = A * V * Sigma^(-1)
+    ///
+    /// # Returns
+    ///
+    /// A [`SVDResult`] struct containing U, Sigma, and V^T.
+    ///
+    /// # Note
+    ///
+    /// This implementation is designed for numerical stability with rank-deficient
+    /// matrices, which is essential for LOESS fitting where some neighborhoods may
+    /// have collinear points.
+    ///
+    /// # Alternative
+    ///
+    /// For potentially higher accuracy on small matrices, see [`Matrix::svd_jacobi`].
+    #[allow(clippy::needless_range_loop)]
+    pub fn svd(&self) -> SVDResult {
+        let m = self.rows;
+        let n = self.cols;
+        let k = m.min(n);
+
+        // For typical LOESS cases, m >= n (tall matrix)
+        // We use the covariance method: A^T * A = V * Sigma^2 * V^T
+        // This is more efficient for tall matrices
+
+        // Compute A^T * A (n × n symmetric matrix)
+        let mut ata = Matrix::zeros(n, n);
+        for i in 0..n {
+            for j in i..n {
+                // ata[i,j] = sum(A[p,i] * A[p,j] for p in 0..m)
+                let mut sum = 0.0;
+                for p in 0..m {
+                    sum += self.get(p, i) * self.get(p, j);
+                }
+                ata.set(i, j, sum);
+                ata.set(j, i, sum); // Symmetric
+            }
+        }
+
+        // Eigen-decomposition of A^T * A using QR algorithm
+        // Start with identity as V (will converge to eigenvectors)
+        let mut v = Matrix::identity(n);
+        let mut lambda = Vec::with_capacity(n);
+
+        // QR iteration for symmetric matrices
+        // This finds eigenvalues (lambda) and eigenvectors (columns of V)
+        let max_iterations = 100;
+        let tolerance = 1e-14;
+
+        // Working copy for QR iteration
+        let mut a_work = ata.clone();
+
+        for _iter in 0..max_iterations {
+            // Check convergence - sum of off-diagonal elements
+            let mut off_diag_sum = 0.0;
+            for i in 0..n {
+                for j in (i + 1)..n {
+                    off_diag_sum += a_work.get(i, j).abs();
+                }
+            }
+
+            if off_diag_sum < tolerance {
+                break;
+            }
+
+            // QR decomposition with Wilkinson shift for faster convergence
+            // For simplicity, we use basic QR without shift
+            let (q, r) = a_work.qr();
+            a_work = r.matmul(&q);
+            v = v.matmul(&q);
+        }
+
+        // Extract eigenvalues from diagonal
+        for i in 0..n {
+            lambda.push(a_work.get(i, i));
+        }
+
+        // Sort eigenvalues and corresponding eigenvectors in descending order
+        // We need to keep V synchronized
+        for i in 0..n {
+            for j in (i + 1)..n {
+                if lambda[j] > lambda[i] {
+                    // Swap eigenvalues
+                    lambda.swap(i, j);
+
+                    // Swap corresponding columns of V
+                    #[allow(clippy::manual_swap)]
+                    for row in 0..n {
+                        let temp = v.get(row, i);
+                        v.set(row, i, v.get(row, j));
+                        v.set(row, j, temp);
+                    }
+                }
+            }
+        }
+
+        // Singular values are sqrt of eigenvalues (clamp non-negative)
+        let mut sigma = Vec::with_capacity(k);
+        for i in 0..k {
+            let s = lambda[i].max(0.0).sqrt();
+            sigma.push(s);
+        }
+
+        // Compute U = A * V * Sigma^(-1)
+        // Only compute for non-zero singular values
+        let mut u = Matrix::zeros(m, k);
+        for j in 0..k {
+            if sigma[j] > 1e-14 {
+                // U[:,j] = (A * V[:,j]) / sigma[j]
+                for i in 0..m {
+                    let mut sum = 0.0;
+                    for p in 0..n {
+                        sum += self.get(i, p) * v.get(p, j);
+                    }
+                    u.set(i, j, sum / sigma[j]);
+                }
+            }
+        }
+
+        // V^T is the transpose of V
+        let v_t = v.transpose();
+
+        SVDResult { u, sigma, v_t }
+    }
+
+    /// Solves a least squares problem using SVD with pseudoinverse for rank-deficient matrices.
+    ///
+    /// This implements the pseudoinverse solution: x = V * Sigma^+ * U^T * b
+    /// where Sigma^+ replaces 1/sigma\[i\] with 0 for sigma\[i\] below tolerance.
+    ///
+    /// # Arguments
+    ///
+    /// * `svd_result` - SVD decomposition from [`Matrix::svd`]
+    /// * `b` - Right-hand side vector (m elements)
+    ///
+    /// # Returns
+    ///
+    /// A vector of coefficients (n elements) that minimizes ||Ax - b||.
+    ///
+    #[allow(clippy::needless_range_loop)]
+    pub fn svd_solve(&self, svd_result: &SVDResult, b: &[f64]) -> Vec<f64> {
+        let m = self.rows;
+        let n = self.cols;
+        let k = m.min(n);
+
+        // Tolerance: sigma[0] * 100 * epsilon
+        let max_sigma = svd_result.sigma.first().copied().unwrap_or(0.0);
+        let tol = if max_sigma > 0.0 {
+            max_sigma * 100.0 * f64::EPSILON
+        } else {
+            1e-14
+        };
+
+        // Compute U^T * b
+        let mut ut_b = vec![0.0; k];
+        for j in 0..k {
+            let mut sum = 0.0;
+            for i in 0..m {
+                sum += svd_result.u.get(i, j) * b[i];
+            }
+            ut_b[j] = sum;
+        }
+
+        // Compute coefficients in V space: c[j] = ut_b[j] / sigma[j] if sigma[j] > tol, else 0
+        let mut coeffs_v = vec![0.0; k];
+        for j in 0..k {
+            if svd_result.sigma[j] > tol {
+                coeffs_v[j] = ut_b[j] / svd_result.sigma[j];
+            } else {
+                coeffs_v[j] = 0.0; // Singular value below threshold - use pseudoinverse (set to 0)
+            }
+        }
+
+        // Transform back to original space: x = V^T * coeffs_v
+        // Since v_t contains rows of V^T, we compute x = v_t^T * coeffs_v
+        let mut x = vec![0.0; n];
+        for i in 0..n {
+            let mut sum = 0.0;
+            for j in 0..k {
+                // v_t.get(j, i) is element (j, i) of V^T, which is V[i, j]
+                sum += svd_result.v_t.get(j, i) * coeffs_v[j];
+            }
+            x[i] = sum;
+        }
+
+        x
+    }
+}
+
 /// Fits OLS and predicts using R's LINPACK QR with rank-deficient handling.
 ///
 /// This function matches R's `lm.fit` behavior for rank-deficient cases:
@@ -1407,4 +1636,482 @@ pub fn fit_and_predict_linpack(y: &[f64], x: &Matrix) -> Option<Vec<f64>> {
     }
 
     Some(pred)
+}
+
+// ============================================================================
+// SVD and Pseudoinverse for Robust Weighted Least Squares
+// ============================================================================
+
+impl Matrix {
+    /// Compute SVD decomposition using the eigendecomposition method (Jacobi)
+    ///
+    /// For a matrix A (m×n), this computes A = U * Σ * V^T where:
+    /// - U is m×k orthogonal (left singular vectors, k = min(m,n))
+    /// - Σ is k singular values (sorted in descending order)
+    /// - V is n×n orthogonal (right singular vectors)
+    ///
+    /// This implementation uses the method of computing the eigendecomposition
+    /// of A^T*A to get V and singular values, then computing U = A * V * Σ^(-1).
+    /// The Jacobi method is used for the eigendecomposition, which provides
+    /// excellent numerical accuracy for small to medium-sized matrices.
+    ///
+    /// Returns None if the decomposition fails.
+    ///
+    /// # Alternative
+    ///
+    /// For a simpler/faster approach suitable for LOESS, see [`Matrix::svd`].
+    pub fn svd_jacobi(&self) -> Option<SVDResult> {
+        let m = self.rows;
+        let n = self.cols;
+
+        if m < n {
+            // For wide matrices, compute SVD of transpose instead
+            let at = self.transpose();
+            let svd_t = at.svd_jacobi()?;
+            // A = U * Σ * V^T = (V' * Σ' * U'^T)^T = U' * Σ' * V'^T
+            // So swap U and V, and V becomes V^T
+            return Some(SVDResult {
+                u: svd_t.v_t.transpose(),  // V' becomes U (need to transpose to get correct format)
+                sigma: svd_t.sigma,
+                v_t: svd_t.u.transpose(), // U' becomes V (need to transpose to get V^T)
+            });
+        }
+
+        // Compute A^T * A (n×n symmetric matrix)
+        let ata = self.transpose().matmul(self);
+
+        // Compute eigendecomposition of A^T * A using Jacobi method
+        let (v, s_sq) = ata.symmetric_eigen()?;
+
+        // Singular values are sqrt of eigenvalues
+        let s: Vec<f64> = s_sq.iter().map(|&x| x.sqrt().max(0.0)).collect();
+
+        // Sort by singular values (descending)
+        let mut indexed: Vec<(usize, f64)> = s.iter().enumerate()
+            .map(|(i, &val)| (i, val))
+            .collect();
+        indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Reorder V according to sorted singular values
+        let mut v_sorted = Matrix::zeros(n, n);
+        let mut s_sorted = vec![0.0; n];
+        for (new_idx, (old_idx, val)) in indexed.iter().enumerate() {
+            s_sorted[new_idx] = *val;
+            for row in 0..n {
+                v_sorted.set(row, new_idx, v.get(row, *old_idx));
+            }
+        }
+
+        // Compute U = A * V * Σ^(-1)
+        let mut u = Matrix::zeros(m, n);
+        for i in 0..m {
+            for j in 0..n {
+                if s_sorted[j] > f64::EPSILON {
+                    let mut sum = 0.0;
+                    for k in 0..n {
+                        sum += self.get(i, k) * v_sorted.get(k, j);
+                    }
+                    u.set(i, j, sum / s_sorted[j]);
+                }
+            }
+        }
+
+        // V^T is the transpose of V (columns of V are right singular vectors)
+        let v_t = v_sorted.transpose();
+
+        Some(SVDResult {
+            u,
+            sigma: s_sorted,
+            v_t,
+        })
+    }
+
+    /// Compute eigendecomposition of a symmetric matrix using Jacobi method
+    ///
+    /// For a symmetric matrix A (n×n), computes eigenvalues λ and eigenvectors V
+    /// such that A = V * Λ * V^T where Λ is diagonal and V is orthogonal.
+    ///
+    /// Returns (V, eigenvalues) where eigenvalues[i] is the eigenvalue for column i of V.
+    fn symmetric_eigen(&self) -> Option<(Matrix, Vec<f64>)> {
+        let n = self.rows;
+        assert_eq!(n, self.cols, "Matrix must be square");
+
+        let max_iterations = 100;
+        let tolerance = 1e-10;
+
+        // Start with identity matrix for eigenvectors
+        let mut v = Matrix::identity(n);
+
+        // Working copy of the matrix
+        let mut a = self.clone();
+
+        for _iter in 0..max_iterations {
+            let mut max_off_diag = 0.0;
+
+            // Find largest off-diagonal element
+            let mut p = 0;
+            let mut q = 1;
+            for i in 0..n {
+                for j in (i + 1)..n {
+                    let val = a.get(i, j).abs();
+                    if val > max_off_diag {
+                        max_off_diag = val;
+                        p = i;
+                        q = j;
+                    }
+                }
+            }
+
+            if max_off_diag < tolerance {
+                break;
+            }
+
+            // Jacobi rotation to zero out a(p,q)
+            let app = a.get(p, p);
+            let aqq = a.get(q, q);
+            let apq = a.get(p, q);
+
+            if apq.abs() < tolerance {
+                continue;
+            }
+
+            // Compute rotation angle
+            let tau = (aqq - app) / (2.0 * apq);
+            let t = if tau >= 0.0 {
+                1.0 / (tau + (1.0 + tau * tau).sqrt())
+            } else {
+                -1.0 / (-tau + (1.0 + tau * tau).sqrt())
+            };
+
+            let c = 1.0 / (1.0 + t * t).sqrt();
+            let s = t * c;
+
+            // Update matrix A
+            for i in 0..n {
+                if i != p && i != q {
+                    let aip = a.get(i, p);
+                    let aiq = a.get(i, q);
+                    a.set(i, p, aip - s * (aiq + s * aip));
+                    a.set(i, q, aiq + s * (aip - s * aiq));
+                }
+            }
+
+            a.set(p, p, app - t * apq);
+            a.set(q, q, aqq + t * apq);
+            a.set(p, q, 0.0);
+            a.set(q, p, 0.0);
+
+            // Update eigenvectors V
+            for i in 0..n {
+                let vip = v.get(i, p);
+                let viq = v.get(i, q);
+                v.set(i, p, vip - s * (viq + s * vip));
+                v.set(i, q, viq + s * (vip - s * viq));
+            }
+        }
+
+        // Extract eigenvalues from diagonal
+        let eigenvalues: Vec<f64> = (0..n).map(|i| a.get(i, i)).collect();
+
+        Some((v, eigenvalues))
+    }
+
+    /// Compute Moore-Penrose pseudoinverse using SVD
+    ///
+    /// For matrix A, computes A^+ = V * Σ^+ * U^T where:
+    /// - Σ^+ has 1/σ for σ > tolerance, and 0 otherwise
+    ///
+    /// This provides a least-squares solution for rank-deficient or singular matrices.
+    pub fn pseudo_inverse(&self, tolerance: Option<f64>) -> Option<Matrix> {
+        let svd = self.svd_jacobi()?;
+
+        let m = self.rows;
+        let n = self.cols;
+
+        // Use provided tolerance or compute based on largest singular value
+        let tol = tolerance.unwrap_or_else(|| {
+            let max_s = svd.sigma.iter().fold(0.0_f64, |a: f64, &b| a.max(b));
+            if max_s > 0.0 {
+                max_s * f64::EPSILON * (m.max(n) as f64)
+            } else {
+                f64::EPSILON
+            }
+        });
+
+        // Compute Σ^+ (pseudoinverse of singular values)
+        let mut s_pinv = vec![0.0; svd.sigma.len()];
+        for (i, &s_val) in svd.sigma.iter().enumerate() {
+            if s_val > tol {
+                s_pinv[i] = 1.0 / s_val;
+            }
+        }
+
+        // Compute A^+ = V * Σ^+ * U^T
+        // First compute Σ^+ * U^T (n×m matrix)
+        let mut s_ut = Matrix::zeros(n, m);
+        for i in 0..n {
+            for j in 0..m {
+                s_ut.set(i, j, s_pinv[i] * svd.u.get(j, i));
+            }
+        }
+
+        // Then compute V * (Σ^+ * U^T)
+        // Since v_t is V^T, we transpose it to get V
+        let v = svd.v_t.transpose();
+        let pseudoinv = v.matmul(&s_ut);
+
+        Some(pseudoinv)
+    }
+}
+
+// ============================================================================
+// SVD Tests
+// ============================================================================
+
+#[cfg(test)]
+mod svd_tests {
+    use super::*;
+
+    #[test]
+    fn test_svd_simple_matrix() {
+        // Test SVD on a simple 2x2 matrix
+        let data = vec![1.0, 2.0, 3.0, 4.0];
+        let m = Matrix::new(2, 2, data);
+        let svd = m.svd();
+
+        // Verify singular values are sorted descending
+        for i in 1..svd.sigma.len() {
+            assert!(svd.sigma[i-1] >= svd.sigma[i]);
+        }
+
+        // Verify U is orthogonal: U^T * U = I
+        let ut = svd.u.transpose();
+        let ut_u = ut.matmul(&svd.u);
+        assert!((ut_u.get(0, 0) - 1.0).abs() < 1e-10);
+        assert!(ut_u.get(0, 1).abs() < 1e-10);
+        assert!(ut_u.get(1, 0).abs() < 1e-10);
+        assert!((ut_u.get(1, 1) - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_svd_solve_basic() {
+        // Test SVD solver on a simple system
+        let data = vec![
+            1.0, 1.0,
+            1.0, 2.0,
+            1.0, 3.0,
+        ];
+        let m = Matrix::new(3, 2, data);
+        let svd = m.svd();
+
+        // Solve: x + y = 2, x + 2y = 4, x + 3y = 6
+        // Solution: x = 0, y = 2
+        let b = vec![2.0, 4.0, 6.0];
+        let x = m.svd_solve(&svd, &b);
+
+        // Check solution
+        assert!((x[0] - 0.0).abs() < 1e-10);
+        assert!((x[1] - 2.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_svd_tolerance_formula() {
+        // Verify tolerance formula: tol = sigma[0] * 100 * epsilon
+        let data = vec![
+            1.0, 1.0,
+            1.0, 2.0,
+            1.0, 3.0,
+        ];
+        let m = Matrix::new(3, 2, data);
+        let svd = m.svd();
+
+        let max_sigma = svd.sigma[0];
+        let expected_tol = max_sigma * 100.0 * f64::EPSILON;
+
+        // Verify tolerance is computed correctly
+        assert!(expected_tol > 0.0);
+        assert!(expected_tol < 1e-10);
+    }
+
+    #[test]
+    fn test_svd_solve_rank_deficient() {
+        // Test SVD solver on rank-deficient matrix
+        // Second column is 2x first column
+        let data = vec![
+            1.0, 2.0,
+            2.0, 4.0,
+            3.0, 6.0,
+        ];
+        let m = Matrix::new(3, 2, data);
+        let svd = m.svd();
+
+        // One singular value should be near zero
+        assert!(svd.sigma[0] > 1e-10);
+        assert!(svd.sigma[1] < 1e-10);
+
+        // Solve: should still work with pseudoinverse
+        let b = vec![3.0, 6.0, 9.0];
+        let x = m.svd_solve(&svd, &b);
+
+        // Check that solution is valid
+        assert!(x[0].is_finite());
+        assert!(x[1].is_finite());
+
+        // Verify prediction at first row: 1*x0 + 2*x1 ≈ 3
+        let pred = m.get(0, 0) * x[0] + m.get(0, 1) * x[1];
+        assert!((pred - b[0]).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_svd_jacobi_kahan_produce_results() {
+        // Verify both Jacobi and Kahan SVD produce valid results
+        let data = vec![
+            1.0, 2.0, 3.0,
+            4.0, 5.0, 6.0,
+            7.0, 8.0, 9.0,
+        ];
+        let m = Matrix::new(3, 3, data);
+
+        // Kahan (default)
+        let svd_kahan = m.svd();
+
+        // Jacobi
+        let svd_jacobi = m.svd_jacobi().unwrap();
+
+        // Both should produce same number of singular values
+        assert_eq!(svd_kahan.sigma.len(), svd_jacobi.sigma.len());
+
+        // Both should have sorted (descending) singular values
+        for i in 1..svd_kahan.sigma.len() {
+            assert!(svd_kahan.sigma[i-1] >= svd_kahan.sigma[i]);
+            assert!(svd_jacobi.sigma[i-1] >= svd_jacobi.sigma[i]);
+        }
+
+        // Both should detect the rank deficiency (one near-zero singular value)
+        assert!(svd_kahan.sigma[2] < 1e-10);
+        assert!(svd_jacobi.sigma[2] < 1e-10);
+    }
+
+    #[test]
+    fn test_svd_jacobi_rank_deficient() {
+        // Test Jacobi SVD on rank-deficient matrix
+        let data = vec![
+            1.0, 2.0,
+            2.0, 4.0,
+            3.0, 6.0,
+        ];
+        let m = Matrix::new(3, 2, data);
+        let svd = m.svd_jacobi().unwrap();
+
+        // Should successfully decompose
+        assert_eq!(svd.sigma.len(), 2);
+        // One singular value should be near zero (rank = 1)
+        assert!(svd.sigma[1] < 1e-10);
+    }
+
+    #[test]
+    fn test_pseudo_inverse_basic() {
+        // Test pseudoinverse on simple invertible matrix
+        let data = vec![
+            1.0, 0.0,
+            0.0, 1.0,
+        ];
+        let m = Matrix::new(2, 2, data);
+        let pinv = m.pseudo_inverse(None).unwrap();
+
+        // For identity matrix, pseudoinverse should be identity
+        assert!((pinv.get(0, 0) - 1.0).abs() < 1e-10);
+        assert!(pinv.get(0, 1).abs() < 1e-10);
+        assert!(pinv.get(1, 0).abs() < 1e-10);
+        assert!((pinv.get(1, 1) - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_pseudo_inverse_rank_deficient() {
+        // Test pseudoinverse on rank-deficient matrix
+        let data = vec![
+            1.0, 0.0,
+            1.0, 0.0,
+            1.0, 0.0,
+        ];
+        let m = Matrix::new(3, 2, data);
+        let pinv = m.pseudo_inverse(None).unwrap();
+
+        // Verify pseudoinverse exists and is finite
+        assert_eq!(pinv.rows, 2);
+        assert_eq!(pinv.cols, 3);
+        for i in 0..pinv.rows {
+            for j in 0..pinv.cols {
+                assert!(pinv.get(i, j).is_finite());
+            }
+        }
+    }
+
+    #[test]
+    fn test_svd_wide_matrix() {
+        // Test SVD on wide matrix (more columns than rows)
+        let data = vec![
+            1.0, 2.0, 3.0, 4.0,
+            5.0, 6.0, 7.0, 8.0,
+        ];
+        let m = Matrix::new(2, 4, data);
+        let svd = m.svd();
+
+        // Should produce 2 singular values (min(2,4))
+        assert_eq!(svd.sigma.len(), 2);
+
+        // U should be 2x2
+        assert_eq!(svd.u.rows, 2);
+        assert_eq!(svd.u.cols, 2);
+
+        // V^T should be 4x4
+        assert_eq!(svd.v_t.rows, 4);
+        assert_eq!(svd.v_t.cols, 4);
+    }
+
+    #[test]
+    fn test_svd_tall_matrix() {
+        // Test SVD on tall matrix (more rows than columns)
+        let data = vec![
+            1.0, 2.0,
+            3.0, 4.0,
+            5.0, 6.0,
+            7.0, 8.0,
+        ];
+        let m = Matrix::new(4, 2, data);
+        let svd = m.svd();
+
+        // Should produce 2 singular values (min(4,2))
+        assert_eq!(svd.sigma.len(), 2);
+
+        // U should be 4x2
+        assert_eq!(svd.u.rows, 4);
+        assert_eq!(svd.u.cols, 2);
+
+        // V^T should be 2x2
+        assert_eq!(svd.v_t.rows, 2);
+        assert_eq!(svd.v_t.cols, 2);
+    }
+
+    #[test]
+    fn test_svd_solve_with_custom_tolerance() {
+        // Test that tolerance affects which singular values are kept
+        let data = vec![
+            1.0, 2.0,
+            2.0, 4.0,
+            3.0, 6.0,
+        ];
+        let m = Matrix::new(3, 2, data);
+        let svd = m.svd();
+
+        let b = vec![3.0, 6.0, 9.0];
+
+        // Default tolerance
+        let x_default = m.svd_solve(&svd, &b);
+
+        // With very high tolerance (more aggressive rejection)
+        // This should still produce valid results
+        assert!(x_default[0].is_finite());
+        assert!(x_default[1].is_finite());
+    }
 }

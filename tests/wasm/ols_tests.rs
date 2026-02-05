@@ -8,7 +8,7 @@
 
 use crate::wasm::fixtures::*;
 use wasm_bindgen_test::*;
-use linreg_core::*;
+use linreg_core::wasm::*;
 
 // ============================================================================
 // OLS Regression Tests

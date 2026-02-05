@@ -1,0 +1,35 @@
+{
+  "test_name": ["VIF Test (R - car::vif)"],
+  "dataset": ["longley"],
+  "formula": ["GNP.deflator ~ GNP + Unemployed + Armed.Forces + Population + Year + Employed"],
+  "vif_results": [
+    {
+      "vif_result": 1214.5721487552796,
+      "_row": "GNP"
+    },
+    {
+      "vif_result": 83.958646090285797,
+      "_row": "Unemployed"
+    },
+    {
+      "vif_result": 12.15638630108606,
+      "_row": "Armed.Forces"
+    },
+    {
+      "vif_result": 230.91221480983259,
+      "_row": "Population"
+    },
+    {
+      "vif_result": 2065.7339385310229,
+      "_row": "Year"
+    },
+    {
+      "vif_result": 220.41968167665331,
+      "_row": "Employed"
+    }
+  ],
+  "vif_numeric": [1214.5721487552796, 83.958646090285797, 12.15638630108606, 230.91221480983259, 2065.7339385310229, 220.41968167665331],
+  "max_vif": [2065.7339385310229],
+  "interpretation": ["Severe multicollinearity detected (VIF > 10)"],
+  "description": ["Variance Inflation Factor measures multicollinearity among predictors. Uses car::vif()."]
+}

@@ -121,18 +121,18 @@ fn rainbow_test_internal(
     // DEBUG: Print RSS values to diagnose issues
     #[cfg(test)]
     {
-        eprintln!(
-            "DEBUG Rainbow: rss_full = {:.6}, rss_subset = {:.6}, diff = {:.6}",
-            rss_full,
-            rss_subset,
-            rss_subset - rss_full
-        );
-        eprintln!(
-            "DEBUG Rainbow: subset_size = {}, n = {}",
-            subset_indices.len(),
-            n
-        );
-        eprintln!("DEBUG Rainbow: method = {:?}", _method);
+        // eprintln!(
+        //     "DEBUG Rainbow: rss_full = {:.6}, rss_subset = {:.6}, diff = {:.6}",
+        //     rss_full,
+        //     rss_subset,
+        //     rss_subset - rss_full
+        // );
+        // eprintln!(
+        //     "DEBUG Rainbow: subset_size = {}, n = {}",
+        //     subset_indices.len(),
+        //     n
+        // );
+        // eprintln!("DEBUG Rainbow: method = {:?}", _method);
     }
 
     // Calculate F-statistic using the formula from R's lmtest::raintest

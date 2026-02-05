@@ -445,7 +445,7 @@ fn harvey_collier_test_python(y: &[f64], x_vars: &[Vec<f64>]) -> Result<Diagnost
     // Python's rr[3][3:] takes indices 3..nobs-1.
     // Our resr has n-p values corresponding to indices skip..nobs-1.
     // To match indices 3..nobs-1, we skip (3-skip) elements from our resr array.
-    let skip_offset = if p > 3 { 0 } else { 3 - p };
+    let skip_offset = 3usize.saturating_sub(p);
     let resr_test: Vec<f64> = resr.iter().skip(skip_offset).cloned().collect();
 
     let n_test = resr_test.len();

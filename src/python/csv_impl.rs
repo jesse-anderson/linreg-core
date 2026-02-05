@@ -2,8 +2,6 @@
 // CSV Parsing (Native Types API)
 // ============================================================================
 
-#[cfg(feature = "python")]
-use pyo3::prelude::*;
 
 /// Parse CSV content and return a CSVResult object.
 ///

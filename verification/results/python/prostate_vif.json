@@ -1,0 +1,28 @@
+{
+  "test_name": "VIF Test (Python - statsmodels)",
+  "dataset": "prostate",
+  "formula": "lcavol ~ lweight + age + lbph + svi + lcp + gleason + pgg45 + lpsa",
+  "vif_values": [
+    1.611373915499693,
+    1.3316217814105702,
+    1.3883309400165056,
+    2.1686972403068627,
+    2.5608410842512384,
+    2.426591557254666,
+    2.9197090045322436,
+    2.022162633919932
+  ],
+  "variable_names": [
+    "lweight",
+    "age",
+    "lbph",
+    "svi",
+    "lcp",
+    "gleason",
+    "pgg45",
+    "lpsa"
+  ],
+  "max_vif": 2.9197090045322436,
+  "interpretation": "Low multicollinearity (VIF <= 5)",
+  "description": "Variance Inflation Factor measures multicollinearity among predictors. Uses statsmodels.stats.outliers_influence.variance_inflation_factor."
+}

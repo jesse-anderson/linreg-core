@@ -1,0 +1,32 @@
+{
+  "test_name": "DFFITS (Python - statsmodels)",
+  "dataset": "longley",
+  "formula": "GNP.deflator ~ GNP + Unemployed + Armed Forces + Population + Year + Employed",
+  "dffits": [
+    -0.6532590893535662,
+    1.4966429511463948,
+    0.07729026281087623,
+    -1.3596680298736634,
+    -0.8203669133433059,
+    0.2517578318022598,
+    0.9333280537429488,
+    0.13812442182358717,
+    -0.879925852692135,
+    -0.6667474003137659,
+    0.6426487486809872,
+    1.0292340384314842,
+    -0.314516240586891,
+    0.13438589185199434,
+    0.22801855344578184,
+    -1.5415918626893692
+  ],
+  "n": 16,
+  "p": 7,
+  "threshold": 1.3228756555322954,
+  "influential_observations": [
+    2,
+    4,
+    16
+  ],
+  "description": "Measures influence of each observation on its fitted value."
+}

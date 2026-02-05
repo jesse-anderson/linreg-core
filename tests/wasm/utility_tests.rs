@@ -7,7 +7,7 @@
 #![cfg(target_arch = "wasm32")]
 
 use wasm_bindgen_test::*;
-use linreg_core::*;
+use linreg_core::wasm::*;
 
 #[wasm_bindgen_test]
 fn test_wasm_get_t_cdf() {

@@ -20,15 +20,20 @@ import init, {
     shapiro_wilk_test,
     anderson_darling_test,
     cooks_distance_test,
+    dfbetas_test,
+    dffits_test,
     reset_test,
     breusch_godfrey_test,
+    vif_test,
     get_version,
     stats_mean,
     stats_stddev,
     stats_variance,
     stats_median,
     stats_quantile,
-    stats_correlation
+    stats_correlation,
+    loess_fit,
+    loess_predict
 } from '../linreg_core.js';
 
 import { STATE, showToast } from './utils.js';
@@ -200,6 +205,40 @@ export const WasmRegression = {
         const yJson = JSON.stringify(y);
         const xJson = JSON.stringify(xVars);
         return breusch_godfrey_test(yJson, xJson, order, testType);
+    },
+
+    // Influence Diagnostic Tests
+    dfbetasTest: (y, xVars) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        return dfbetas_test(yJson, xJson);
+    },
+
+    dffitsTest: (y, xVars) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        return dffits_test(yJson, xJson);
+    },
+
+    vifTest: (y, xVars) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        return vif_test(yJson, xJson);
+    },
+
+    // LOESS Regression
+    loess: (y, xVars, span = 0.75, degree = 1, robustIterations = 0, surface = 'direct') => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        return loess_fit(yJson, xJson, span, degree, robustIterations, surface);
+    },
+
+    // LOESS Predictions at new points
+    loessPredict: (newX, originalX, originalY, span, degree, robustIterations, surface) => {
+        const newXJson = JSON.stringify(newX);
+        const origXJson = JSON.stringify(originalX);
+        const origYJson = JSON.stringify(originalY);
+        return loess_predict(newXJson, origXJson, origYJson, span, degree, robustIterations, surface);
     }
 };
 
@@ -282,6 +321,7 @@ export async function calculateRegression(yVar, xVars) {
         predictions: result.predictions,
         residuals: result.residuals,
         standardizedResiduals: result.standardized_residuals,
+        leverage: result.leverage,
         confidenceIntervals: result.conf_int_lower.map((lower, i) => [lower, result.conf_int_upper[i]]),
         vif: result.vif,
         n: result.n,
@@ -503,6 +543,104 @@ export async function generateLambdaPath(yVar, xVars, nLambda = 100, lambdaMinRa
     }
 
     return result;
+}
+
+/**
+ * Calculate LOESS regression (Locally Estimated Scatterplot Smoothing)
+ * @param {string} yVar - Y variable name
+ * @param {Array<string>} xVars - X variable names
+ * @param {number} span - Fraction of data used in each local fit (0.0-1.0)
+ * @param {number} degree - Polynomial degree (0=constant, 1=linear, 2=quadratic)
+ * @param {number} robustIterations - Number of robustness iterations (0 or 2)
+ * @param {string} surface - Surface method ('direct' or 'interpolate')
+ * @returns {Promise<Object>} Regression results
+ */
+export async function calculateLoessRegression(yVar, xVars, span = 0.75, degree = 1, robustIterations = 0, surface = 'direct') {
+    const n = STATE.rawData.length;
+    const k = xVars.length;
+
+    if (n <= k + 1) {
+        throw new Error(`Need at least ${k + 2} data points for ${k} predictor(s). You have ${n}.`);
+    }
+
+    if (!WasmRegression.isReady()) {
+        throw new Error('WASM module is not ready yet. Please wait a moment and try again.');
+    }
+
+    const yData = STATE.rawData.map(row => row[yVar]);
+    const xData = xVars.map(v => STATE.rawData.map(row => row[v]));
+    const names = ['Intercept', ...xVars];
+
+    const resultJson = WasmRegression.loess(yData, xData, span, degree, robustIterations, surface);
+    const result = JSON.parse(resultJson);
+    console.log(`[linreg-core] LOESS regression: n=${n}, k=${k}, span=${span}, degree=${degree}`);
+
+    if (result.error) {
+        throw new Error(result.error);
+    }
+
+    // Transform LOESS result to match expected format
+    const residuals = yData.map((yi, i) => yi - result.fitted[i]);
+    const rmse = Math.sqrt(residuals.reduce((sum, r) => sum + r * r, 0) / residuals.length);
+    const mae = residuals.reduce((sum, r) => sum + Math.abs(r), 0) / residuals.length;
+
+    // Calculate pseudo-R² for LOESS (1 - SS_res / SS_tot)
+    const yMean = Stats.mean(yData);
+    const ssTot = yData.reduce((sum, yi) => sum + (yi - yMean) ** 2, 0);
+    const ssRes = residuals.reduce((sum, r) => sum + r * r, 0);
+    const rSquared = 1 - (ssRes / ssTot);
+    const adjRSquared = rSquared - (k * (1 - rSquared)) / (n - k - 1);
+
+    return {
+        coefficients: null, // LOESS doesn't have fixed coefficients
+        fitted: result.fitted,
+        rSquared: isNaN(rSquared) ? 0 : rSquared,
+        adjRSquared: isNaN(adjRSquared) ? 0 : adjRSquared,
+        mse: ssRes / n,
+        rmse: rmse,
+        mae: mae,
+        predictions: result.fitted,
+        residuals: residuals,
+        standardizedResiduals: residuals.map(r => r / rmse),
+        n: n,
+        k: k,
+        variableNames: names,
+        span: result.span,
+        degree: result.degree,
+        robustIterations: result.robust_iterations,
+        surface: result.surface,
+        method: 'loess'
+    };
+}
+
+/**
+ * Predict values using LOESS at new points
+ * @param {Array<Array<number>>} newX - New X values to predict (one array per predictor)
+ * @param {Array<string>} xVarNames - Original X variable names
+ * @param {string} yVarName - Original Y variable name
+ * @param {number} span - Span parameter used in original fit
+ * @param {number} degree - Degree parameter used in original fit
+ * @param {number} robustIterations - Robust iterations used in original fit
+ * @param {string} surface - Surface method used in original fit
+ * @returns {Promise<Array<number>>} Predicted values
+ */
+export async function predictLoess(newX, xVarNames, yVarName, span, degree, robustIterations, surface) {
+    if (!WasmRegression.isReady()) {
+        throw new Error('WASM module is not ready yet. Please wait a moment and try again.');
+    }
+
+    // Get original data
+    const originalX = xVarNames.map(v => STATE.rawData.map(row => row[v]));
+    const originalY = STATE.rawData.map(row => row[yVarName]);
+
+    const resultJson = WasmRegression.loessPredict(newX, originalX, originalY, span, degree, robustIterations, surface);
+    const result = JSON.parse(resultJson);
+
+    if (result.error) {
+        throw new Error(result.error);
+    }
+
+    return result.predictions || result.fitted || [];
 }
 
 // ============================================================================

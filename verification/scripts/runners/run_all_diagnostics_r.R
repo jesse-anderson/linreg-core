@@ -32,6 +32,7 @@ default_output_dir <- "verification/results/r"
 default_script_dir <- "verification/scripts/r/diagnostics"
 default_regularized_dir <- "verification/scripts/r/regularized"
 default_core_dir <- "verification/scripts/r/core"
+default_loess_dir <- "verification/scripts/r/loess"
 default_lambda_count <- 20
 
 csv_dir <- ifelse(length(args) >= 1, args[1], default_csv_dir)
@@ -40,6 +41,7 @@ script_dir <- ifelse(length(args) >= 3, args[3], default_script_dir)
 regularized_dir <- ifelse(length(args) >= 4, args[4], default_regularized_dir)
 lambda_count <- ifelse(length(args) >= 5, args[5], default_lambda_count)
 core_dir <- ifelse(length(args) >= 6, args[6], default_core_dir)
+loess_dir <- ifelse(length(args) >= 7, args[7], default_loess_dir)
 
 # Validate CSV directory
 if (!dir.exists(csv_dir)) {
@@ -66,7 +68,11 @@ diagnostic_scripts <- list(
   list(name = "Shapiro-Wilk", script = "test_shapiro_wilk.R", dir = script_dir, suffix = "shapiro_wilk", args = ""),
   list(name = "Anderson-Darling", script = "test_anderson_darling.R", dir = script_dir, suffix = "anderson_darling", args = ""),
   list(name = "Cooks-Distance", script = "test_cooks_distance.R", dir = script_dir, suffix = "cooks_distance", args = ""),
+  list(name = "DFBETAS", script = "test_dfbetas.R", dir = script_dir, suffix = "dfbetas", args = ""),
+  list(name = "DFFITS", script = "test_dffits.R", dir = script_dir, suffix = "dffits", args = ""),
+  list(name = "VIF", script = "test_vif.R", dir = script_dir, suffix = "vif", args = ""),
   list(name = "RESET", script = "test_reset.R", dir = script_dir, suffix = "reset", args = ""),
+  list(name = "LOESS", script = "test_loess.R", dir = loess_dir, suffix = "loess", args = "", multi_output = TRUE),
   list(name = "Ridge GLMNet", script = "test_ridge.R", dir = regularized_dir, suffix = "ridge_glmnet", args = lambda_count),
   list(name = "Lasso GLMNet", script = "test_lasso.R", dir = regularized_dir, suffix = "lasso_glmnet", args = lambda_count)
 )
@@ -89,6 +95,7 @@ cat("Output Directory:", output_dir, "\n")
 cat("Script Directory:", script_dir, "\n")
 cat("Regularized Directory:", regularized_dir, "\n")
 cat("Core Directory:", core_dir, "\n")
+cat("LOESS Directory:", loess_dir, "\n")
 cat("Datasets:", length(csv_files), "\n")
 cat("Diagnostic Tests:", length(diagnostic_scripts), "\n")
 cat("Total Tests to Run:", total_tests, "\n")
@@ -128,14 +135,48 @@ for (csv_file in csv_files) {
     })
 
     # Check if test ran successfully
-    expected_output <- file.path(output_dir, paste0(dataset_name, "_", diag$suffix, ".json"))
-
-    if (file.exists(expected_output)) {
-      cat("  [PASS]", test_name, "\n")
-      completed_tests <- completed_tests + 1
+    # For multi_output tests (LOESS), check for all 12 expected outputs (6 direct + 6 interpolate)
+    if (!is.null(diag$multi_output) && diag$multi_output == TRUE) {
+      # LOESS produces 12 outputs: 3 spans x 2 degrees x 2 surface types
+      expected_suffixes <- c(
+        paste0(diag$suffix, "_0.25_d1_direct.json"),
+        paste0(diag$suffix, "_0.25_d1_interpolate.json"),
+        paste0(diag$suffix, "_0.50_d1_direct.json"),
+        paste0(diag$suffix, "_0.50_d1_interpolate.json"),
+        paste0(diag$suffix, "_0.75_d1_direct.json"),
+        paste0(diag$suffix, "_0.75_d1_interpolate.json"),
+        paste0(diag$suffix, "_0.25_d2_direct.json"),
+        paste0(diag$suffix, "_0.25_d2_interpolate.json"),
+        paste0(diag$suffix, "_0.50_d2_direct.json"),
+        paste0(diag$suffix, "_0.50_d2_interpolate.json"),
+        paste0(diag$suffix, "_0.75_d2_direct.json"),
+        paste0(diag$suffix, "_0.75_d2_interpolate.json")
+      )
+      all_found <- TRUE
+      for (suf in expected_suffixes) {
+        expected_output <- file.path(output_dir, paste0(dataset_name, "_", suf))
+        if (!file.exists(expected_output)) {
+          all_found <- FALSE
+          break
+        }
+      }
+      if (all_found) {
+        cat("  [PASS]", test_name, "(12 outputs)\n")
+        completed_tests <- completed_tests + 1
+      } else {
+        cat("  [FAIL]", test_name, "- Some output files not created\n")
+        failed_tests <- failed_tests + 1
+      }
     } else {
-      cat("  [FAIL]", test_name, "- Output file not created\n")
-      failed_tests <- failed_tests + 1
+      # Single output file
+      expected_output <- file.path(output_dir, paste0(dataset_name, "_", diag$suffix, ".json"))
+      if (file.exists(expected_output)) {
+        cat("  [PASS]", test_name, "\n")
+        completed_tests <- completed_tests + 1
+      } else {
+        cat("  [FAIL]", test_name, "- Output file not created\n")
+        failed_tests <- failed_tests + 1
+      }
     }
   }
 

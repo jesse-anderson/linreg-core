@@ -2,9 +2,6 @@
 // Diagnostic Tests (Native Python Types API)
 // ============================================================================
 
-#[cfg(feature = "python")]
-use pyo3::prelude::*;
-use crate::python::types::{extract_f64_sequence, extract_f64_matrix};
 
 // ============================================================================
 // Native Python types
@@ -134,6 +131,42 @@ fn cooks_distance_test(y: &Bound<PyAny>, x_vars: &Bound<PyAny>) -> PyResult<PyCo
 
 #[cfg(feature = "python")]
 #[pyfunction]
+fn dfbetas_test(y: &Bound<PyAny>, x_vars: &Bound<PyAny>) -> PyResult<PyDfbetasResult> {
+    let y_vec = extract_f64_sequence(y)?;
+    let x_vars_vec = extract_f64_matrix(x_vars)?;
+    let result = crate::diagnostics::dfbetas_test(&y_vec, &x_vars_vec).map_err(|e| pyo3::PyErr::from(crate::python::error::PythonError::from(e)))?;
+
+    Ok(PyDfbetasResult {
+        dfbetas: result.dfbetas,
+        n: result.n,
+        p: result.p,
+        threshold: result.threshold,
+        influential_observations: result.influential_observations,
+        interpretation: result.interpretation,
+        guidance: result.guidance,
+    })
+}
+
+#[cfg(feature = "python")]
+#[pyfunction]
+fn dffits_test(y: &Bound<PyAny>, x_vars: &Bound<PyAny>) -> PyResult<PyDffitsResult> {
+    let y_vec = extract_f64_sequence(y)?;
+    let x_vars_vec = extract_f64_matrix(x_vars)?;
+    let result = crate::diagnostics::dffits_test(&y_vec, &x_vars_vec).map_err(|e| pyo3::PyErr::from(crate::python::error::PythonError::from(e)))?;
+
+    Ok(PyDffitsResult {
+        dffits: result.dffits,
+        n: result.n,
+        p: result.p,
+        threshold: result.threshold,
+        influential_observations: result.influential_observations,
+        interpretation: result.interpretation,
+        guidance: result.guidance,
+    })
+}
+
+#[cfg(feature = "python")]
+#[pyfunction]
 fn reset_test(y: &Bound<PyAny>, x_vars: &Bound<PyAny>, powers: &Bound<PyAny>, type_: &str) -> PyResult<PyDiagnosticResult> {
     let y_vec = extract_f64_sequence(y)?;
     let x_vars_vec = extract_f64_matrix(x_vars)?;
@@ -166,6 +199,39 @@ fn breusch_godfrey_test(y: &Bound<PyAny>, x_vars: &Bound<PyAny>, order: usize, t
         p_value: result.p_value,
         df: result.df,
         passed: result.passed,
+        interpretation: result.interpretation,
+        guidance: result.guidance,
+    })
+}
+
+#[cfg(feature = "python")]
+#[pyfunction]
+fn vif_test(y: &Bound<PyAny>, x_vars: &Bound<PyAny>) -> PyResult<PyVifTestResult> {
+    let y_vec = extract_f64_sequence(y)?;
+    let x_vars_vec = extract_f64_matrix(x_vars)?;
+    let result = crate::diagnostics::vif_test(&y_vec, &x_vars_vec).map_err(|e| pyo3::PyErr::from(crate::python::error::PythonError::from(e)))?;
+
+    // Convert VifDetail results to Python list of PyVifDetail objects
+    let py = y.py();
+    use pyo3::types::PyList;
+
+    let vif_list = PyList::empty_bound(py);
+    for v in result.vif_results {
+        let py_vif = PyVifDetail {
+            variable: v.variable,
+            vif: v.vif,
+            rsquared: v.rsquared,
+            interpretation: v.interpretation,
+        };
+        // Convert to Python object using PyClass
+        let py_obj = pyo3::Py::new(py, py_vif)?;
+        vif_list.append(py_obj)?;
+    }
+    let vif_results_obj: PyObject = vif_list.into();
+
+    Ok(PyVifTestResult {
+        max_vif: result.max_vif,
+        vif_results: vif_results_obj,
         interpretation: result.interpretation,
         guidance: result.guidance,
     })

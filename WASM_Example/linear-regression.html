@@ -147,6 +147,7 @@ X1,X2,Y
                             <option value="ridge">Ridge (L2 Regularized)</option>
                             <option value="lasso">Lasso (L1 Regularized)</option>
                             <option value="elastic_net">Elastic Net (L1 + L2)</option>
+                            <option value="loess">LOESS (Non-Parametric Smoothing)</option>
                         </select>
                     </div>
 
@@ -236,6 +237,43 @@ X1,X2,Y
                         </div>
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
                             <strong>Elastic Net</strong> combines Ridge (α=0) and Lasso (α=1) penalties. Alpha controls the mix: 0.5 gives equal weight to both penalties.
+                        </p>
+                    </div>
+
+                    <!-- LOESS Parameters -->
+                    <div id="loessOptions" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px;">
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label for="loessSpanSlider">Span: <span id="loessSpanValue">0.75</span></label>
+                            <input type="range" id="loessSpanSlider" min="0.1" max="1.0" step="0.05" value="0.75" style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                                <span>0.1 (wiggly)</span>
+                                <span>1.0 (smooth)</span>
+                            </div>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label for="loessDegreeSelect">Polynomial Degree</label>
+                            <select id="loessDegreeSelect" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
+                                <option value="0">Constant (Local Average)</option>
+                                <option value="1" selected>Linear (Default)</option>
+                                <option value="2">Quadratic (More Flexible)</option>
+                            </select>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label for="loessSurfaceSelect">Surface Method</label>
+                            <select id="loessSurfaceSelect" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
+                                <option value="direct" selected>Direct (Exact, Slower)</option>
+                                <option value="interpolate">Interpolate (Approximate, Faster)</option>
+                            </select>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="loessRobustCheck">
+                                <span>Robust Fitting (2 iterations to reduce outlier influence)</span>
+                            </label>
+                        </div>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
+                            <strong>LOESS</strong> fits smooth curves through data without assuming a functional form.
+                            Span controls smoothness - smaller values follow data closely, larger values produce smoother curves.
                         </p>
                     </div>
                 </div>
@@ -347,6 +385,13 @@ X1,X2,Y
                         </div>
                     </div>
 
+                    <div class="chart-container">
+                        <div class="chart-title">Residuals vs Leverage</div>
+                        <div class="chart-wrapper">
+                            <canvas id="leverageChart"></canvas>
+                        </div>
+                    </div>
+
                     <div class="section-header">Coefficients</div>
                     <div style="overflow-x: auto;">
                         <table class="coefficients-table" id="coefficientsTable">
@@ -365,43 +410,6 @@ X1,X2,Y
                                 <!-- Populated dynamically -->
                             </tbody>
                         </table>
-                    </div>
-
-                    <!-- VIF Table (Multicollinearity Detection) -->
-                    <div id="vifNote" style="display: none; margin-top: 24px;">
-                        <div class="section-header" style="margin: 24px 0 12px;">
-                            <span>Multicollinearity Check (VIF)</span>
-                        </div>
-                        <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6;">
-                            <strong>Variance Inflation Factor (VIF)</strong> is used to detect multicollinearity between predictor variables.
-                            VIF analysis requires at least <strong>two predictor variables</strong>. For simple regression (one predictor),
-                            multicollinearity is not a concern since there's only one independent variable.
-                        </p>
-                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">
-                            Tip: Add another predictor variable to enable VIF analysis.
-                        </p>
-                    </div>
-
-                    <div id="vifSection" style="display: none; margin-top: 24px;">
-                        <div class="section-header" style="margin: 24px 0 12px;">
-                            <span>Multicollinearity Check (VIF)</span>
-                        </div>
-                        <table class="vif-table">
-                            <thead>
-                                <tr>
-                                    <th>Variable</th>
-                                    <th>VIF</th>
-                                    <th>R²</th>
-                                    <th>Interpretation</th>
-                                </tr>
-                            </thead>
-                            <tbody id="vifBody">
-                                <!-- Populated dynamically -->
-                            </tbody>
-                        </table>
-                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">
-                            <strong>VIF</strong> = Variance Inflation Factor. VIF > 5 suggests moderate multicollinearity; VIF > 10 indicates high multicollinearity.
-                        </p>
                     </div>
 
                     <!-- Diagnostics Panel (Linearity Tests) -->
@@ -457,15 +465,55 @@ X1,X2,Y
                         </svg>
                     </div>
                     <div class="collapsible-content" id="residualsContent">
+                        <!-- Quick Action Buttons -->
+                        <div class="quick-actions">
+                            <button class="quick-action-btn" data-filter="influential" id="filterInfluentialBtn" title="Show observations with high leverage, Cook's D, or DFFITS">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path d="M12 8v4M12 16h.01"/>
+                                </svg>
+                                Influential Obs
+                            </button>
+                            <button class="quick-action-btn" data-filter="outliers" id="filterOutliersBtn" title="Show observations with |std residual| > 2">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 3l18 18M3 21l18-18"/>
+                                </svg>
+                                Outliers
+                            </button>
+                            <button class="quick-action-btn" data-filter="reset" id="resetFilterBtn" title="Show all observations">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                    <path d="M3 3v5h5"/>
+                                </svg>
+                                Reset
+                            </button>
+                            <button class="quick-action-btn" id="saveModelBtn" title="Save current model for comparison">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                    <polyline points="17 21 17 13 7 13 7 21"/>
+                                    <polyline points="7 3 7 8 15 8"/>
+                                </svg>
+                                Save Model
+                            </button>
+                            <button class="quick-action-btn" id="compareModelsBtn" title="Compare saved models">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="8" height="18" rx="1"/>
+                                    <rect x="13" y="3" width="8" height="18" rx="1"/>
+                                </svg>
+                                Compare Models
+                            </button>
+                        </div>
+
                         <div class="table-container" style="max-height: 200px;">
                             <table class="data-table" id="residualsTable">
                                 <thead>
                                     <tr>
-                                        <th>#</th>
-                                        <th>Actual</th>
-                                        <th>Predicted</th>
-                                        <th>Residual</th>
-                                        <th>Std. Residual</th>
+                                        <th data-sort="index">#</th>
+                                        <th data-sort="actual">Actual ↕</th>
+                                        <th data-sort="predicted">Predicted ↕</th>
+                                        <th data-sort="residual">Residual ↕</th>
+                                        <th data-sort="stdResidual">Std. Residual ↕</th>
+                                        <th data-sort="leverage">Leverage ↕</th>
                                     </tr>
                                 </thead>
                                 <tbody id="residualsBody">
@@ -491,6 +539,15 @@ X1,X2,Y
                                 <line x1="12" y1="15" x2="12" y2="3"/>
                             </svg>
                             Export Results (CSV)
+                        </button>
+                        <button class="tool-btn" id="exportAugmentedBtn" title="Export residuals with all diagnostic metrics (Cook's D, DFFITS, DFBETAS)">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="12" y1="18" x2="12" y2="12"/>
+                                <line x1="9" y1="15" x2="15" y2="15"/>
+                            </svg>
+                            Export Augmented Data
                         </button>
                     </div>
 
@@ -635,31 +692,38 @@ X1,X2,Y
                     </div>
                 </div>
 
-                <div class="license-card">
-                    <h4>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="collapsible-header collapsed" id="licensesToggle" aria-expanded="false" role="button" tabindex="0">
+                    <span class="title" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; vertical-align: text-bottom;">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                             <polyline points="14 2 14 8 20 8"/>
                             <path d="M9 13v-1h6v1"/>
                             <path d="M11 17h2"/>
                         </svg>
                         Third-Party Licenses
-                    </h4>
-                    <div class="license-content">
-                        <ul>
-                            <li>
-                                <a href="https://www.chartjs.org/" target="_blank" rel="noopener">Chart.js</a> — MIT License
-                                <span>© Chart.js Contributors</span>
-                            </li>
-                            <li>
-                                <a href="https://sheetjs.com/" target="_blank" rel="noopener">SheetJS (XLSX)</a> — Apache 2.0 License
-                                <span>© SheetJS LLC</span>
-                            </li>
-                            <li>
-                                <a href="https://github.com/jesse-anderson/linreg-core" target="_blank" rel="noopener">linreg-core</a> — MIT OR Apache-2.0 License
-                                <span>© Jesse Anderson</span>
-                            </li>
-                        </ul>
+                    </span>
+                    <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content collapsed" id="licensesContent">
+                    <div class="license-card" style="margin-top: 12px;">
+                        <div class="license-content">
+                            <ul>
+                                <li>
+                                    <a href="https://www.chartjs.org/" target="_blank" rel="noopener">Chart.js</a> — MIT License
+                                    <span>© Chart.js Contributors</span>
+                                </li>
+                                <li>
+                                    <a href="https://sheetjs.com/" target="_blank" rel="noopener">SheetJS (XLSX)</a> — Apache 2.0 License
+                                    <span>© SheetJS LLC</span>
+                                </li>
+                                <li>
+                                    <a href="https://github.com/jesse-anderson/linreg-core" target="_blank" rel="noopener">linreg-core</a> — MIT OR Apache-2.0 License
+                                    <span>© Jesse Anderson</span>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -696,6 +760,52 @@ X1,X2,Y
             <div class="modal-actions">
                 <button class="tool-btn" id="cancelSheetBtn">Cancel</button>
                 <button class="tool-btn primary" id="confirmSheetBtn">Import Sheet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Observation Detail Modal -->
+    <div class="modal-overlay" id="obsDetailModal">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h3>Observation Details</h3>
+                <button class="modal-close" id="closeObsDetailBtn">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" id="obsDetailContent">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Comparison Modal -->
+    <div class="modal-overlay" id="modelComparisonModal">
+        <div class="modal modal-xlarge">
+            <div class="modal-header">
+                <h3>Model Comparison</h3>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="tool-btn" id="exportComparisonBtn" title="Export comparison as CSV" style="padding: 6px 12px; font-size: 0.75rem;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Export CSV
+                    </button>
+                    <button class="modal-close" id="closeModelComparisonBtn">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body" id="modelComparisonContent">
+                <!-- Populated dynamically -->
             </div>
         </div>
     </div>

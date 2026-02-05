@@ -4,8 +4,10 @@
 [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/jesse-anderson/linreg-core/main/.github/coverage-badge.json)](https://github.com/jesse-anderson/linreg-core/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](LICENSE-MIT)
 [![Crates.io](https://img.shields.io/crates/v/linreg-core?color=orange)](https://crates.io/crates/linreg-core)
+[![npm](https://img.shields.io/npm/v/linreg-core?color=red)](https://www.npmjs.com/package/linreg-core)
+[![PyPI](https://img.shields.io/pypi/v/linreg-core)](https://pypi.org/project/linreg-core/)
 [![docs.rs](https://img.shields.io/badge/docs.rs-linreg__core-green)](https://docs.rs/linreg-core)
-[![PyPI](https://img.shields.io/badge/pypi-0.4.0-blue)](https://pypi.org/project/linreg-core/)
+
 
 A lightweight, self-contained linear regression library written in Rust. Compiles to WebAssembly for browser use, Python bindings via PyO3, or runs as a native Rust crate.
 
@@ -30,17 +32,19 @@ A lightweight, self-contained linear regression library written in Rust. Compile
 ## Features
 
 ### Regression Methods
-- **OLS Regression:** Coefficients, standard errors, t-statistics, p-values, confidence intervals
-- **Ridge Regression:** L2-regularized regression with optional standardization
-- **Lasso Regression:** L1-regularized regression via coordinate descent
-- **Elastic Net:** Combined L1 + L2 regularization for variable selection with multicollinearity handling
+- **OLS Regression:** Coefficients, standard errors, t-statistics, p-values, confidence intervals, model selection criteria (AIC, BIC, log-likelihood)
+- **Ridge Regression:** L2-regularized regression with optional standardization, effective degrees of freedom, model selection criteria
+- **Lasso Regression:** L1-regularized regression via coordinate descent with automatic variable selection, convergence tracking, model selection criteria
+- **Elastic Net:** Combined L1 + L2 regularization for variable selection with multicollinearity handling, active set convergence, model selection criteria
+- **LOESS:** Locally estimated scatterplot smoothing for non-parametric curve fitting with configurable span, polynomial degree, and robust fitting
 - **Lambda Path Generation:** Create regularization paths for cross-validation
 
 ### Model Statistics
-- R-squared, Adjusted R-squared, F-statistic, F-test p-value
-- Residuals, fitted values, leverage (hat matrix diagonal)
-- Mean Squared Error (MSE)
-- Variance Inflation Factor (VIF) for multicollinearity detection
+- **Fit Metrics:** R-squared, Adjusted R-squared, F-statistic, F-test p-value
+- **Error Metrics:** Mean Squared Error (MSE), Root Mean Squared Error (RMSE), Mean Absolute Error (MAE)
+- **Model Selection:** Log-likelihood, AIC (Akaike Information Criterion), BIC (Bayesian Information Criterion)
+- **Residuals:** Raw residuals, standardized residuals, fitted values, leverage (hat matrix diagonal)
+- **Multicollinearity:** Variance Inflation Factor (VIF) for each predictor
 
 ### Diagnostic Tests
 | Category | Tests |
@@ -49,7 +53,8 @@ A lightweight, self-contained linear regression library written in Rust. Compile
 | **Heteroscedasticity** | Breusch-Pagan (Koenker variant), White Test (R & Python methods) |
 | **Normality** | Jarque-Bera, Shapiro-Wilk (n ≤ 5000), Anderson-Darling |
 | **Autocorrelation** | Durbin-Watson, Breusch-Godfrey (higher-order) |
-| **Influence** | Cook's Distance |
+| **Multicollinearity** | Variance Inflation Factor (VIF) |
+| **Influence** | Cook's Distance, DFBETAS, DFFITS |
 
 ---
 
@@ -59,7 +64,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-linreg-core = { version = "0.4", default-features = false }
+linreg-core = { version = "0.5", default-features = false }
 ```
 
 ### OLS Regression (Rust)
@@ -77,6 +82,9 @@ fn main() -> Result<(), linreg_core::Error> {
     println!("Coefficients: {:?}", result.coefficients);
     println!("R-squared: {:.4}", result.r_squared);
     println!("F-statistic: {:.4}", result.f_statistic);
+    println!("Log-likelihood: {:.4}", result.log_likelihood);
+    println!("AIC: {:.4}", result.aic);
+    println!("BIC: {:.4}", result.bic);
 
     Ok(())
 }
@@ -107,6 +115,10 @@ fn main() -> Result<(), linreg_core::Error> {
     let result = ridge_fit(&x, &y, &options)?;
     println!("Intercept: {}", result.intercept);
     println!("Coefficients: {:?}", result.coefficients);
+    println!("R-squared: {:.4}", result.r_squared);
+    println!("Effective degrees of freedom: {:.2}", result.effective_df);
+    println!("AIC: {:.4}", result.aic);
+    println!("BIC: {:.4}", result.bic);
 
     Ok(())
 }
@@ -139,6 +151,8 @@ fn main() -> Result<(), linreg_core::Error> {
     println!("Intercept: {}", result.intercept);
     println!("Coefficients: {:?}", result.coefficients);
     println!("Non-zero coefficients: {}", result.n_nonzero);
+    println!("AIC: {:.4}", result.aic);
+    println!("BIC: {:.4}", result.bic);
 
     Ok(())
 }
@@ -172,6 +186,8 @@ fn main() -> Result<(), linreg_core::Error> {
     println!("Intercept: {}", result.intercept);
     println!("Coefficients: {:?}", result.coefficients);
     println!("Non-zero coefficients: {}", result.n_nonzero);
+    println!("AIC: {:.4}", result.aic);
+    println!("BIC: {:.4}", result.bic);
 
     Ok(())
 }
@@ -265,6 +281,9 @@ async function run() {
     const result = JSON.parse(resultJson);
     console.log("Coefficients:", result.coefficients);
     console.log("R-squared:", result.r_squared);
+    console.log("Log-likelihood:", result.log_likelihood);
+    console.log("AIC:", result.aic);
+    console.log("BIC:", result.bic);
 }
 
 run();
@@ -282,6 +301,10 @@ const result = JSON.parse(ridge_regression(
 ));
 
 console.log("Coefficients:", result.coefficients);
+console.log("R-squared:", result.r_squared);
+console.log("Effective degrees of freedom:", result.effective_df);
+console.log("AIC:", result.aic);
+console.log("BIC:", result.bic);
 ```
 
 ### Lasso Regression (WASM)
@@ -299,6 +322,8 @@ const result = JSON.parse(lasso_regression(
 
 console.log("Coefficients:", result.coefficients);
 console.log("Non-zero coefficients:", result.n_nonzero);
+console.log("AIC:", result.aic);
+console.log("BIC:", result.bic);
 ```
 
 ### Elastic Net Regression (WASM)
@@ -317,6 +342,8 @@ const result = JSON.parse(elastic_net_regression(
 
 console.log("Coefficients:", result.coefficients);
 console.log("Non-zero coefficients:", result.n_nonzero);
+console.log("AIC:", result.aic);
+console.log("BIC:", result.bic);
 ```
 
 ### Lambda Path Generation (WASM)
@@ -331,6 +358,22 @@ const path = JSON.parse(make_lambda_path(
 
 console.log("Lambda sequence:", path.lambda_path);
 console.log("Lambda max:", path.lambda_max);
+```
+
+### LOESS Regression (WASM)
+
+```javascript
+const result = JSON.parse(loess_fit(
+    JSON.stringify(y),
+    JSON.stringify(x[0]),    // Single predictor only (flattened array)
+    0.5,      // span (smoothing parameter: 0-1)
+    1,        // degree (0=constant, 1=linear, 2=quadratic)
+    "direct", // surface method ("direct" or "interpolate")
+    0         // robust iterations (0=disabled, >0=number of iterations)
+));
+
+console.log("Fitted values:", result.fitted_values);
+console.log("Residuals:", result.residuals);
 ```
 
 ### Diagnostic Tests (WASM)
@@ -405,6 +448,25 @@ const cd = JSON.parse(cooks_distance_test(
     JSON.stringify(x)
 ));
 
+// DFBETAS (influence on coefficients)
+const dfbetas = JSON.parse(dfbetas_test(
+    JSON.stringify(y),
+    JSON.stringify(x)
+));
+
+// DFFITS (influence on fitted values)
+const dffits = JSON.parse(dffits_test(
+    JSON.stringify(y),
+    JSON.stringify(x)
+));
+
+// VIF test (multicollinearity)
+const vif = JSON.parse(vif_test(
+    JSON.stringify(y),
+    JSON.stringify(x)
+));
+console.log("VIF values:", vif.vif_values);
+
 // RESET test (functional form)
 const reset = JSON.parse(reset_test(
     JSON.stringify(y),
@@ -458,7 +520,7 @@ console.log("Numeric columns:", parsed.numeric_columns);
 ### Helper Functions (WASM)
 
 ```javascript
-const version = get_version();  // e.g., "0.4.0"
+const version = get_version();  // e.g., "0.5.0"
 const msg = test();             // "Rust WASM is working!"
 ```
 
@@ -519,7 +581,7 @@ print(result.summary())
 ```
 
 **Result objects** provide:
-- Direct attribute access (`result.r_squared`, `result.coefficients`)
+- Direct attribute access (`result.r_squared`, `result.coefficients`, `result.aic`, `result.bic`, `result.log_likelihood`)
 - `summary()` method for formatted output
 - `to_dict()` method for JSON serialization
 
@@ -536,6 +598,9 @@ result = linreg_core.ols_regression(y, x, names)
 print(f"Coefficients: {result.coefficients}")
 print(f"R-squared: {result.r_squared}")
 print(f"F-statistic: {result.f_statistic}")
+print(f"Log-likelihood: {result.log_likelihood}")
+print(f"AIC: {result.aic}")
+print(f"BIC: {result.bic}")
 ```
 
 ### Ridge Regression (Python)
@@ -548,6 +613,9 @@ result = linreg_core.ridge_regression(
 )
 print(f"Intercept: {result.intercept}")
 print(f"Coefficients: {result.coefficients}")
+print(f"Effective degrees of freedom: {result.effective_df:.2f}")
+print(f"AIC: {result.aic}")
+print(f"BIC: {result.bic}")
 ```
 
 ### Lasso Regression (Python)
@@ -564,6 +632,8 @@ print(f"Intercept: {result.intercept}")
 print(f"Coefficients: {result.coefficients}")
 print(f"Non-zero: {result.n_nonzero}")
 print(f"Converged: {result.converged}")
+print(f"AIC: {result.aic}")
+print(f"BIC: {result.bic}")
 ```
 
 ### Elastic Net Regression (Python)
@@ -580,6 +650,8 @@ result = linreg_core.elastic_net_regression(
 print(f"Intercept: {result.intercept}")
 print(f"Coefficients: {result.coefficients}")
 print(f"Non-zero: {result.n_nonzero}")
+print(f"AIC: {result.aic}")
+print(f"BIC: {result.bic}")
 ```
 
 ### Lambda Path Generation (Python)
@@ -630,6 +702,16 @@ ad = linreg_core.anderson_darling_test(y, x)
 # Cook's Distance (influential observations)
 cd = linreg_core.cooks_distance_test(y, x)
 print(f"Influential points: {cd.influential_4_over_n}")
+
+# DFBETAS (influence on each coefficient)
+dfbetas = linreg_core.dfbetas_test(y, x)
+print(f"Threshold: {dfbetas.threshold}")
+print(f"Influential obs: {dfbetas.influential_observations}")
+
+# DFFITS (influence on fitted values)
+dffits = linreg_core.dffits_test(y, x)
+print(f"Threshold: {dffits.threshold}")
+print(f"Influential obs: {dffits.influential_observations}")
 
 # RESET test (model specification)
 reset = linreg_core.reset_test(y, x, [2, 3], "fitted")
@@ -698,7 +780,7 @@ print(f"Data rows: {result.n_rows}")
 For native Rust without WASM overhead:
 
 ```toml
-linreg-core = { version = "0.4", default-features = false }
+linreg-core = { version = "0.5", default-features = false }
 ```
 
 For Python bindings (built with maturin):

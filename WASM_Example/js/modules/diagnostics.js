@@ -24,6 +24,7 @@ export async function runDiagnostics(yData, xData, rainbowMethod = 'r', whiteMet
         heteroscedasticity: [],
         normality: [],
         autocorrelation: [],
+        multicollinearity: [],
         influence: []
     };
 
@@ -282,14 +283,102 @@ export async function runDiagnostics(yData, xData, rainbowMethod = 'r', whiteMet
             const cdJson = WasmRegression.cooksDistanceTest(yData, xData);
             const cdResult = JSON.parse(cdJson);
             if (!cdResult.error) {
+                // Compute max distance from the distances array
+                const maxDistance = cdResult.distances && cdResult.distances.length > 0
+                    ? Math.max(...cdResult.distances)
+                    : undefined;
                 diagnostics.influence.push({
                     name: "Cook's Distance",
                     shortName: "Cook's Distance",
-                    ...cdResult
+                    ...cdResult,
+                    statistic: maxDistance // Add max value as statistic for display
                 });
             }
         } catch (e) {
             console.warn("Cook's Distance test failed:", e);
+        }
+
+        // DFBETAS Test
+        try {
+            const dfbetasJson = WasmRegression.dfbetasTest(yData, xData);
+            const dfbetasResult = JSON.parse(dfbetasJson);
+            if (!dfbetasResult.error) {
+                // Coerce result to match expected format - pass if no influential observations
+                const isInfluential = dfbetasResult.influential_observations &&
+                    Object.keys(dfbetasResult.influential_observations).length > 0;
+                // Compute max absolute DFBETAS value
+                let maxDfbetas = 0;
+                if (dfbetasResult.dfbetas && dfbetasResult.dfbetas.length > 0) {
+                    dfbetasResult.dfbetas.forEach(obsDfbetas => {
+                        obsDfbetas.forEach(val => {
+                            if (Math.abs(val) > maxDfbetas) {
+                                maxDfbetas = Math.abs(val);
+                            }
+                        });
+                    });
+                }
+                diagnostics.influence.push({
+                    name: 'DFBETAS',
+                    shortName: 'DFBETAS',
+                    ...dfbetasResult,
+                    is_passed: !isInfluential,
+                    statistic: maxDfbetas // Add max value as statistic for display
+                });
+            }
+        } catch (e) {
+            console.warn('DFBETAS test failed:', e);
+        }
+
+        // DFFITS Test
+        try {
+            const dffitsJson = WasmRegression.dffitsTest(yData, xData);
+            const dffitsResult = JSON.parse(dffitsJson);
+            if (!dffitsResult.error) {
+                // Coerce result to match expected format - pass if no influential observations
+                const isInfluential = dffitsResult.influential_observations &&
+                    dffitsResult.influential_observations.length > 0;
+                // Compute max absolute DFFITS value
+                const maxDffits = dffitsResult.dffits && dffitsResult.dffits.length > 0
+                    ? Math.max(...dffitsResult.dffits.map(v => Math.abs(v)))
+                    : 0;
+                diagnostics.influence.push({
+                    name: 'DFFITS',
+                    shortName: 'DFFITS',
+                    ...dffitsResult,
+                    is_passed: !isInfluential,
+                    statistic: maxDffits // Add max value as statistic for display
+                });
+            }
+        } catch (e) {
+            console.warn('DFFITS test failed:', e);
+        }
+    }
+
+    // ========================================================================
+    // Multicollinearity Tests
+    // ========================================================================
+
+    if (shouldRunTest('multicollinearity')) {
+        // VIF Test (requires at least 2 predictors)
+        if (xData.length >= 2) {
+            try {
+                const vifJson = WasmRegression.vifTest(yData, xData);
+                const vifResult = JSON.parse(vifJson);
+                if (!vifResult.error) {
+                    const testResult = {
+                        name: 'Variance Inflation Factor (VIF)',
+                        shortName: 'VIF',
+                        max_vif: vifResult.max_vif,
+                        vif_results: vifResult.vif_results,
+                        interpretation: vifResult.interpretation,
+                        guidance: vifResult.guidance,
+                        is_passed: vifResult.max_vif <= 10
+                    };
+                    diagnostics.multicollinearity.push(testResult);
+                }
+            } catch (e) {
+                console.warn('VIF test failed:', e);
+            }
         }
     }
 
@@ -343,7 +432,10 @@ export function getTestCategory(testName) {
         'Anderson-Darling': 'normality',
         'Durbin-Watson': 'autocorrelation',
         'Breusch-Godfrey': 'autocorrelation',
-        "Cook's Distance": 'influence'
+        "Cook's Distance": 'influence',
+        'DFBETAS': 'influence',
+        'DFFITS': 'influence',
+        'VIF': 'multicollinearity'
     };
 
     for (const [key, category] of Object.entries(categoryMap)) {
@@ -360,5 +452,5 @@ export function getTestCategory(testName) {
  * @returns {Array<string>} List of category names
  */
 export function getDiagnosticCategories() {
-    return ['linearity', 'heteroscedasticity', 'normality', 'autocorrelation', 'influence'];
+    return ['linearity', 'heteroscedasticity', 'normality', 'autocorrelation', 'multicollinearity', 'influence'];
 }

@@ -171,6 +171,86 @@ export function cooks_distance_test(y_json, x_vars_json) {
 }
 
 /**
+ * Performs DFBETAS analysis via WASM.
+ *
+ * DFBETAS measures the influence of each observation on each regression coefficient.
+ * For each observation and each coefficient, it computes the standardized change
+ * in the coefficient when that observation is omitted.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ *
+ * # Returns
+ *
+ * JSON string containing the DFBETAS matrix, threshold, and influential observations.
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails or domain check fails.
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @returns {string}
+ */
+export function dfbetas_test(y_json, x_vars_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.dfbetas_test(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Performs DFFITS analysis via WASM.
+ *
+ * DFFITS measures the influence of each observation on its own fitted value.
+ * It is the standardized change in the fitted value when that observation
+ * is omitted from the model.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ *
+ * # Returns
+ *
+ * JSON string containing the DFFITS vector, threshold, and influential observations.
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails or domain check fails.
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @returns {string}
+ */
+export function dffits_test(y_json, x_vars_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.dffits_test(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * Performs the Durbin-Watson test for autocorrelation via WASM.
  *
  * The Durbin-Watson test checks for autocorrelation in the residuals.
@@ -489,6 +569,116 @@ export function lasso_regression(y_json, x_vars_json, _variable_names, lambda, s
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
         wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Performs LOESS regression via WASM.
+ *
+ * LOESS (Locally Estimated Scatterplot Smoothing) is a non-parametric
+ * regression method that fits multiple regressions in local subsets
+ * of data to create a smooth curve through the data points.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `span` - Fraction of data used in each local fit (0.0 to 1.0)
+ * * `degree` - Degree of local polynomial: 0 (constant), 1 (linear), or 2 (quadratic)
+ * * `robust_iterations` - Number of robustness iterations (0 for non-robust fit)
+ * * `surface` - Surface computation method: "direct" or "interpolate"
+ *
+ * # Returns
+ *
+ * JSON string containing:
+ * - `fitted` - Fitted values at each observation point
+ * - `span` - Span parameter used
+ * - `degree` - Degree of polynomial used
+ * - `robust_iterations` - Number of robustness iterations performed
+ * - `surface` - Surface computation method used
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails or domain check fails.
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @param {number} span
+ * @param {number} degree
+ * @param {number} robust_iterations
+ * @param {string} surface
+ * @returns {string}
+ */
+export function loess_fit(y_json, x_vars_json, span, degree, robust_iterations, surface) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(surface, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.loess_fit(ptr0, len0, ptr1, len1, span, degree, robust_iterations, ptr2, len2);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Performs LOESS prediction at new query points via WASM.
+ *
+ * Predicts LOESS fitted values at arbitrary new points by redoing the
+ * local fitting at each query point using the original training data.
+ *
+ * # Arguments
+ *
+ * * `new_x_json` - JSON array of new predictor values (p vectors, each of length m)
+ * * `original_x_json` - JSON array of original training predictors
+ * * `original_y_json` - JSON array of original training response values
+ * * `span` - Span parameter (must match the original fit)
+ * * `degree` - Degree of polynomial (must match the original fit)
+ * * `robust_iterations` - Robustness iterations (must match the original fit)
+ * * `surface` - Surface computation method: "direct" or "interpolate"
+ *
+ * # Returns
+ *
+ * JSON string containing:
+ * - `predictions` - Vector of predicted values at query points
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, parameters don't match
+ * the original fit, or domain check fails.
+ * @param {string} new_x_json
+ * @param {string} original_x_json
+ * @param {string} original_y_json
+ * @param {number} span
+ * @param {number} degree
+ * @param {number} robust_iterations
+ * @param {string} surface
+ * @returns {string}
+ */
+export function loess_predict(new_x_json, original_x_json, original_y_json, span, degree, robust_iterations, surface) {
+    let deferred5_0;
+    let deferred5_1;
+    try {
+        const ptr0 = passStringToWasm0(new_x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(original_x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(original_y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(surface, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.loess_predict(ptr0, len0, ptr1, len1, ptr2, len2, span, degree, robust_iterations, ptr3, len3);
+        deferred5_0 = ret[0];
+        deferred5_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred5_0, deferred5_1, 1);
     }
 }
 
@@ -1197,6 +1387,53 @@ export function test_t_critical(df, alpha) {
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
         wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Performs Variance Inflation Factor (VIF) analysis via WASM.
+ *
+ * VIF measures how much the variance of regression coefficients is inflated
+ * due to multicollinearity among predictor variables. High VIF values indicate
+ * that a predictor is highly correlated with other predictors.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ *
+ * # Returns
+ *
+ * JSON string containing the maximum VIF, detailed VIF results for each predictor,
+ * interpretation, and guidance.
+ *
+ * # Interpretation
+ *
+ * - VIF = 1: No correlation with other predictors
+ * - VIF > 5: Moderate multicollinearity (concerning)
+ * - VIF > 10: High multicollinearity (severe)
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails or domain check fails.
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @returns {string}
+ */
+export function vif_test(y_json, x_vars_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.vif_test(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
     }
 }
 

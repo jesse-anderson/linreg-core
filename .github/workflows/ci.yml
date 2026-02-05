@@ -57,7 +57,7 @@ jobs:
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
       - name: Generate coverage report
-        run: cargo llvm-cov --workspace --ignore-filename-regex "(lib\.rs$|python\.rs$)" --json --output-path coverage.json
+        run: cargo llvm-cov --workspace --ignore-filename-regex "(lib\.rs$|python\.rs$|wasm\.rs$)" --json --output-path coverage.json
       - name: Extract coverage percentage
         id: coverage
         run: |

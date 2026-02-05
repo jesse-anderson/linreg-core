@@ -1,0 +1,51 @@
+{
+  "test_name": ["VIF Test (R - car::vif)"],
+  "dataset": ["mtcars"],
+  "formula": ["mpg ~ cyl + disp + hp + drat + wt + qsec + vs + am + gear + carb"],
+  "vif_results": [
+    {
+      "vif_result": 15.373833403442193,
+      "_row": "cyl"
+    },
+    {
+      "vif_result": 21.620241028958979,
+      "_row": "disp"
+    },
+    {
+      "vif_result": 9.832036844359024,
+      "_row": "hp"
+    },
+    {
+      "vif_result": 3.3746200083147571,
+      "_row": "drat"
+    },
+    {
+      "vif_result": 15.164886963987081,
+      "_row": "wt"
+    },
+    {
+      "vif_result": 7.5279582252910711,
+      "_row": "qsec"
+    },
+    {
+      "vif_result": 4.9658734664847071,
+      "_row": "vs"
+    },
+    {
+      "vif_result": 4.6484874555001694,
+      "_row": "am"
+    },
+    {
+      "vif_result": 5.3574521059406655,
+      "_row": "gear"
+    },
+    {
+      "vif_result": 7.9087467511843954,
+      "_row": "carb"
+    }
+  ],
+  "vif_numeric": [15.373833403442193, 21.620241028958979, 9.832036844359024, 3.3746200083147571, 15.164886963987081, 7.5279582252910711, 4.9658734664847071, 4.6484874555001694, 5.3574521059406655, 7.9087467511843954],
+  "max_vif": [21.620241028958979],
+  "interpretation": ["Severe multicollinearity detected (VIF > 10)"],
+  "description": ["Variance Inflation Factor measures multicollinearity among predictors. Uses car::vif()."]
+}

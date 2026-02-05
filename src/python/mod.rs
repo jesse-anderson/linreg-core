@@ -38,6 +38,7 @@ pub use types::*;
 // Include the function implementations
 include!("ols_impl.rs");
 include!("regularized_impl.rs");
+include!("loess_impl.rs");
 include!("diagnostics_impl.rs");
 include!("stats_impl.rs");
 include!("csv_impl.rs");
@@ -58,11 +59,16 @@ fn linreg_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyRidgeResult>()?;
     m.add_class::<PyLassoResult>()?;
     m.add_class::<PyElasticNetResult>()?;
+    m.add_class::<PyLoessResult>()?;
     m.add_class::<PyLambdaPathResult>()?;
     m.add_class::<PyDiagnosticResult>()?;
     m.add_class::<PyDurbinWatsonResult>()?;
     m.add_class::<PyCooksDistanceResult>()?;
+    m.add_class::<PyDfbetasResult>()?;
+    m.add_class::<PyDffitsResult>()?;
     m.add_class::<PyBreuschGodfreyResult>()?;
+    m.add_class::<PyVifDetail>()?;
+    m.add_class::<PyVifTestResult>()?;
     m.add_class::<PyRainbowTestResult>()?;
     m.add_class::<PyWhiteTestResult>()?;
     m.add_class::<PyCSVResult>()?;
@@ -75,6 +81,10 @@ fn linreg_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(lasso_regression, m)?)?;
     m.add_function(wrap_pyfunction!(elastic_net_regression, m)?)?;
     m.add_function(wrap_pyfunction!(make_lambda_path, m)?)?;
+
+    // LOESS Regression
+    m.add_function(wrap_pyfunction!(loess_fit, m)?)?;
+    m.add_function(wrap_pyfunction!(loess_predict, m)?)?;
 
     // Statistical Utilities
     m.add_function(wrap_pyfunction!(get_t_cdf, m)?)?;
@@ -94,8 +104,11 @@ fn linreg_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(shapiro_wilk_test, m)?)?;
     m.add_function(wrap_pyfunction!(anderson_darling_test, m)?)?;
     m.add_function(wrap_pyfunction!(cooks_distance_test, m)?)?;
+    m.add_function(wrap_pyfunction!(dfbetas_test, m)?)?;
+    m.add_function(wrap_pyfunction!(dffits_test, m)?)?;
     m.add_function(wrap_pyfunction!(reset_test, m)?)?;
     m.add_function(wrap_pyfunction!(breusch_godfrey_test, m)?)?;
+    m.add_function(wrap_pyfunction!(vif_test, m)?)?;
 
     // Descriptive Statistics
     m.add_function(wrap_pyfunction!(stats_mean, m)?)?;

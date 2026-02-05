@@ -1,0 +1,24 @@
+{
+  "test_name": "VIF Test (Python - statsmodels)",
+  "dataset": "longley",
+  "formula": "GNP.deflator ~ GNP + Unemployed + Armed Forces + Population + Year + Employed",
+  "vif_values": [
+    1214.5721487549663,
+    83.95864609014245,
+    12.156386301098246,
+    230.91221480979843,
+    2065.7339385300716,
+    220.4196816766494
+  ],
+  "variable_names": [
+    "GNP",
+    "Unemployed",
+    "Armed Forces",
+    "Population",
+    "Year",
+    "Employed"
+  ],
+  "max_vif": 2065.7339385300716,
+  "interpretation": "Severe multicollinearity detected (VIF > 10)",
+  "description": "Variance Inflation Factor measures multicollinearity among predictors. Uses statsmodels.stats.outliers_influence.variance_inflation_factor."
+}

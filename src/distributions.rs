@@ -46,7 +46,7 @@ pub fn ln_gamma(z: f64) -> f64 {
         //
         // Poles remain at z = 0, -1, -2, ...
         let s = (PI * z).sin();
-        if s.abs() < 1e-300 {
+        if s.abs() < 1e-14 {
             return f64::INFINITY; // pole / singularity
         }
         return PI.ln() - s.abs().ln() - ln_gamma(1.0 - z);

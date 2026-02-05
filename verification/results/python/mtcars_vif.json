@@ -1,0 +1,32 @@
+{
+  "test_name": "VIF Test (Python - statsmodels)",
+  "dataset": "mtcars",
+  "formula": "mpg ~ cyl + disp + hp + drat + wt + qsec + vs + am + gear + carb",
+  "vif_values": [
+    15.373833403442195,
+    21.620241028958883,
+    9.832036844359045,
+    3.3746200083147495,
+    15.164886963987044,
+    7.527958225291088,
+    4.965873466484715,
+    4.64848745550016,
+    5.35745210594066,
+    7.908746751184423
+  ],
+  "variable_names": [
+    "cyl",
+    "disp",
+    "hp",
+    "drat",
+    "wt",
+    "qsec",
+    "vs",
+    "am",
+    "gear",
+    "carb"
+  ],
+  "max_vif": 21.620241028958883,
+  "interpretation": "Severe multicollinearity detected (VIF > 10)",
+  "description": "Variance Inflation Factor measures multicollinearity among predictors. Uses statsmodels.stats.outliers_influence.variance_inflation_factor."
+}

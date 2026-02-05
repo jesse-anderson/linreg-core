@@ -47,6 +47,11 @@ def main():
         default="verification/scripts/python/diagnostics",
         help="Path to directory containing diagnostic scripts"
     )
+    parser.add_argument(
+        "--loess-dir",
+        default="verification/scripts/python/loess",
+        help="Path to directory containing LOESS script"
+    )
 
     args = parser.parse_args()
 
@@ -74,7 +79,16 @@ def main():
         {"name": "Shapiro-Wilk", "script": "test_shapiro_wilk.py"},
         {"name": "Anderson-Darling", "script": "test_anderson_darling.py"},
         {"name": "Cooks-Distance", "script": "test_cooks_distance.py"},
+        {"name": "DFBETAS", "script": "test_dfbetas.py"},
+        {"name": "DFFITS", "script": "test_dffits.py"},
+        {"name": "VIF", "script": "test_vif.py"},
         {"name": "RESET", "script": "test_reset.py"},
+    ]
+
+    # LOESS script (separate directory, produces 6 outputs per dataset)
+    loess_dir = Path(args.loess_dir)
+    loess_scripts = [
+        {"name": "LOESS", "script": "test_loess.py", "suffix": "loess", "dir": loess_dir, "multi_output": True},
     ]
 
     script_dir = Path(args.script_dir)
@@ -93,6 +107,7 @@ def main():
     print(f"CSV Directory: {args.csv_dir}")
     print(f"Output Directory: {args.output_dir}")
     print(f"Script Directory: {args.script_dir}")
+    print(f"LOESS Directory: {args.loess_dir}")
     print(f"Datasets: {len(csv_files)}")
     print(f"Diagnostic Tests: {len(diagnostic_scripts)}")
     print(f"Total Tests to Run: {total_tests}")
@@ -145,6 +160,74 @@ def main():
                     if result.stderr:
                         print(f"    stderr: {result.stderr.strip()}")
                     failed_tests += 1
+
+            except subprocess.TimeoutExpired:
+                print(f"  [FAIL] {test_name} - Timeout")
+                failed_tests += 1
+            except Exception as e:
+                print(f"  [FAIL] {test_name} - {e}")
+                failed_tests += 1
+
+        # Run LOESS tests (separate directory, different command format)
+        for loess in loess_scripts:
+            test_name = loess["name"]
+            script_path = loess["dir"] / loess["script"]
+
+            # Check if script exists
+            if not script_path.exists():
+                print(f"  [SKIP] {test_name} - Script not found: {script_path}")
+                continue
+
+            # Build command (LOESS uses positional args)
+            cmd = [
+                sys.executable,
+                str(script_path),
+                str(csv_file),
+                args.output_dir
+            ]
+
+            # Run test
+            try:
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
+
+                # Check if output files were created (LOESS produces 3 outputs for LOWESS)
+                if loess.get("multi_output", False):
+                    # Python LOESS uses statsmodels.lowess (LOWESS = degree 1 only)
+                    # Produces 3 outputs: 3 spans × 1 degree
+                    expected_suffixes = [
+                        f"{dataset_name}_loess_0.25_d1.json",
+                        f"{dataset_name}_loess_0.50_d1.json",
+                        f"{dataset_name}_loess_0.75_d1.json",
+                    ]
+                    all_found = all((Path(args.output_dir) / s).exists() for s in expected_suffixes)
+                    if all_found:
+                        print(f"  [PASS] {test_name} (3 outputs - LOWESS degree 1)")
+                        completed_tests += 1
+                    else:
+                        print(f"  [FAIL] {test_name} - Some output files not created")
+                        if result.stdout:
+                            print(f"    stdout: {result.stdout.strip()}")
+                        if result.stderr:
+                            print(f"    stderr: {result.stderr.strip()}")
+                        failed_tests += 1
+                else:
+                    # Single output file
+                    expected_output = Path(args.output_dir) / f"{dataset_name}_loess_0.75_d1.json"
+                    if expected_output.exists():
+                        print(f"  [PASS] {test_name}")
+                        completed_tests += 1
+                    else:
+                        print(f"  [FAIL] {test_name} - Output file not created")
+                        if result.stdout:
+                            print(f"    stdout: {result.stdout.strip()}")
+                        if result.stderr:
+                            print(f"    stderr: {result.stderr.strip()}")
+                        failed_tests += 1
 
             except subprocess.TimeoutExpired:
                 print(f"  [FAIL] {test_name} - Timeout")

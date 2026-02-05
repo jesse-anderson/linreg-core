@@ -36,6 +36,12 @@ pub const DURBIN_WATSON_TOLERANCE: f64 = 0.01;
 /// Cook's Distance tolerance (more lenient due to numerical precision)
 pub const COOKS_TOLERANCE: f64 = 1e-6;
 
+/// DFBETAS tolerance (matrix of influence values)
+pub const DFBETAS_TOLERANCE: f64 = 1e-6;
+
+/// DFFITS tolerance (vector of influence values)
+pub const DFFITS_TOLERANCE: f64 = 1e-6;
+
 /// RESET test tolerance (tight tolerance for F-statistic and p-value)
 pub const RESET_TOLERANCE: f64 = 1e-9;
 
@@ -314,6 +320,136 @@ pub struct PythonCooksDistanceResult {
 }
 
 // ============================================================================
+// DFBETAS Specific Structures
+// ============================================================================
+
+/// R DFBETAS result format
+/// Note: R JSON format wraps single values in arrays
+#[derive(Debug, Deserialize)]
+pub struct RDfbetasResult {
+    #[allow(dead_code)]
+    pub test_name: Vec<String>,
+    #[allow(dead_code)]
+    pub dataset: Vec<String>,
+    #[allow(dead_code)]
+    pub formula: Vec<String>,
+    pub dfbetas: Vec<Vec<f64>>,
+    #[allow(dead_code)]
+    pub n: Vec<usize>,
+    #[allow(dead_code)]
+    pub p: Vec<usize>,
+    #[allow(dead_code)]
+    pub threshold: Vec<f64>,
+    pub influential_observations: Vec<usize>,
+    #[allow(dead_code)]
+    pub description: Vec<String>,
+}
+
+/// Python DFBETAS result format
+#[derive(Debug, Deserialize)]
+pub struct PythonDfbetasResult {
+    #[allow(dead_code)]
+    pub test_name: String,
+    #[allow(dead_code)]
+    pub dataset: String,
+    #[allow(dead_code)]
+    pub formula: String,
+    pub dfbetas: Vec<Vec<f64>>,
+    #[allow(dead_code)]
+    pub n: usize,
+    #[allow(dead_code)]
+    pub p: usize,
+    #[allow(dead_code)]
+    pub threshold: f64,
+    pub influential_observations: Vec<usize>,
+    #[allow(dead_code)]
+    pub description: String,
+}
+
+/// Load R DFBETAS result from JSON
+pub fn load_r_dfbetas_result(json_path: &Path) -> Option<RDfbetasResult> {
+    if !json_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(json_path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+/// Load Python DFBETAS result from JSON
+pub fn load_python_dfbetas_result(json_path: &Path) -> Option<PythonDfbetasResult> {
+    if !json_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(json_path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+// ============================================================================
+// DFFITS Specific Structures
+// ============================================================================
+
+/// R DFFITS result format
+/// Note: R JSON format wraps single values in arrays
+#[derive(Debug, Deserialize)]
+pub struct RDffitsResult {
+    #[allow(dead_code)]
+    pub test_name: Vec<String>,
+    #[allow(dead_code)]
+    pub dataset: Vec<String>,
+    #[allow(dead_code)]
+    pub formula: Vec<String>,
+    pub dffits: Vec<f64>,
+    #[allow(dead_code)]
+    pub n: Vec<usize>,
+    #[allow(dead_code)]
+    pub p: Vec<usize>,
+    #[allow(dead_code)]
+    pub threshold: Vec<f64>,
+    pub influential_observations: Vec<usize>,
+    #[allow(dead_code)]
+    pub description: Vec<String>,
+}
+
+/// Python DFFITS result format
+#[derive(Debug, Deserialize)]
+pub struct PythonDffitsResult {
+    #[allow(dead_code)]
+    pub test_name: String,
+    #[allow(dead_code)]
+    pub dataset: String,
+    #[allow(dead_code)]
+    pub formula: String,
+    pub dffits: Vec<f64>,
+    #[allow(dead_code)]
+    pub n: usize,
+    #[allow(dead_code)]
+    pub p: usize,
+    #[allow(dead_code)]
+    pub threshold: f64,
+    pub influential_observations: Vec<usize>,
+    #[allow(dead_code)]
+    pub description: String,
+}
+
+/// Load R DFFITS result from JSON
+pub fn load_r_dffits_result(json_path: &Path) -> Option<RDffitsResult> {
+    if !json_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(json_path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+/// Load Python DFFITS result from JSON
+pub fn load_python_dffits_result(json_path: &Path) -> Option<PythonDffitsResult> {
+    if !json_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(json_path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+// ============================================================================
 // Breusch-Godfrey Specific Structures
 // ============================================================================
 
@@ -526,10 +662,27 @@ pub fn load_validation_results(json_path: &Path) -> RegressionResult {
 
 /// Categorical encoding scheme
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// ============================================================================
+// BREAKING CHANGE WARNING: Categorical Encoding Sort Behavior
+// ============================================================================
+//
+// The following change modifies how categorical variables are encoded:
+// - ZeroBased (Python): NOW preserves order of appearance (was: alphabetical)
+// - OneBased (R): Keeps alphabetical sorting (unchanged)
+//
+// This fix is needed for ToothGrowth DFBETAS validation where Python's
+// pd.factorize() uses order of appearance, not alphabetical sorting.
+//
+// If this breaks other validation tests, revert this change and investigate
+// which tests rely on alphabetical sorting for ZeroBased encoding.
+// ============================================================================
+
 pub enum CategoricalEncoding {
     /// 0-based encoding: first category = 0, second = 1, etc. (Python-like)
+    /// NOTE: Preserves ORDER OF APPEARANCE (like pd.factorize()), NOT alphabetical
     ZeroBased,
     /// 1-based encoding: first category = 1, second = 2, etc. (R-like)
+    /// NOTE: Sorts ALPHABETICALLY (like R's factor())
     OneBased,
 }
 
@@ -539,6 +692,23 @@ impl CategoricalEncoding {
         match self {
             CategoricalEncoding::ZeroBased => 0.0,
             CategoricalEncoding::OneBased => 1.0,
+        }
+    }
+
+    // ============================================================================
+    // BREAKING CHANGE: New method added to control sort behavior
+    // ============================================================================
+    //
+    /// Whether to sort categories alphabetically
+    /// - ZeroBased (Python): false = preserve order of appearance (pd.factorize behavior)
+    /// - OneBased (R): true = sort alphabetically (R factor() behavior)
+    ///
+    /// If validation tests fail after adding this method, consider whether
+    /// the test assumes alphabetical sorting for ZeroBased encoding.
+    fn should_sort(self) -> bool {
+        match self {
+            CategoricalEncoding::ZeroBased => false, // Python: preserve order
+            CategoricalEncoding::OneBased => true,  // R: sort alphabetically
         }
     }
 }
@@ -642,8 +812,11 @@ pub fn load_dataset_with_encoding(
     let y_needs_encoding = raw_y_values.iter().any(|v| v.parse::<f64>().is_err());
     if y_needs_encoding {
         let mut unique_vals: Vec<String> = raw_y_values.iter().map(|s| s.clone()).collect();
-        unique_vals.sort();
         unique_vals.dedup();
+        // BREAKING CHANGE: Only sort if encoding.should_sort() is true
+        if encoding.should_sort() {
+            unique_vals.sort();
+        }
         for (idx, val) in unique_vals.iter().enumerate() {
             y_encoding.insert(val.clone(), idx as f64 + offset);
         }
@@ -659,8 +832,11 @@ pub fn load_dataset_with_encoding(
         let needs_encoding = col_values.iter().any(|v| v.parse::<f64>().is_err());
         if needs_encoding {
             let mut unique_vals: Vec<String> = col_values.iter().map(|s| s.clone()).collect();
-            unique_vals.sort();
             unique_vals.dedup();
+            // BREAKING CHANGE: Only sort if encoding.should_sort() is true
+            if encoding.should_sort() {
+                unique_vals.sort();
+            }
             for (idx, val) in unique_vals.iter().enumerate() {
                 x_encodings[col_idx].insert(val.clone(), idx as f64 + offset);
             }
@@ -1127,3 +1303,140 @@ pub const ALL_DATASETS: &[&str] = &[
 
 /// Datasets for Shapiro-Wilk validation (excludes synthetic due to column ordering)
 pub const SHAPIRO_WILK_DATASETS: &[&str] = &["bodyfat", "longley", "mtcars", "prostate"];
+
+// ============================================================================
+// VIF Specific Structures
+// ============================================================================
+
+/// VIF tolerance (tight tolerance for exact VIF values)
+pub const VIF_TOLERANCE: f64 = 1e-9;
+
+/// R VIF result format
+/// Note: R JSON format wraps single values in arrays
+#[derive(Debug, Deserialize)]
+pub struct RVifResult {
+    #[allow(dead_code)]
+    pub test_name: Vec<String>,
+    #[allow(dead_code)]
+    pub dataset: Vec<String>,
+    #[allow(dead_code)]
+    pub formula: Vec<String>,
+    pub vif_results: Vec<VifResultEntry>,
+    #[allow(dead_code)]
+    pub vif_numeric: Vec<f64>,
+    pub max_vif: Vec<f64>,
+    #[allow(dead_code)]
+    pub interpretation: Vec<String>,
+    #[allow(dead_code)]
+    pub description: Vec<String>,
+}
+
+/// Single VIF entry in results (R format uses _row for variable name)
+#[derive(Debug, Deserialize)]
+pub struct VifResultEntry {
+    #[allow(dead_code)]
+    pub vif_result: f64,
+    pub _row: String,
+}
+
+/// Python VIF result format
+#[derive(Debug, Deserialize)]
+pub struct PythonVifResult {
+    #[allow(dead_code)]
+    pub test_name: String,
+    #[allow(dead_code)]
+    pub dataset: String,
+    #[allow(dead_code)]
+    pub formula: String,
+    pub vif_values: Vec<f64>,
+    pub variable_names: Vec<String>,
+    pub max_vif: f64,
+    pub interpretation: String,
+    #[allow(dead_code)]
+    pub description: String,
+}
+
+/// Load R VIF result from JSON
+pub fn load_r_vif_result(json_path: &Path) -> Option<RVifResult> {
+    if !json_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(json_path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+/// Load Python VIF result from JSON
+pub fn load_python_vif_result(json_path: &Path) -> Option<PythonVifResult> {
+    if !json_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(json_path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+// ============================================================================
+// LOESS Specific Structures
+// ============================================================================
+
+/// LOESS tolerance (more lenient due to algorithm differences in tie-breaking
+/// and neighborhood selection)
+pub const LOESS_TOLERANCE: f64 = 0.5;
+
+/// R LOESS result format
+#[derive(Debug, Deserialize)]
+pub struct RLoessResult {
+    #[allow(dead_code)]
+    pub test: String,
+    #[allow(dead_code)]
+    pub method: String,
+    #[allow(dead_code)]
+    pub dataset: String,
+    #[allow(dead_code)]
+    pub formula: String,
+    pub n: usize,
+    pub n_predictors: usize,
+    pub span: f64,
+    pub degree: usize,
+    pub surface: String,  // "direct" or "interpolate"
+    pub fitted: Vec<f64>,
+    pub y: Vec<f64>,
+    pub x: Vec<Vec<f64>>,  // List of predictors
+}
+
+/// Python LOESS result format
+#[derive(Debug, Deserialize)]
+pub struct PythonLoessResult {
+    #[allow(dead_code)]
+    pub test: String,
+    #[allow(dead_code)]
+    pub method: String,
+    #[allow(dead_code)]
+    pub dataset: String,
+    pub n: usize,
+    pub n_predictors: usize,
+    pub span: f64,
+    pub degree: usize,
+    pub surface: String,  // "direct" for statsmodels.lowess
+    pub fitted: Vec<f64>,
+    pub y: Vec<f64>,
+    /// Note: Python LOESS JSON stores x as a flat array (single predictor only)
+    pub x: Vec<f64>,
+}
+
+/// Load R LOESS result from JSON
+pub fn load_r_loess_result(json_path: &Path) -> Option<RLoessResult> {
+    if !json_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(json_path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+/// Load Python LOESS result from JSON
+pub fn load_python_loess_result(json_path: &Path) -> Option<PythonLoessResult> {
+    if !json_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(json_path).ok()?;
+    serde_json::from_str(&content).ok()
+}

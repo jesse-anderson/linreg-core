@@ -21,7 +21,9 @@ import {
     calculateRegression,
     calculateRidgeRegression,
     calculateLassoRegression,
-    calculateElasticNetRegression
+    calculateElasticNetRegression,
+    calculateLoessRegression,
+    predictLoess
 } from './modules/core.js';
 
 // Import diagnostics
@@ -36,7 +38,16 @@ import {
     initUI,
     runRegression,
     runDiagnosticTests,
-    exportResultsAsCSV
+    exportResultsAsCSV,
+    exportAugmentedData,
+    closeObsDetailModal,
+    filterInfluential,
+    filterOutliers,
+    resetResidualsFilter,
+    saveModel,
+    showModelComparison,
+    closeModelComparison,
+    exportModelComparison
 } from './modules/ui.js';
 
 // Import chart functions
@@ -127,13 +138,24 @@ window.runDiagnosticTests = runDiagnosticTests;
 
 // Export
 window.exportResultsAsCSV = exportResultsAsCSV;
+window.exportAugmentedData = exportAugmentedData;
 window.exportChartsAsPNG = exportChartsAsPNG;
+
+// Filter and model comparison
+window.filterInfluential = filterInfluential;
+window.filterOutliers = filterOutliers;
+window.resetResidualsFilter = resetResidualsFilter;
+window.saveModel = saveModel;
+window.showModelComparison = showModelComparison;
+window.closeModelComparison = closeModelComparison;
+window.exportModelComparison = exportModelComparison;
 
 // Utilities
 window.showToast = showToast;
 window.formatMethodName = formatMethodName;
 window.getExampleDescription = getExampleDescription;
 window.ThemeManager = ThemeManager;
+window.closeObsDetailModal = closeObsDetailModal;
 
 // ============================================================================
 // DOMCONTENTLOADED EVENT LISTENER
@@ -257,7 +279,7 @@ async function runRegressionFromPending() {
 
 if (typeof window !== 'undefined') {
     window.linregModules = {
-        core: { calculateRegression, calculateRidgeRegression, calculateLassoRegression, calculateElasticNetRegression },
+        core: { calculateRegression, calculateRidgeRegression, calculateLassoRegression, calculateElasticNetRegression, calculateLoessRegression, predictLoess },
         data: { handleFileSelect, loadExampleDataset, parseCSVData },
         diagnostics: { runDiagnostics },
         ui: { updateDataPreview, updateColumnSelectors, updateResultsDisplay },

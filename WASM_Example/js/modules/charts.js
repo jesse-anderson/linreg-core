@@ -17,6 +17,7 @@ export function updateCharts(results) {
     updateMainChart(results);
     updateResidualsChart(results);
     updateQQChart(results);
+    updateLeverageChart(results);
 }
 
 /**
@@ -51,6 +52,12 @@ export function updateMainChart(results) {
 function updateSimpleRegressionChart(ctx, results, yData, colors) {
     const xVarName = STATE.xVariables[0];
     const xData = STATE.rawData.map(row => row[xVarName]);
+
+    // Check if LOESS regression
+    if (results.method === 'loess') {
+        updateLoessChart(ctx, results, xData, yData, xVarName, colors);
+        return;
+    }
 
     // Sort for line plotting
     const sorted = xData.map((x, i) => ({ x, y: yData[i] }))
@@ -141,7 +148,88 @@ function updateSimpleRegressionChart(ctx, results, yData, colors) {
     STATE.charts.main = new Chart(ctx, {
         type: 'scatter',
         data: { datasets },
-        options: getChartOptions(escapeHtml(xVarName), escapeHtml(STATE.yVariable))
+        options: {
+            ...getChartOptions(escapeHtml(xVarName), escapeHtml(STATE.yVariable)),
+            plugins: {
+                ...getChartOptions(escapeHtml(xVarName), escapeHtml(STATE.yVariable)).plugins,
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            const idx = ctx.dataIndex;
+                            return `Obs ${idx + 1}: (${xData[idx].toFixed(3)}, ${yData[idx].toFixed(3)})`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Update LOESS chart (smooth curve through data)
+ */
+function updateLoessChart(ctx, results, xData, yData, xVarName, colors) {
+    // Sort data by X for smooth curve plotting
+    const sortedIndices = xData.map((_, i) => i).sort((a, b) => xData[a] - xData[b]);
+    const loessX = sortedIndices.map(i => xData[i]);
+    const loessY = sortedIndices.map(i => results.fitted[i]);
+
+    // Build chart title with LOESS parameters
+    const methodLabel = `LOESS (span=${results.span}, degree=${results.degree})`;
+    const titleEl = document.getElementById('mainChartTitle');
+    if (titleEl) {
+        titleEl.textContent = `Scatter Plot: ${escapeHtml(xVarName)} vs ${escapeHtml(STATE.yVariable)} — ${methodLabel}`;
+    }
+
+    // Create smooth curve dataset and observed data dataset
+    const datasets = [
+        {
+            label: 'LOESS Smooth Curve',
+            data: loessX.map((x, i) => ({ x, y: loessY[i] })),
+            type: 'line',
+            borderColor: getMethodColor('loess', colors),
+            borderWidth: 2.5,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.4,
+            order: 10,
+            z: 1
+        },
+        {
+            label: 'Observed Data',
+            data: xData.map((x, i) => ({ x, y: yData[i] })),
+            backgroundColor: colors.accent || '#22c55e',
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            order: 20,
+            z: 2
+        }
+    ];
+
+    STATE.charts.main = new Chart(ctx, {
+        type: 'scatter',
+        data: { datasets },
+        options: {
+            ...getChartOptions(escapeHtml(xVarName), escapeHtml(STATE.yVariable)),
+            plugins: {
+                ...getChartOptions(escapeHtml(xVarName), escapeHtml(STATE.yVariable)).plugins,
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            if (ctx.datasetIndex === 0) {
+                                // LOESS curve point
+                                const idx = ctx.dataIndex;
+                                return `LOESS: (${loessX[idx].toFixed(3)}, ${loessY[idx].toFixed(3)})`;
+                            } else {
+                                // Observed data point
+                                const idx = ctx.dataIndex;
+                                return `Obs: (${xData[idx].toFixed(3)}, ${yData[idx].toFixed(3)})`;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     });
 }
 
@@ -236,7 +324,20 @@ function updateMultipleRegressionChart(ctx, results, yData, colors) {
     STATE.charts.main = new Chart(ctx, {
         type: 'scatter',
         data: { datasets },
-        options: getChartOptions('Actual (Y)', 'Predicted (Ŷ)')
+        options: {
+            ...getChartOptions('Actual (Y)', 'Predicted (Ŷ)'),
+            plugins: {
+                ...getChartOptions('Actual (Y)', 'Predicted (Ŷ)').plugins,
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            const idx = ctx.dataIndex;
+                            return `Obs ${idx + 1}: actual=${yData[idx].toFixed(3)}, predicted=${results.predictions[idx].toFixed(3)}`;
+                        }
+                    }
+                }
+            }
+        }
     });
 }
 
@@ -293,7 +394,10 @@ export function updateResidualsChart(results) {
                 legend: { labels: { color: colors.text } },
                 tooltip: {
                     callbacks: {
-                        label: (ctx) => `(${ctx.parsed.x.toFixed(3)}, ${ctx.parsed.y.toFixed(3)})`
+                        label: (ctx) => {
+                            const idx = ctx.dataIndex;
+                            return `Obs ${idx + 1}: fitted=${results.predictions[idx].toFixed(3)}, residual=${results.residuals[idx].toFixed(3)}`;
+                        }
                     }
                 }
             },
@@ -414,7 +518,10 @@ export function updateQQChart(results) {
                 },
                 tooltip: {
                     callbacks: {
-                        label: (ctx) => `(${ctx.parsed.x.toFixed(3)}, ${ctx.parsed.y.toFixed(3)})`
+                        label: (ctx) => {
+                            const idx = ctx.dataIndex;
+                            return `Obs ${idx + 1}: theoretical=${theoreticalQuantiles[idx].toFixed(3)}, sample=${standardizedSorted[idx].toFixed(3)}`;
+                        }
                     }
                 }
             },
@@ -426,6 +533,158 @@ export function updateQQChart(results) {
                 },
                 y: {
                     title: { display: true, text: 'Sample Quantiles (Standardized Residuals)', color: colors.textMuted },
+                    ticks: { color: colors.textMuted },
+                    grid: { color: colors.border }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Update leverage chart (Residuals vs Leverage)
+ * @param {Object} results - Regression results
+ */
+export function updateLeverageChart(results) {
+    const canvas = document.getElementById('leverageChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const colors = getChartColors();
+
+    if (STATE.charts.leverage && typeof STATE.charts.leverage.destroy === 'function') {
+        STATE.charts.leverage.destroy();
+    }
+
+    // Only available for OLS with leverage data
+    if (!results.leverage || results.method !== 'ols') {
+        // Show placeholder message
+        ctx.font = '14px "Space Grotesk", sans-serif';
+        ctx.fillStyle = colors.textMuted || '#999';
+        ctx.textAlign = 'center';
+        ctx.fillText('Leverage plot only available for OLS regression', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
+    const leverage = results.leverage;
+    const residuals = results.residuals;
+    const n = results.n;
+    const p = results.k + 1; // parameters including intercept
+
+    // Calculate thresholds for high leverage
+    const leverageThreshold1 = 2 * p / n;  // Common threshold: 2p/n
+    const leverageThreshold2 = 3 * p / n;  // More stringent: 3p/n
+
+    // Create scatter data
+    const scatterData = leverage.map((h, i) => ({
+        x: h,
+        y: residuals[i]
+    }));
+
+    // Reference lines
+    const maxLeverage = Math.max(...leverage) * 1.1;
+    const maxResidual = Math.max(...residuals.map(Math.abs)) * 1.1;
+    const minResidual = -maxResidual;
+
+    const zeroLine = [
+        { x: 0, y: 0 },
+        { x: maxLeverage, y: 0 }
+    ];
+
+    const leverageLine1 = [
+        { x: leverageThreshold1, y: minResidual },
+        { x: leverageThreshold1, y: maxResidual }
+    ];
+
+    const leverageLine2 = [
+        { x: leverageThreshold2, y: minResidual },
+        { x: leverageThreshold2, y: maxResidual }
+    ];
+
+    // Color points by influence (high leverage OR high residual)
+    const pointColors = leverage.map((h, i) => {
+        const hasHighLeverage = h > leverageThreshold2;
+        const hasHighResidual = Math.abs(residuals[i]) > 2;
+        if (hasHighLeverage || hasHighResidual) {
+            return colors.error || '#ef4444';
+        }
+        if (h > leverageThreshold1) {
+            return colors.line || '#f59e0b';
+        }
+        return colors.accent || '#22c55e';
+    });
+
+    const pointRadius = leverage.map((h) => {
+        if (h > leverageThreshold2) return 8;
+        if (h > leverageThreshold1) return 6;
+        return 4;
+    });
+
+    STATE.charts.leverage = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [
+                {
+                    label: `Threshold (2p/n = ${leverageThreshold1.toFixed(3)})`,
+                    data: leverageLine1,
+                    type: 'line',
+                    borderColor: colors.line || '#f59e0b',
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    fill: false,
+                    borderDash: [5, 5]
+                },
+                {
+                    label: `Threshold (3p/n = ${leverageThreshold2.toFixed(3)})`,
+                    data: leverageLine2,
+                    type: 'line',
+                    borderColor: colors.error || '#ef4444',
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    fill: false,
+                    borderDash: [5, 5]
+                },
+                {
+                    label: 'Zero Line',
+                    data: zeroLine,
+                    type: 'line',
+                    borderColor: colors.textMuted || '#999',
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    fill: false
+                },
+                {
+                    label: 'Observations',
+                    data: scatterData,
+                    backgroundColor: pointColors,
+                    pointRadius: pointRadius,
+                    pointHoverRadius: (ctx) => pointRadius[ctx.dataIndex] + 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: colors.text } },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            const idx = ctx.dataIndex;
+                            return `Obs ${idx + 1}: h=${leverage[idx].toFixed(3)}, residual=${residuals[idx].toFixed(3)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: 'Leverage (hᵢᵢ)', color: colors.textMuted },
+                    ticks: { color: colors.textMuted },
+                    grid: { color: colors.border },
+                    min: 0,
+                    max: maxLeverage
+                },
+                y: {
+                    title: { display: true, text: 'Residuals', color: colors.textMuted },
                     ticks: { color: colors.textMuted },
                     grid: { color: colors.border }
                 }
@@ -487,9 +746,10 @@ export function exportChartsAsPNG() {
     const mainCanvas = document.getElementById('mainChart');
     const residualsCanvas = document.getElementById('residualsChart');
     const qqCanvas = document.getElementById('qqChart');
+    const leverageCanvas = document.getElementById('leverageChart');
 
-    const width = Math.max(mainCanvas.width, residualsCanvas.width, qqCanvas.width);
-    const height = mainCanvas.height + residualsCanvas.height + qqCanvas.height + 100;
+    const width = Math.max(mainCanvas.width, residualsCanvas.width, qqCanvas.width, leverageCanvas.width);
+    const height = mainCanvas.height + residualsCanvas.height + qqCanvas.height + leverageCanvas.height + 120;
 
     canvas.width = width;
     canvas.height = height;
@@ -507,9 +767,14 @@ export function exportChartsAsPNG() {
     ctx.fillText('Linear Regression Analysis', 20, 25);
 
     // Draw charts
-    ctx.drawImage(mainCanvas, 0, 40);
-    ctx.drawImage(residualsCanvas, 0, mainCanvas.height + 50);
-    ctx.drawImage(qqCanvas, 0, mainCanvas.height + residualsCanvas.height + 60);
+    let yOffset = 40;
+    ctx.drawImage(mainCanvas, 0, yOffset);
+    yOffset += mainCanvas.height + 10;
+    ctx.drawImage(residualsCanvas, 0, yOffset);
+    yOffset += residualsCanvas.height + 10;
+    ctx.drawImage(qqCanvas, 0, yOffset);
+    yOffset += qqCanvas.height + 10;
+    ctx.drawImage(leverageCanvas, 0, yOffset);
 
     // Export
     const link = document.createElement('a');
@@ -532,6 +797,7 @@ function getMethodLabel(results) {
     if (results.method === 'ridge') return `Ridge (λ=${results.lambda?.toFixed(2) || 'N/A'})`;
     if (results.method === 'lasso') return `Lasso (λ=${results.lambda?.toFixed(2) || 'N/A'})`;
     if (results.method === 'elastic_net') return `Elastic Net (λ=${results.lambda?.toFixed(2) || 'N/A'}, α=${results.alpha?.toFixed(2) || 'N/A'})`;
+    if (results.method === 'loess') return `LOESS (span=${results.span?.toFixed(2) || 'N/A'}, degree=${results.degree || 1})`;
     return 'Regression';
 }
 
@@ -543,6 +809,7 @@ function getMethodColor(method, colors) {
     if (method === 'ridge') return '#10b981';
     if (method === 'lasso') return '#f59e0b';
     if (method === 'elastic_net') return '#8b5cf6';
+    if (method === 'loess') return '#ec4899';
     return '#06b6d4';
 }
 

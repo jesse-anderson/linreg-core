@@ -22,6 +22,10 @@
 // - reset.rs:           RESET test for functional form validation
 // - shapiro_wilk.rs:    Shapiro-Wilk normality test validation
 // - white.rs:           White heteroscedasticity test validation
+// - dfbetas.rs:         DFBETAS influence measure validation
+// - dffits.rs:          DFFITS influence measure validation
+// - vif.rs:             VIF multicollinearity measure validation
+// - loess.rs:           LOESS non-parametric regression validation
 //
 // To regenerate the reference values, run the scripts in verification/:
 //   R:      cd verification/scripts/runners && Rscript run_all_diagnostics_r.R
@@ -34,10 +38,14 @@ mod breusch_godfrey;
 mod breusch_pagan;
 mod cooks_distance;
 mod core_regression;
+mod dfbetas;
+mod dffits;
 mod durbin_watson;
+mod vif;
 mod elastic_net;
 mod harvey_collier;
 mod jarque_bera;
+mod loess;
 mod ols_by_dataset;
 mod rainbow;
 mod regularized;

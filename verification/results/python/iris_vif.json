@@ -1,0 +1,20 @@
+{
+  "test_name": "VIF Test (Python - statsmodels)",
+  "dataset": "iris",
+  "formula": "Sepal.Length ~ Sepal.Width + Petal.Length + Petal.Width + Species",
+  "vif_values": [
+    1.8950240072658073,
+    38.264830758035224,
+    27.29358984162177,
+    41.222082670275014
+  ],
+  "variable_names": [
+    "Sepal.Width",
+    "Petal.Length",
+    "Petal.Width",
+    "Species"
+  ],
+  "max_vif": 41.222082670275014,
+  "interpretation": "Severe multicollinearity detected (VIF > 10)",
+  "description": "Variance Inflation Factor measures multicollinearity among predictors. Uses statsmodels.stats.outliers_influence.variance_inflation_factor."
+}

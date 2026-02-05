@@ -415,16 +415,16 @@ pub fn standardize_xy(
 ///
 /// For non-intercept coefficients:
 /// ```text
-/// β_original[j] = (y_scale * β_std[j]) / x_scale[j]
+/// β_original\[j\] = (y_scale * β_std\[j\]) / x_scale\[j\]
 /// ```
 ///
 /// For the intercept:
 /// ```text
-/// β₀ = y_mean - Σⱼ x_mean[j] * β_original[j]
+/// β₀ = y_mean - Σⱼ x_mean\[j\] * β_original\[j\]
 /// ```
 ///
 /// If y was not standardized, `y_scale = 1`.
-/// If X was not standardized, `x_scale[j] = 1`.
+/// If X was not standardized, `x_scale\[j\] = 1`.
 ///
 /// # Note
 ///

@@ -36,6 +36,7 @@ A lightweight, self-contained linear regression library written in Rust. Compile
 - **Ridge Regression:** L2-regularized regression with optional standardization, effective degrees of freedom, model selection criteria
 - **Lasso Regression:** L1-regularized regression via coordinate descent with automatic variable selection, convergence tracking, model selection criteria
 - **Elastic Net:** Combined L1 + L2 regularization for variable selection with multicollinearity handling, active set convergence, model selection criteria
+- **LOESS:** Locally estimated scatterplot smoothing for non-parametric curve fitting with configurable span, polynomial degree, and robust fitting
 - **Lambda Path Generation:** Create regularization paths for cross-validation
 
 ### Model Statistics
@@ -52,7 +53,8 @@ A lightweight, self-contained linear regression library written in Rust. Compile
 | **Heteroscedasticity** | Breusch-Pagan (Koenker variant), White Test (R & Python methods) |
 | **Normality** | Jarque-Bera, Shapiro-Wilk (n ≤ 5000), Anderson-Darling |
 | **Autocorrelation** | Durbin-Watson, Breusch-Godfrey (higher-order) |
-| **Influence** | Cook's Distance |
+| **Multicollinearity** | Variance Inflation Factor (VIF) |
+| **Influence** | Cook's Distance, DFBETAS, DFFITS |
 
 ---
 
@@ -62,7 +64,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-linreg-core = { version = "0.4", default-features = false }
+linreg-core = { version = "0.5", default-features = false }
 ```
 
 ### OLS Regression (Rust)
@@ -358,6 +360,22 @@ console.log("Lambda sequence:", path.lambda_path);
 console.log("Lambda max:", path.lambda_max);
 ```
 
+### LOESS Regression (WASM)
+
+```javascript
+const result = JSON.parse(loess_fit(
+    JSON.stringify(y),
+    JSON.stringify(x[0]),    // Single predictor only (flattened array)
+    0.5,      // span (smoothing parameter: 0-1)
+    1,        // degree (0=constant, 1=linear, 2=quadratic)
+    "direct", // surface method ("direct" or "interpolate")
+    0         // robust iterations (0=disabled, >0=number of iterations)
+));
+
+console.log("Fitted values:", result.fitted_values);
+console.log("Residuals:", result.residuals);
+```
+
 ### Diagnostic Tests (WASM)
 
 ```javascript
@@ -430,6 +448,25 @@ const cd = JSON.parse(cooks_distance_test(
     JSON.stringify(x)
 ));
 
+// DFBETAS (influence on coefficients)
+const dfbetas = JSON.parse(dfbetas_test(
+    JSON.stringify(y),
+    JSON.stringify(x)
+));
+
+// DFFITS (influence on fitted values)
+const dffits = JSON.parse(dffits_test(
+    JSON.stringify(y),
+    JSON.stringify(x)
+));
+
+// VIF test (multicollinearity)
+const vif = JSON.parse(vif_test(
+    JSON.stringify(y),
+    JSON.stringify(x)
+));
+console.log("VIF values:", vif.vif_values);
+
 // RESET test (functional form)
 const reset = JSON.parse(reset_test(
     JSON.stringify(y),
@@ -483,7 +520,7 @@ console.log("Numeric columns:", parsed.numeric_columns);
 ### Helper Functions (WASM)
 
 ```javascript
-const version = get_version();  // e.g., "0.4.0"
+const version = get_version();  // e.g., "0.5.0"
 const msg = test();             // "Rust WASM is working!"
 ```
 
@@ -666,6 +703,16 @@ ad = linreg_core.anderson_darling_test(y, x)
 cd = linreg_core.cooks_distance_test(y, x)
 print(f"Influential points: {cd.influential_4_over_n}")
 
+# DFBETAS (influence on each coefficient)
+dfbetas = linreg_core.dfbetas_test(y, x)
+print(f"Threshold: {dfbetas.threshold}")
+print(f"Influential obs: {dfbetas.influential_observations}")
+
+# DFFITS (influence on fitted values)
+dffits = linreg_core.dffits_test(y, x)
+print(f"Threshold: {dffits.threshold}")
+print(f"Influential obs: {dffits.influential_observations}")
+
 # RESET test (model specification)
 reset = linreg_core.reset_test(y, x, [2, 3], "fitted")
 
@@ -733,7 +780,7 @@ print(f"Data rows: {result.n_rows}")
 For native Rust without WASM overhead:
 
 ```toml
-linreg-core = { version = "0.4", default-features = false }
+linreg-core = { version = "0.5", default-features = false }
 ```
 
 For Python bindings (built with maturin):

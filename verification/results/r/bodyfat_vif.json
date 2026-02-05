@@ -1,0 +1,67 @@
+{
+  "test_name": ["VIF Test (R - car::vif)"],
+  "dataset": ["bodyfat"],
+  "formula": ["Density ~ BodyFat + Age + Weight + Height + Neck + Chest + Abdomen + Hip + Thigh + Knee + Ankle + Biceps + Forearm + Wrist"],
+  "vif_results": [
+    {
+      "vif_result": 3.9848570514456303,
+      "_row": "BodyFat"
+    },
+    {
+      "vif_result": 2.2852726373283456,
+      "_row": "Age"
+    },
+    {
+      "vif_result": 33.893743607474839,
+      "_row": "Weight"
+    },
+    {
+      "vif_result": 1.6782876844825327,
+      "_row": "Height"
+    },
+    {
+      "vif_result": 4.3989253744383232,
+      "_row": "Neck"
+    },
+    {
+      "vif_result": 9.4631802925926891,
+      "_row": "Chest"
+    },
+    {
+      "vif_result": 17.797924728489196,
+      "_row": "Abdomen"
+    },
+    {
+      "vif_result": 14.922301990296921,
+      "_row": "Hip"
+    },
+    {
+      "vif_result": 7.8652814361256187,
+      "_row": "Thigh"
+    },
+    {
+      "vif_result": 4.6122240205291796,
+      "_row": "Knee"
+    },
+    {
+      "vif_result": 1.9129092572327608,
+      "_row": "Ankle"
+    },
+    {
+      "vif_result": 3.6368719420768665,
+      "_row": "Biceps"
+    },
+    {
+      "vif_result": 2.2399618927153,
+      "_row": "Forearm"
+    },
+    {
+      "vif_result": 3.5077634296280502,
+      "_row": "Wrist"
+    }
+  ],
+  "vif_numeric": [3.9848570514456303, 2.2852726373283456, 33.893743607474839, 1.6782876844825327, 4.3989253744383232, 9.4631802925926891, 17.797924728489196, 14.922301990296921, 7.8652814361256187, 4.6122240205291796, 1.9129092572327608, 3.6368719420768665, 2.2399618927153, 3.5077634296280502],
+  "max_vif": [33.893743607474839],
+  "interpretation": ["Severe multicollinearity detected (VIF > 10)"],
+  "description": ["Variance Inflation Factor measures multicollinearity among predictors. Uses car::vif()."]
+}

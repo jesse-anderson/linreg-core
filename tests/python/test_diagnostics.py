@@ -35,6 +35,48 @@ class TestDiagnosticTestsNative:
         assert hasattr(result, "interpretation")
         assert hasattr(result, "guidance")
 
+    def test_vif_test_native(self):
+        """Test VIF (Variance Inflation Factor) diagnostic."""
+        y = [2.5, 3.7, 4.2, 5.1, 6.3, 7.0, 8.1, 9.2]
+        x1 = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
+        x2 = [2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0]
+        x3 = [1.5, 2.3, 3.1, 4.9, 5.2, 6.8, 7.1, 8.5]
+
+        result = linreg_core.vif_test(y, [x1, x2, x3])
+
+        assert hasattr(result, "max_vif")
+        assert hasattr(result, "vif_results")
+        assert hasattr(result, "interpretation")
+        assert hasattr(result, "guidance")
+
+        # Check that vif_results is a list of VifDetail objects
+        assert len(result.vif_results) == 3
+        for detail in result.vif_results:
+            assert hasattr(detail, "variable")
+            assert hasattr(detail, "vif")
+            assert hasattr(detail, "rsquared")
+            assert hasattr(detail, "interpretation")
+
+    def test_vif_test_insufficient_predictors(self):
+        """Test VIF with insufficient predictors (should fail)."""
+        y = [1.0, 2.0, 3.0, 4.0]
+        x = [[1.0, 2.0, 3.0, 4.0]]  # Only 1 predictor
+
+        with pytest.raises(Exception):  # Should raise an error
+            linreg_core.vif_test(y, x)
+
+    def test_vif_test_high_correlation(self):
+        """Test VIF with highly correlated predictors."""
+        y = [1.0, 2.0, 3.0, 4.0, 5.0]
+        x1 = [1.0, 2.0, 3.0, 4.0, 5.0]
+        x2 = [2.0, 4.0, 6.0, 8.0, 10.0]  # Exactly 2 * x1
+        x3 = [1.0, 2.0, 3.0, 4.0, 5.0]  # Same as x1
+
+        result = linreg_core.vif_test(y, [x1, x2, x3])
+
+        # With perfect multicollinearity, max_vif should be very large or infinite
+        assert result.max_vif > 10  # Should indicate severe multicollinearity
+
 
 class TestDiagnosticsEdgeCases:
     """Edge case and error handling tests for diagnostic tests."""

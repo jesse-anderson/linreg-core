@@ -2,8 +2,6 @@
 // Regularized Regression (Native Types API)
 // ============================================================================
 
-#[cfg(feature = "python")]
-use pyo3::prelude::*;
 use crate::python::error::PythonError;
 
 // ============================================================================

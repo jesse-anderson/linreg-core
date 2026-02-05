@@ -96,6 +96,50 @@ export function breusch_pagan_test(y_json: string, x_vars_json: string): string;
 export function cooks_distance_test(y_json: string, x_vars_json: string): string;
 
 /**
+ * Performs DFBETAS analysis via WASM.
+ *
+ * DFBETAS measures the influence of each observation on each regression coefficient.
+ * For each observation and each coefficient, it computes the standardized change
+ * in the coefficient when that observation is omitted.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ *
+ * # Returns
+ *
+ * JSON string containing the DFBETAS matrix, threshold, and influential observations.
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails or domain check fails.
+ */
+export function dfbetas_test(y_json: string, x_vars_json: string): string;
+
+/**
+ * Performs DFFITS analysis via WASM.
+ *
+ * DFFITS measures the influence of each observation on its own fitted value.
+ * It is the standardized change in the fitted value when that observation
+ * is omitted from the model.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ *
+ * # Returns
+ *
+ * JSON string containing the DFFITS vector, threshold, and influential observations.
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails or domain check fails.
+ */
+export function dffits_test(y_json: string, x_vars_json: string): string;
+
+/**
  * Performs the Durbin-Watson test for autocorrelation via WASM.
  *
  * The Durbin-Watson test checks for autocorrelation in the residuals.
@@ -282,6 +326,65 @@ export function jarque_bera_test(y_json: string, x_vars_json: string): string;
  * or domain check fails.
  */
 export function lasso_regression(y_json: string, x_vars_json: string, _variable_names: string, lambda: number, standardize: boolean, max_iter: number, tol: number): string;
+
+/**
+ * Performs LOESS regression via WASM.
+ *
+ * LOESS (Locally Estimated Scatterplot Smoothing) is a non-parametric
+ * regression method that fits multiple regressions in local subsets
+ * of data to create a smooth curve through the data points.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `span` - Fraction of data used in each local fit (0.0 to 1.0)
+ * * `degree` - Degree of local polynomial: 0 (constant), 1 (linear), or 2 (quadratic)
+ * * `robust_iterations` - Number of robustness iterations (0 for non-robust fit)
+ * * `surface` - Surface computation method: "direct" or "interpolate"
+ *
+ * # Returns
+ *
+ * JSON string containing:
+ * - `fitted` - Fitted values at each observation point
+ * - `span` - Span parameter used
+ * - `degree` - Degree of polynomial used
+ * - `robust_iterations` - Number of robustness iterations performed
+ * - `surface` - Surface computation method used
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails or domain check fails.
+ */
+export function loess_fit(y_json: string, x_vars_json: string, span: number, degree: number, robust_iterations: number, surface: string): string;
+
+/**
+ * Performs LOESS prediction at new query points via WASM.
+ *
+ * Predicts LOESS fitted values at arbitrary new points by redoing the
+ * local fitting at each query point using the original training data.
+ *
+ * # Arguments
+ *
+ * * `new_x_json` - JSON array of new predictor values (p vectors, each of length m)
+ * * `original_x_json` - JSON array of original training predictors
+ * * `original_y_json` - JSON array of original training response values
+ * * `span` - Span parameter (must match the original fit)
+ * * `degree` - Degree of polynomial (must match the original fit)
+ * * `robust_iterations` - Robustness iterations (must match the original fit)
+ * * `surface` - Surface computation method: "direct" or "interpolate"
+ *
+ * # Returns
+ *
+ * JSON string containing:
+ * - `predictions` - Vector of predicted values at query points
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, parameters don't match
+ * the original fit, or domain check fails.
+ */
+export function loess_predict(new_x_json: string, original_x_json: string, original_y_json: string, span: number, degree: number, robust_iterations: number, surface: string): string;
 
 /**
  * Generates a lambda path for regularized regression via WASM.
@@ -653,6 +756,35 @@ export function test_r_accuracy(): string;
 export function test_t_critical(df: number, alpha: number): string;
 
 /**
+ * Performs Variance Inflation Factor (VIF) analysis via WASM.
+ *
+ * VIF measures how much the variance of regression coefficients is inflated
+ * due to multicollinearity among predictor variables. High VIF values indicate
+ * that a predictor is highly correlated with other predictors.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ *
+ * # Returns
+ *
+ * JSON string containing the maximum VIF, detailed VIF results for each predictor,
+ * interpretation, and guidance.
+ *
+ * # Interpretation
+ *
+ * - VIF = 1: No correlation with other predictors
+ * - VIF > 5: Moderate multicollinearity (concerning)
+ * - VIF > 10: High multicollinearity (severe)
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails or domain check fails.
+ */
+export function vif_test(y_json: string, x_vars_json: string): string;
+
+/**
  * Performs the White test for heteroscedasticity via WASM.
  *
  * The White test is a more general test for heteroscedasticity that does not
@@ -683,12 +815,16 @@ export interface InitOutput {
     readonly breusch_godfrey_test: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly breusch_pagan_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly cooks_distance_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly dfbetas_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly dffits_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly durbin_watson_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly elastic_net_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
     readonly get_version: () => [number, number];
     readonly harvey_collier_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly jarque_bera_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly lasso_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
+    readonly loess_fit: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
+    readonly loess_predict: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
     readonly make_lambda_path: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly ols_regression: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly parse_csv: (a: number, b: number) => [number, number];
@@ -709,6 +845,7 @@ export interface InitOutput {
     readonly test_housing_regression: () => [number, number];
     readonly test_r_accuracy: () => [number, number];
     readonly test_t_critical: (a: number, b: number) => [number, number];
+    readonly vif_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly white_test: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly get_t_cdf: (a: number, b: number) => number;
     readonly get_t_critical: (a: number, b: number) => number;

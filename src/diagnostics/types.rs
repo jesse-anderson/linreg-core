@@ -360,3 +360,180 @@ pub struct CooksDistanceResult {
     /// Guidance for handling influential observations
     pub guidance: String,
 }
+
+/// Result of DFBETAS analysis.
+///
+/// DFBETAS measures the influence of each observation on each regression coefficient.
+/// For each observation i and each coefficient j, it measures the number of standard
+/// errors that coefficient changes when observation i is omitted.
+///
+/// # Fields
+///
+/// * `test_name` - Name of the diagnostic
+/// * `dfbetas` - Matrix of DFBETAS values (n x p), where dfbetas\[i\]\[j\] is the DFBETAS
+///   for observation i on coefficient j (j=0 is intercept, j=1 is first predictor, etc.)
+/// * `n` - Number of observations
+/// * `p` - Number of parameters (including intercept)
+/// * `threshold` - Common threshold (2/√n) for identifying influential observations
+/// * `influential_observations` - Map of coefficients to list of influential observation indices
+///   (1-based indexing for output compatibility with R/Python)
+/// * `interpretation` - Human-readable explanation of results
+/// * `guidance` - Recommendations based on results
+///
+/// # Example
+///
+/// ```
+/// use linreg_core::diagnostics::DfbetasResult;
+/// use std::collections::HashMap;
+///
+/// let result = DfbetasResult {
+///     test_name: "DFBETAS".to_string(),
+///     dfbetas: vec![vec![0.1, 0.05], vec![0.8, 0.3]],
+///     n: 5,
+///     p: 2,
+///     threshold: 0.894,
+///     influential_observations: HashMap::new(),
+///     interpretation: "No highly influential observations.".to_string(),
+///     guidance: "Model appears stable.".to_string(),
+/// };
+/// ```
+#[derive(Debug, Clone, Serialize)]
+pub struct DfbetasResult {
+    /// Name of the test
+    pub test_name: String,
+    /// DFBETAS matrix: n rows (observations) x p columns (parameters)
+    /// dfbetas\[i\]\[j\] = standardized change in coefficient j when observation i is omitted
+    pub dfbetas: Vec<Vec<f64>>,
+    /// Number of observations
+    pub n: usize,
+    /// Number of parameters (including intercept)
+    pub p: usize,
+    /// Common threshold: 2/√n
+    pub threshold: f64,
+    /// Map of coefficient indices (1-based) to list of influential observation indices (1-based)
+    /// Key: coefficient index (1=intercept, 2=first predictor, etc.)
+    /// Value: vector of observation indices that exceed |DFBETAS| > threshold
+    pub influential_observations: std::collections::HashMap<usize, Vec<usize>>,
+    /// Interpretation of results
+    pub interpretation: String,
+    /// Guidance for handling influential observations
+    pub guidance: String,
+}
+
+/// Result of DFFITS analysis.
+///
+/// DFFITS measures the influence of each observation on its own fitted value.
+/// It is the number of standard errors that the fitted value changes when
+/// observation i is omitted.
+///
+/// # Fields
+///
+/// * `test_name` - Name of the diagnostic
+/// * `dffits` - Vector of DFFITS values (one per observation)
+/// * `n` - Number of observations
+/// * `p` - Number of parameters (including intercept)
+/// * `threshold` - Common threshold (2*√(p/n)) for identifying influential observations
+/// * `influential_observations` - Indices of observations exceeding the threshold (1-based)
+/// * `interpretation` - Human-readable explanation of results
+/// * `guidance` - Recommendations based on results
+///
+/// # Example
+///
+/// ```
+/// use linreg_core::diagnostics::DffitsResult;
+///
+/// let result = DffitsResult {
+///     test_name: "DFFITS".to_string(),
+///     dffits: vec![0.1, 0.3, 1.2, 0.05, 0.2],
+///     n: 5,
+///     p: 2,
+///     threshold: 1.26,
+///     influential_observations: vec![],
+///     interpretation: "No highly influential observations.".to_string(),
+///     guidance: "Model appears stable.".to_string(),
+/// };
+/// ```
+#[derive(Debug, Clone, Serialize)]
+pub struct DffitsResult {
+    /// Name of the test
+    pub test_name: String,
+    /// DFFITS value for each observation
+    pub dffits: Vec<f64>,
+    /// Number of observations
+    pub n: usize,
+    /// Number of parameters (including intercept)
+    pub p: usize,
+    /// Common threshold: 2*√(p/n)
+    pub threshold: f64,
+    /// Indices of observations exceeding |DFFITS| > threshold (1-based indexing)
+    pub influential_observations: Vec<usize>,
+    /// Interpretation of results
+    pub interpretation: String,
+    /// Guidance for handling influential observations
+    pub guidance: String,
+}
+
+/// Detailed VIF result for a single predictor variable.
+///
+/// Contains the Variance Inflation Factor and associated statistics for one predictor.
+///
+/// # Fields
+///
+/// * `variable` - Name of the predictor variable
+/// * `vif` - Variance Inflation Factor (VIF > 10 indicates high multicollinearity)
+/// * `rsquared` - R-squared from regressing this predictor on all others
+/// * `interpretation` - Human-readable interpretation of this VIF value
+///
+/// # Example
+///
+/// ```
+/// use linreg_core::diagnostics::VifDetail;
+///
+/// let detail = VifDetail {
+///     variable: "x1".to_string(),
+///     vif: 1.2,
+///     rsquared: 0.17,
+///     interpretation: "Low multicollinearity".to_string(),
+/// };
+/// ```
+#[derive(Debug, Clone, Serialize)]
+pub struct VifDetail {
+    pub variable: String,
+    pub vif: f64,
+    pub rsquared: f64,
+    pub interpretation: String,
+}
+
+/// Result of VIF diagnostic analysis.
+///
+/// Unlike hypothesis tests, VIF is a diagnostic measure - not a test with p-values.
+/// Each predictor gets its own VIF score measuring its correlation with other predictors.
+///
+/// # Fields
+///
+/// * `test_name` - Name of the diagnostic
+/// * `max_vif` - Maximum VIF value across all predictors
+/// * `vif_results` - Detailed VIF results for each predictor
+/// * `interpretation` - Human-readable explanation of results
+/// * `guidance` - Recommendations based on results
+///
+/// # Example
+///
+/// ```
+/// # use linreg_core::diagnostics::VifDiagnosticResult;
+/// let result = VifDiagnosticResult {
+///     test_name: "Variance Inflation Factor (VIF)".to_string(),
+///     max_vif: 1.5,
+///     vif_results: vec![],
+///     interpretation: "All VIF values are within acceptable range.".to_string(),
+///     guidance: "No concerning multicollinearity detected.".to_string(),
+/// };
+/// ```
+#[derive(Debug, Clone, Serialize)]
+pub struct VifDiagnosticResult {
+    pub test_name: String,
+    pub max_vif: f64,
+    pub vif_results: Vec<VifDetail>,
+    pub interpretation: String,
+    pub guidance: String,
+}

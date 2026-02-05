@@ -8,7 +8,7 @@
 
 use crate::wasm::fixtures::*;
 use wasm_bindgen_test::*;
-use linreg_core::*;
+use linreg_core::wasm::*;
 
 // ============================================================================
 // Linearity Tests
@@ -564,6 +564,172 @@ fn test_wasm_cooks_distance_test() {
     let influential = result
         .get("influential_1")
         .expect("Should have influential_1 array")
+        .as_array()
+        .unwrap();
+
+    // Check we got some array (may be empty if no influential points)
+    // Array type already confirmed by as_array()
+}
+
+#[wasm_bindgen_test]
+fn test_wasm_dfbetas_test() {
+    let y_json = get_housing_y();
+    let x_vars_json = get_housing_x_vars();
+
+    let result_json = dfbetas_test(&y_json, &x_vars_json);
+    let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+
+    // Check for error first
+    if let Some(err) = result.get("error") {
+        panic!("dfbetas_test returned error: {}", err);
+    }
+
+    // Should have test name
+    let test_name = result
+        .get("test_name")
+        .expect("Should have test_name")
+        .as_str()
+        .unwrap();
+
+    assert!(
+        test_name.contains("DFBETAS") || test_name.contains("DFBETAS"),
+        "Test name should mention DFBETAS"
+    );
+
+    // Should have dfbetas matrix (n x p)
+    let dfbetas = result
+        .get("dfbetas")
+        .expect("Should have dfbetas matrix")
+        .as_array()
+        .unwrap();
+
+    assert_eq!(
+        dfbetas.len(),
+        25,
+        "Should have 25 rows (one per observation)"
+    );
+
+    // Each row should have p=4 values (intercept + 3 predictors)
+    for (i, row) in dfbetas.iter().enumerate() {
+        let row_array = row.as_array().expect("Row should be an array");
+        assert_eq!(
+            row_array.len(),
+            4,
+            "Row {} should have 4 DFBETAS values (one per coefficient)",
+            i
+        );
+    }
+
+    // Should have threshold
+    let threshold = result
+        .get("threshold")
+        .expect("Should have threshold")
+        .as_f64()
+        .unwrap();
+
+    assert!(threshold > 0.0, "Threshold should be positive");
+
+    // Should have n and p
+    let n = result
+        .get("n")
+        .expect("Should have n")
+        .as_u64()
+        .unwrap();
+
+    let p = result
+        .get("p")
+        .expect("Should have p")
+        .as_u64()
+        .unwrap();
+
+    assert_eq!(n, 25, "n should be 25");
+    assert_eq!(p, 4, "p should be 4 (intercept + 3 predictors)");
+
+    // Should have influential_observations (may be empty object)
+    assert!(
+        result.get("influential_observations").is_some(),
+        "Should have influential_observations"
+    );
+}
+
+#[wasm_bindgen_test]
+fn test_wasm_dffits_test() {
+    let y_json = get_housing_y();
+    let x_vars_json = get_housing_x_vars();
+
+    let result_json = dffits_test(&y_json, &x_vars_json);
+    let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+
+    // Check for error first
+    if let Some(err) = result.get("error") {
+        panic!("dffits_test returned error: {}", err);
+    }
+
+    // Should have test name
+    let test_name = result
+        .get("test_name")
+        .expect("Should have test_name")
+        .as_str()
+        .unwrap();
+
+    assert!(
+        test_name.contains("DFFITS") || test_name.contains("DFFITS"),
+        "Test name should mention DFFITS"
+    );
+
+    // Should have dffits array (one per observation)
+    let dffits = result
+        .get("dffits")
+        .expect("Should have dffits array")
+        .as_array()
+        .unwrap();
+
+    assert_eq!(
+        dffits.len(),
+        25,
+        "Should have 25 DFFITS values (one per observation)"
+    );
+
+    // All DFFITS should be finite (can be positive or negative)
+    for (i, d) in dffits.iter().enumerate() {
+        let val = d.as_f64().unwrap();
+        assert!(
+            val.is_finite(),
+            "DFFITS at index {} should be finite, got {}",
+            i,
+            val
+        );
+    }
+
+    // Should have threshold (2*sqrt(p/n))
+    let threshold = result
+        .get("threshold")
+        .expect("Should have threshold")
+        .as_f64()
+        .unwrap();
+
+    assert!(threshold > 0.0, "Threshold should be positive");
+
+    // Should have n and p
+    let n = result
+        .get("n")
+        .expect("Should have n")
+        .as_u64()
+        .unwrap();
+
+    let p = result
+        .get("p")
+        .expect("Should have p")
+        .as_u64()
+        .unwrap();
+
+    assert_eq!(n, 25, "n should be 25");
+    assert_eq!(p, 4, "p should be 4 (intercept + 3 predictors)");
+
+    // Should have influential_observations array (may be empty)
+    let influential = result
+        .get("influential_observations")
+        .expect("Should have influential_observations array")
         .as_array()
         .unwrap();
 

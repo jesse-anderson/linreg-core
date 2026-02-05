@@ -1,0 +1,14 @@
+{
+  "test_name": "VIF Test (Python - statsmodels)",
+  "dataset": "synthetic_nonlinear",
+  "formula": "x ~ y",
+  "vif_values": [
+    1.0
+  ],
+  "variable_names": [
+    "y"
+  ],
+  "max_vif": 1.0,
+  "interpretation": "Low multicollinearity (VIF <= 5)",
+  "description": "Variance Inflation Factor measures multicollinearity among predictors. Uses statsmodels.stats.outliers_influence.variance_inflation_factor."
+}
