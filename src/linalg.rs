@@ -1731,7 +1731,7 @@ impl Matrix {
     /// For a symmetric matrix A (n×n), computes eigenvalues λ and eigenvectors V
     /// such that A = V * Λ * V^T where Λ is diagonal and V is orthogonal.
     ///
-    /// Returns (V, eigenvalues) where eigenvalues[i] is the eigenvalue for column i of V.
+    /// Returns (V, eigenvalues) where eigenvalues\[i\] is the eigenvalue for column i of V.
     fn symmetric_eigen(&self) -> Option<(Matrix, Vec<f64>)> {
         let n = self.rows;
         assert_eq!(n, self.cols, "Matrix must be square");

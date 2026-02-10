@@ -45,6 +45,7 @@ pub use core::loess_fit;
 pub use predict::{fit_at_point, fit_at_point_impl};
 pub use types::{LoessFit, LoessOptions, LoessSurface};
 pub use weights::tricube_weight;
+pub use wls::WlsDecomposition;
 
 #[cfg(test)]
 mod tests;

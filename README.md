@@ -37,6 +37,7 @@ A lightweight, self-contained linear regression library written in Rust. Compile
 - **Lasso Regression:** L1-regularized regression via coordinate descent with automatic variable selection, convergence tracking, model selection criteria
 - **Elastic Net:** Combined L1 + L2 regularization for variable selection with multicollinearity handling, active set convergence, model selection criteria
 - **LOESS:** Locally estimated scatterplot smoothing for non-parametric curve fitting with configurable span, polynomial degree, and robust fitting
+- **WLS (Weighted Least Squares):** Regression with observation weights for heteroscedastic data, includes confidence intervals
 - **Lambda Path Generation:** Create regularization paths for cross-validation
 
 ### Model Statistics
@@ -64,7 +65,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-linreg-core = { version = "0.5", default-features = false }
+linreg-core = { version = "0.6", default-features = false }
 ```
 
 ### OLS Regression (Rust)
@@ -198,33 +199,141 @@ fn main() -> Result<(), linreg_core::Error> {
 ```rust
 use linreg_core::diagnostics::{
     breusch_pagan_test, durbin_watson_test, jarque_bera_test,
-    shapiro_wilk_test, RainbowMethod, rainbow_test
+    shapiro_wilk_test, rainbow_test, harvey_collier_test,
+    white_test, anderson_darling_test, breusch_godfrey_test,
+    cooks_distance_test, dfbetas_test, dffits_test, vif_test,
+    reset_test, BGTestType, RainbowMethod, ResetType, WhiteMethod
 };
 
 fn main() -> Result<(), linreg_core::Error> {
     let y = vec![/* your data */];
     let x = vec![vec![/* predictor 1 */], vec![/* predictor 2 */]];
 
-    // Heteroscedasticity
+    // Heteroscedasticity tests
     let bp = breusch_pagan_test(&y, &x)?;
     println!("Breusch-Pagan: LM={:.4}, p={:.4}", bp.statistic, bp.p_value);
 
-    // Autocorrelation
+    let white = white_test(&y, &x, WhiteMethod::R)?;
+    println!("White: statistic={:.4}, p={:.4}", white.statistic, white.p_value);
+
+    // Autocorrelation tests
     let dw = durbin_watson_test(&y, &x)?;
     println!("Durbin-Watson: {:.4}", dw.statistic);
 
-    // Normality
+    let bg = breusch_godfrey_test(&y, &x, 2, BGTestType::Chisq)?;
+    println!("Breusch-Godfrey (order 2): statistic={:.4}, p={:.4}", bg.statistic, bg.p_value);
+
+    // Normality tests
     let jb = jarque_bera_test(&y, &x)?;
     println!("Jarque-Bera: JB={:.4}, p={:.4}", jb.statistic, jb.p_value);
 
-    // Linearity
+    let sw = shapiro_wilk_test(&y, &x)?;
+    println!("Shapiro-Wilk: W={:.4}, p={:.4}", sw.statistic, sw.p_value);
+
+    let ad = anderson_darling_test(&y, &x)?;
+    println!("Anderson-Darling: A={:.4}, p={:.4}", ad.statistic, ad.p_value);
+
+    // Linearity tests
     let rainbow = rainbow_test(&y, &x, 0.5, RainbowMethod::R)?;
     println!("Rainbow: F={:.4}, p={:.4}",
         rainbow.r_result.as_ref().unwrap().statistic,
         rainbow.r_result.as_ref().unwrap().p_value);
 
+    let hc = harvey_collier_test(&y, &x)?;
+    println!("Harvey-Collier: t={:.4}, p={:.4}", hc.statistic, hc.p_value);
+
+    let reset = reset_test(&y, &x, &[2, 3], ResetType::Fitted)?;
+    println!("RESET: F={:.4}, p={:.4}", reset.f_statistic, reset.p_value);
+
+    // Influence diagnostics
+    let cd = cooks_distance_test(&y, &x)?;
+    println!("Cook's Distance: {} influential points", cd.influential_4_over_n.len());
+
+    let dfbetas = dfbetas_test(&y, &x)?;
+    println!("DFBETAS: {} influential observations", dfbetas.influential_observations.len());
+
+    let dffits = dffits_test(&y, &x)?;
+    println!("DFFITS: {} influential observations", dffits.influential_observations.len());
+
+    // Multicollinearity
+    let vif = vif_test(&y, &x)?;
+    println!("VIF: {:?}", vif.vif_values);
+
     Ok(())
 }
+```
+
+### WLS Regression (Rust)
+
+```rust,no_run
+use linreg_core::weighted_regression::wls_regression;
+
+fn main() -> Result<(), linreg_core::Error> {
+    let y = vec![2.0, 4.0, 6.0, 8.0, 10.0];
+    let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+
+    // Equal weights = OLS
+    let weights = vec![1.0, 1.0, 1.0, 1.0, 1.0];
+
+    let fit = wls_regression(&y, &[x1], &weights)?;
+
+    println!("Intercept: {} (SE: {}, t: {}, p: {})",
+        fit.coefficients[0],
+        fit.standard_errors[0],
+        fit.t_statistics[0],
+        fit.p_values[0]
+    );
+    println!("F-statistic: {} (p: {})", fit.f_statistic, fit.f_p_value);
+    println!("R-squared: {:.4}", fit.r_squared);
+
+    // Access confidence intervals
+    for (i, (&coef, &lower, &upper)) in fit.coefficients.iter()
+        .zip(fit.conf_int_lower.iter())
+        .zip(fit.conf_int_upper.iter())
+        .enumerate()
+    {
+        println!("Coefficient {}: [{}, {}]", i, lower, upper);
+    }
+
+    Ok(())
+}
+```
+
+### LOESS Regression (Rust)
+
+```rust,no_run
+use linreg_core::loess::{loess_fit, LoessOptions};
+
+fn main() -> Result<(), linreg_core::Error> {
+    // Single predictor only
+    let x = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
+    let y = vec![1.0, 3.5, 4.8, 6.2, 8.5, 11.0, 13.2, 14.8, 17.5, 19.0, 22.0];
+
+    // Default options: span=0.75, degree=2, robust iterations=0
+    let options = LoessOptions::default();
+
+    let result = loess_fit(&y, &[x], &options)?;
+
+    println!("Fitted values: {:?}", result.fitted_values);
+    println!("Residuals: {:?}", result.residuals);
+
+    Ok(())
+}
+```
+
+**Custom LOESS options:**
+
+```rust,no_run
+use linreg_core::loess::{loess_fit, LoessOptions, LoessSurface};
+
+let options = LoessOptions {
+    span: 0.5,              // Smoothing parameter (0-1, smaller = less smooth)
+    degree: 1,              // Polynomial degree (0=constant, 1=linear, 2=quadratic)
+    surface: LoessSurface::Direct,  // Note: only "direct" is currently supported; "interpolate" is planned
+    robust_iterations: 3,   // Number of robust fitting iterations (0 = disabled)
+};
+
+let result = loess_fit(&y, &[x], &options)?;
 ```
 
 ### Lambda Path Generation (Rust)
@@ -360,6 +469,24 @@ console.log("Lambda sequence:", path.lambda_path);
 console.log("Lambda max:", path.lambda_max);
 ```
 
+### WLS Regression (WASM)
+
+```javascript
+const result = JSON.parse(wls_regression(
+    JSON.stringify([2, 4, 6, 8, 10]),
+    JSON.stringify([[1, 2, 3, 4, 5]]),
+    JSON.stringify([1, 1, 1, 1, 1])  // weights (equal weights = OLS)
+));
+
+console.log("Coefficients:", result.coefficients);
+console.log("Standard errors:", result.standard_errors);
+console.log("P-values:", result.p_values);
+console.log("R-squared:", result.r_squared);
+console.log("F-statistic:", result.f_statistic);
+console.log("Confidence intervals (lower):", result.conf_int_lower);
+console.log("Confidence intervals (upper):", result.conf_int_upper);
+```
+
 ### LOESS Regression (WASM)
 
 ```javascript
@@ -368,7 +495,7 @@ const result = JSON.parse(loess_fit(
     JSON.stringify(x[0]),    // Single predictor only (flattened array)
     0.5,      // span (smoothing parameter: 0-1)
     1,        // degree (0=constant, 1=linear, 2=quadratic)
-    "direct", // surface method ("direct" or "interpolate")
+    "direct", // surface method ("direct" only; "interpolate" is planned)
     0         // robust iterations (0=disabled, >0=number of iterations)
 ));
 
@@ -654,6 +781,20 @@ print(f"AIC: {result.aic}")
 print(f"BIC: {result.bic}")
 ```
 
+### LOESS Regression (Python)
+
+```python
+result = linreg_core.loess_fit(
+    y,           # Single predictor only
+    [0.5],       # span (smoothing parameter: 0-1)
+    2,           # degree (0=constant, 1=linear, 2=quadratic)
+    "direct",    # surface ("direct" only; "interpolate" is planned)
+    0            # robust iterations (0=disabled, >0=number of iterations)
+)
+print(f"Fitted values: {result.fitted_values}")
+print(f"Residuals: {result.residuals}")
+```
+
 ### Lambda Path Generation (Python)
 
 ```python
@@ -780,7 +921,7 @@ print(f"Data rows: {result.n_rows}")
 For native Rust without WASM overhead:
 
 ```toml
-linreg-core = { version = "0.5", default-features = false }
+linreg-core = { version = "0.6", default-features = false }
 ```
 
 For Python bindings (built with maturin):
@@ -840,6 +981,181 @@ minimize (1/(2n)) * Σ(yᵢ - β₀ - xᵢᵀβ)² + λ * [(1 - α) * ||β||₂�
 ## Disclaimer
 
 This library is under active development and has not reached 1.0 stability. While outputs are validated against R and Python implementations, **do not use this library for critical applications** (medical, financial, safety-critical systems) without independent verification. See the [LICENSE](LICENSE-MIT) for full terms. The software is provided "as is" without warranty of any kind.
+
+---
+
+## Benchmarks
+
+<details>
+<summary><strong>Click to expand v0.6.0 benchmark results</strong></summary>
+
+Benchmark results run on Windows with `cargo bench --no-default-features`. Times are median values.
+
+### Core Regression Benchmarks
+
+| Benchmark | Size (n × p) | Time | Throughput |
+|-----------|--------------|------|------------|
+| OLS Regression | 10 × 2 | 12.46 µs | 802.71 Kelem/s |
+| OLS Regression | 50 × 3 | 53.72 µs | 930.69 Kelem/s |
+| OLS Regression | 100 × 5 | 211.09 µs | 473.73 Kelem/s |
+| OLS Regression | 500 × 10 | 7.46 ms | 67.04 Kelem/s |
+| OLS Regression | 1000 × 20 | 47.81 ms | 20.91 Kelem/s |
+| OLS Regression | 5000 × 50 | 2.86 s | 1.75 Kelem/s |
+| Ridge Regression | 50 × 3 | 9.61 µs | 5.20 Melem/s |
+| Ridge Regression | 100 × 5 | 70.41 µs | 1.42 Melem/s |
+| Ridge Regression | 500 × 10 | 842.37 µs | 593.56 Kelem/s |
+| Ridge Regression | 1000 × 20 | 1.38 ms | 724.71 Kelem/s |
+| Ridge Regression | 5000 × 50 | 10.25 ms | 487.78 Kelem/s |
+| Lasso Regression | 50 × 3 | 258.82 µs | 193.18 Kelem/s |
+| Lasso Regression | 100 × 5 | 247.89 µs | 403.41 Kelem/s |
+| Lasso Regression | 500 × 10 | 3.58 ms | 139.86 Kelem/s |
+| Lasso Regression | 1000 × 20 | 1.54 ms | 651.28 Kelem/s |
+| Lasso Regression | 5000 × 50 | 12.52 ms | 399.50 Kelem/s |
+| Elastic Net Regression | 50 × 3 | 46.15 µs | 1.08 Melem/s |
+| Elastic Net Regression | 100 × 5 | 358.07 µs | 279.27 Kelem/s |
+| Elastic Net Regression | 500 × 10 | 1.61 ms | 310.18 Kelem/s |
+| Elastic Net Regression | 1000 × 20 | 1.60 ms | 623.66 Kelem/s |
+| Elastic Net Regression | 5000 × 50 | 12.57 ms | 397.77 Kelem/s |
+| WLS Regression | 50 × 3 | 32.92 µs | 1.52 Melem/s |
+| WLS Regression | 100 × 5 | 155.30 µs | 643.93 Kelem/s |
+| WLS Regression | 500 × 10 | 6.63 ms | 75.37 Kelem/s |
+| WLS Regression | 1000 × 20 | 42.68 ms | 23.43 Kelem/s |
+| WLS Regression | 5000 × 50 | 2.64 s | 1.89 Kelem/s |
+| LOESS Fit | 50 × 1 | 132.83 µs | 376.42 Kelem/s |
+| LOESS Fit | 100 × 1 | 1.16 ms | 86.00 Kelem/s |
+| LOESS Fit | 500 × 1 | 28.42 ms | 17.59 Kelem/s |
+| LOESS Fit | 1000 × 1 | 113.00 ms | 8.85 Kelem/s |
+| LOESS Fit | 100 × 2 | 7.10 ms | 14.09 Kelem/s |
+| LOESS Fit | 500 × 2 | 1.05 s | 476.19 elem/s |
+
+### Lambda Path & Elastic Net Path Benchmarks
+
+| Benchmark | Size (n × p) | Time | Throughput |
+|-----------|--------------|------|------------|
+| Elastic Net Path | 100 × 5 | 198.60 ms | 503.52 elem/s |
+| Elastic Net Path | 500 × 10 | 69.46 ms | 7.20 Kelem/s |
+| Elastic Net Path | 1000 × 20 | 39.08 ms | 25.59 Kelem/s |
+| Make Lambda Path | 100 × 5 | 1.09 µs | 91.58 Melem/s |
+| Make Lambda Path | 500 × 10 | 8.10 µs | 61.70 Melem/s |
+| Make Lambda Path | 1000 × 20 | 29.96 µs | 33.37 Melem/s |
+| Make Lambda Path | 5000 × 50 | 424.18 µs | 11.79 Melem/s |
+
+### Diagnostic Test Benchmarks
+
+| Benchmark | Size (n × p) | Time |
+|-----------|--------------|------|
+| Rainbow Test | 50 × 3 | 40.34 µs |
+| Rainbow Test | 100 × 5 | 187.94 µs |
+| Rainbow Test | 500 × 10 | 8.63 ms |
+| Rainbow Test | 1000 × 20 | 60.09 ms |
+| Rainbow Test | 5000 × 50 | 3.45 s |
+| Harvey-Collier Test | 50 × 1 | 15.26 µs |
+| Harvey-Collier Test | 100 × 1 | 30.32 µs |
+| Harvey-Collier Test | 500 × 1 | 138.44 µs |
+| Harvey-Collier Test | 1000 × 1 | 298.33 µs |
+| Breusch-Pagan Test | 50 × 3 | 58.07 µs |
+| Breusch-Pagan Test | 100 × 5 | 296.74 µs |
+| Breusch-Pagan Test | 500 × 10 | 13.79 ms |
+| Breusch-Pagan Test | 1000 × 20 | 96.49 ms |
+| Breusch-Pagan Test | 5000 × 50 | 5.56 s |
+| White Test | 50 × 3 | 14.31 µs |
+| White Test | 100 × 5 | 44.25 µs |
+| White Test | 500 × 10 | 669.40 µs |
+| White Test | 1000 × 20 | 4.89 ms |
+| Jarque-Bera Test | 50 × 3 | 30.13 µs |
+| Jarque-Bera Test | 100 × 5 | 149.29 µs |
+| Jarque-Bera Test | 500 × 10 | 6.64 ms |
+| Jarque-Bera Test | 1000 × 20 | 47.89 ms |
+| Jarque-Bera Test | 5000 × 50 | 2.75 s |
+| Durbin-Watson Test | 50 × 3 | 31.80 µs |
+| Durbin-Watson Test | 100 × 5 | 152.56 µs |
+| Durbin-Watson Test | 500 × 10 | 6.87 ms |
+| Durbin-Watson Test | 1000 × 20 | 48.65 ms |
+| Durbin-Watson Test | 5000 × 50 | 2.76 s |
+| Breusch-Godfrey Test | 50 × 3 | 71.73 µs |
+| Breusch-Godfrey Test | 100 × 5 | 348.94 µs |
+| Breusch-Godfrey Test | 500 × 10 | 14.77 ms |
+| Breusch-Godfrey Test | 1000 × 20 | 100.08 ms |
+| Breusch-Godfrey Test | 5000 × 50 | 5.64 s |
+| Shapiro-Wilk Test | 10 × 2 | 2.04 µs |
+| Shapiro-Wilk Test | 50 × 3 | 4.87 µs |
+| Shapiro-Wilk Test | 100 × 5 | 10.67 µs |
+| Shapiro-Wilk Test | 500 × 10 | 110.02 µs |
+| Shapiro-Wilk Test | 1000 × 20 | 635.13 µs |
+| Shapiro-Wilk Test | 5000 × 50 | 17.53 ms |
+| Anderson-Darling Test | 50 × 3 | 34.02 µs |
+| Anderson-Darling Test | 100 × 5 | 162.28 µs |
+| Anderson-Darling Test | 500 × 10 | 6.95 ms |
+| Anderson-Darling Test | 1000 × 20 | 48.15 ms |
+| Anderson-Darling Test | 5000 × 50 | 2.78 s |
+| Cook's Distance Test | 50 × 3 | 64.52 µs |
+| Cook's Distance Test | 100 × 5 | 297.69 µs |
+| Cook's Distance Test | 500 × 10 | 12.73 ms |
+| Cook's Distance Test | 1000 × 20 | 94.02 ms |
+| Cook's Distance Test | 5000 × 50 | 5.31 s |
+| DFBETAS Test | 50 × 3 | 46.34 µs |
+| DFBETAS Test | 100 × 5 | 185.52 µs |
+| DFBETAS Test | 500 × 10 | 7.04 ms |
+| DFBETAS Test | 1000 × 20 | 49.68 ms |
+| DFFITS Test | 50 × 3 | 33.56 µs |
+| DFFITS Test | 100 × 5 | 157.62 µs |
+| DFFITS Test | 500 × 10 | 6.82 ms |
+| DFFITS Test | 1000 × 20 | 48.35 ms |
+| VIF Test | 50 × 3 | 5.36 µs |
+| VIF Test | 100 × 5 | 12.68 µs |
+| VIF Test | 500 × 10 | 128.04 µs |
+| VIF Test | 1000 × 20 | 807.30 µs |
+| VIF Test | 5000 × 50 | 26.33 ms |
+| RESET Test | 50 × 3 | 77.85 µs |
+| RESET Test | 100 × 5 | 359.12 µs |
+| RESET Test | 500 × 10 | 14.40 ms |
+| RESET Test | 1000 × 20 | 100.52 ms |
+| RESET Test | 5000 × 50 | 5.67 s |
+| Full Diagnostics | 100 × 5 | 2.75 ms |
+| Full Diagnostics | 500 × 10 | 104.01 ms |
+| Full Diagnostics | 1000 × 20 | 740.52 ms |
+
+### Linear Algebra Benchmarks
+
+| Benchmark | Size | Time |
+|-----------|------|------|
+| Matrix Transpose | 10 × 10 | 209.50 ns |
+| Matrix Transpose | 50 × 50 | 3.67 µs |
+| Matrix Transpose | 100 × 100 | 14.92 µs |
+| Matrix Transpose | 500 × 500 | 924.23 µs |
+| Matrix Transpose | 1000 × 1000 | 5.56 ms |
+| Matrix Multiply (matmul) | 10 × 10 × 10 | 1.54 µs |
+| Matrix Multiply (matmul) | 50 × 50 × 50 | 144.15 µs |
+| Matrix Multiply (matmul) | 100 × 100 × 100 | 1.39 ms |
+| Matrix Multiply (matmul) | 200 × 200 × 200 | 11.90 ms |
+| Matrix Multiply (matmul) | 1000 × 100 × 100 | 13.94 ms |
+| QR Decomposition | 10 × 5 | 1.41 µs |
+| QR Decomposition | 50 × 10 | 14.81 µs |
+| QR Decomposition | 100 × 20 | 57.61 µs |
+| QR Decomposition | 500 × 50 | 2.19 ms |
+| QR Decomposition | 1000 × 100 | 19.20 ms |
+| QR Decomposition | 5000 × 100 | 1.48 s |
+| QR Decomposition | 10000 × 100 | 8.09 s |
+| QR Decomposition | 1000 × 500 | 84.48 ms |
+| SVD | 10 × 5 | 150.36 µs |
+| SVD | 50 × 10 | 505.41 µs |
+| SVD | 100 × 20 | 2.80 ms |
+| SVD | 500 × 50 | 60.00 ms |
+| SVD | 1000 × 100 | 513.35 ms |
+| Matrix Invert | 5 × 5 | 877.32 ns |
+| Matrix Invert | 10 × 10 | 2.48 µs |
+| Matrix Invert | 20 × 20 | 5.46 µs |
+| Matrix Invert | 50 × 50 | 31.94 µs |
+| Matrix Invert | 100 × 100 | 141.38 µs |
+| Matrix Invert | 200 × 200 | 647.03 µs |
+
+### Pressure Benchmarks (Large Datasets)
+
+| Benchmark | Size (n) | Time |
+|-----------|----------|------|
+| Pressure (OLS + all diagnostics) | 10000 | 11.28 s |
+
+</details>
 
 ---
 

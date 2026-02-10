@@ -82,6 +82,10 @@
                         <select id="exampleSelect" style="flex: 1;">
                             <option value="simple">Simple X,Y (Basic)</option>
                             <option value="housing" selected>Housing Prices (Multiple Regression)</option>
+                            <option value="projectile">Projectile Motion (Polynomial)</option>
+                            <option value="fuel_efficiency">Fuel Efficiency (WLS)</option>
+                            <option value="cell_activity">Cell Activity (LOESS)</option>
+                            <option value="cauchy_noise">Cauchy Noise (OLS Breaker)</option>
                             <option value="singular">Singular Matrix (Unsolvable)</option>
                             <option value="messy">Messy Data (Confounding Variable)</option>
                         </select>
@@ -147,6 +151,7 @@ X1,X2,Y
                             <option value="ridge">Ridge (L2 Regularized)</option>
                             <option value="lasso">Lasso (L1 Regularized)</option>
                             <option value="elastic_net">Elastic Net (L1 + L2)</option>
+                            <option value="wls">WLS (Weighted Least Squares)</option>
                             <option value="loess">LOESS (Non-Parametric Smoothing)</option>
                         </select>
                     </div>
@@ -244,10 +249,10 @@ X1,X2,Y
                     <div id="loessOptions" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px;">
                         <div class="selector-group" style="margin-bottom: 12px;">
                             <label for="loessSpanSlider">Span: <span id="loessSpanValue">0.75</span></label>
-                            <input type="range" id="loessSpanSlider" min="0.1" max="1.0" step="0.05" value="0.75" style="width: 100%;">
+                            <input type="range" id="loessSpanSlider" min="0.01" max="1.00" step="0.01" value="0.75" style="width: 100%;">
                             <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
-                                <span>0.1 (wiggly)</span>
-                                <span>1.0 (smooth)</span>
+                                <span>0.01 (wiggly)</span>
+                                <span>1.00 (smooth)</span>
                             </div>
                         </div>
                         <div class="selector-group" style="margin-bottom: 12px;">
@@ -274,6 +279,19 @@ X1,X2,Y
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
                             <strong>LOESS</strong> fits smooth curves through data without assuming a functional form.
                             Span controls smoothness - smaller values follow data closely, larger values produce smoother curves.
+                        </p>
+                    </div>
+
+                    <!-- WLS Parameters -->
+                    <div id="wlsOptions" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px;">
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label for="wlsWeightsSelect">Weights Variable</label>
+                            <select id="wlsWeightsSelect" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
+                                <option value="">-- Select weights variable --</option>
+                            </select>
+                        </div>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
+                            <strong>WLS</strong> (Weighted Least Squares) assigns different weights to observations. Useful for heteroscedasticity where variance differs across observations. Weights must be non-negative.
                         </p>
                     </div>
                 </div>

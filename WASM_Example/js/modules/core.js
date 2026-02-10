@@ -7,6 +7,7 @@ import init, {
     ridge_regression,
     lasso_regression,
     elastic_net_regression,
+    wls_regression,
     make_lambda_path,
     get_t_critical,
     get_normal_inverse,
@@ -126,6 +127,14 @@ export const WasmRegression = {
         const xJson = JSON.stringify(xVars);
         const namesJson = JSON.stringify(names);
         return elastic_net_regression(yJson, xJson, namesJson, lambda, alpha, standardize, maxIter, tol);
+    },
+
+    // WLS (Weighted Least Squares) Regression
+    wls: (y, xVars, weights) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const weightsJson = JSON.stringify(weights);
+        return wls_regression(yJson, xJson, weightsJson);
     },
 
     // Lambda Path Generation
@@ -610,6 +619,79 @@ export async function calculateLoessRegression(yVar, xVars, span = 0.75, degree 
         robustIterations: result.robust_iterations,
         surface: result.surface,
         method: 'loess'
+    };
+}
+
+/**
+ * Calculate WLS (Weighted Least Squares) regression
+ * @param {string} yVar - Y variable name
+ * @param {Array<string>} xVars - X variable names
+ * @param {string} weightsVar - Weights variable name
+ * @returns {Promise<Object>} Regression results
+ */
+export async function calculateWlsRegression(yVar, xVars, weightsVar) {
+    const n = STATE.rawData.length;
+    const k = xVars.length;
+
+    if (n <= k + 1) {
+        throw new Error(`Need at least ${k + 2} data points for ${k} predictor(s). You have ${n}.`);
+    }
+
+    // Validate that weights variable exists
+    if (typeof weightsVar !== 'string' || (STATE.rawData.length > 0 && !(weightsVar in STATE.rawData[0]))) {
+        throw new Error(`Weights variable "${weightsVar}" not found in data. Available columns: ${Object.keys(STATE.rawData[0]).join(', ')}`);
+    }
+
+    if (!WasmRegression.isReady()) {
+        throw new Error('WASM module is not ready yet. Please wait a moment and try again.');
+    }
+
+    const yData = STATE.rawData.map(row => row[yVar]);
+    const xData = xVars.map(v => STATE.rawData.map(row => row[v]));
+    const weightsData = STATE.rawData.map(row => row[weightsVar]);
+    const names = ['Intercept', ...xVars];
+
+    // Validate weights are non-negative
+    if (weightsData.some(w => w < 0)) {
+        throw new Error('Weights must be non-negative. Found negative weight(s) in the data.');
+    }
+
+    const resultJson = WasmRegression.wls(yData, xData, weightsData);
+    const result = JSON.parse(resultJson);
+    console.log(`[linreg-core] WLS regression: n=${n}, k=${k}, R²=${result.r_squared?.toFixed(4) || 'N/A'}`);
+
+    if (result.error) {
+        throw new Error(result.error);
+    }
+
+    // Standardized residuals
+    const standardizedResiduals = result.residuals.map(r => r / result.rmse);
+
+    return {
+        coefficients: result.coefficients,
+        stdErrors: result.standard_errors,
+        tStats: result.t_statistics,
+        pValues: result.p_values,
+        confidenceIntervals: result.conf_int_lower.map((lower, i) => [lower, result.conf_int_upper[i]]),
+        rSquared: result.r_squared,
+        adjRSquared: result.adj_r_squared,
+        mse: result.mse,
+        stdError: result.residual_std_error,
+        rmse: result.rmse,
+        mae: result.mae,
+        predictions: result.fitted_values,
+        residuals: result.residuals,
+        standardizedResiduals: standardizedResiduals,
+        fStat: result.f_statistic,
+        fPValue: result.f_p_value,
+        dfResiduals: result.df_residuals,
+        dfModel: result.df_model,
+        df: result.df_residuals,
+        n: result.n,
+        k: result.k,
+        variableNames: names,
+        weights: weightsVar,
+        method: 'wls'
     };
 }
 

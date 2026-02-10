@@ -5,7 +5,7 @@
 import { STATE, updateState, escapeHtml, formatPValue, showToast, getCurrentTheme } from './utils.js';
 import { updateCharts } from './charts.js';
 import { runDiagnostics } from './diagnostics.js';
-import { calculateRegression, calculateRidgeRegression, calculateLassoRegression, calculateElasticNetRegression, calculateLoessRegression } from './core.js';
+import { calculateRegression, calculateRidgeRegression, calculateLassoRegression, calculateElasticNetRegression, calculateWlsRegression, calculateLoessRegression } from './core.js';
 import { formatMethodName } from './regularized.js';
 import { getExampleDescription } from './data.js';
 
@@ -110,6 +110,9 @@ export function updateColumnSelectors() {
 
     const methodPanel = document.getElementById('regressionMethodPanel');
     if (methodPanel) methodPanel.style.display = 'block';
+
+    // Refresh method-specific panels (e.g., WLS weights selector) with current data columns
+    updateWlsWeightsSelector();
 
     // Add event listeners
     setTimeout(() => {
@@ -441,11 +444,12 @@ function updateCoefficientsTable(results, isRegularized = false) {
         return;
     }
 
-    // OLS full table
+    // OLS / WLS full table
     const stdErrs = results.stdErrors;
     const tStats = results.tStats;
     const pValues = results.pValues;
     const ci = results.confidenceIntervals;
+    const hasCi = ci && ci.length > 0;
 
     let html = '';
     names.forEach((name, i) => {
@@ -455,17 +459,23 @@ function updateCoefficientsTable(results, isRegularized = false) {
             <td class="${signClass}">${coeffs[i].toFixed(4)}</td>
             <td>${stdErrs[i].toFixed(4)}</td>
             <td>${tStats[i].toFixed(4)}</td>
-            <td>${formatPValue(pValues[i])}</td>
-            <td>${ci[i][0].toFixed(4)}</td>
-            <td>${ci[i][1].toFixed(4)}</td>
-        </tr>`;
+            <td>${formatPValue(pValues[i])}</td>`;
+        if (hasCi) {
+            html += `<td>${ci[i][0].toFixed(4)}</td>
+            <td>${ci[i][1].toFixed(4)}</td>`;
+        }
+        html += `</tr>`;
     });
 
     tbody.innerHTML = html;
 
     const thead = table.querySelector('thead tr');
     if (thead) {
-        thead.innerHTML = '<th>Variable</th><th>Coefficient</th><th>Std Error</th><th>t-stat</th><th>p-value</th><th>95% CI Lower</th><th>95% CI Upper</th>';
+        let headerHtml = '<th>Variable</th><th>Coefficient</th><th>Std Error</th><th>t-stat</th><th>p-value</th>';
+        if (hasCi) {
+            headerHtml += '<th>95% CI Lower</th><th>95% CI Upper</th>';
+        }
+        thead.innerHTML = headerHtml;
     }
 }
 
@@ -948,6 +958,13 @@ export async function runRegression() {
                 const loessSurface = document.getElementById('loessSurfaceSelect')?.value || 'direct';
                 const loessRobust = document.getElementById('loessRobustCheck')?.checked ? 2 : 0;
                 results = await calculateLoessRegression(STATE.yVariable, STATE.xVariables, loessSpan, loessDegree, loessRobust, loessSurface);
+                break;
+            case 'wls':
+                const wlsWeights = document.getElementById('wlsWeightsSelect')?.value;
+                if (!wlsWeights) {
+                    throw new Error('Please select a weights variable for WLS regression.');
+                }
+                results = await calculateWlsRegression(STATE.yVariable, STATE.xVariables, wlsWeights);
                 break;
             default:
                 results = await calculateRegression(STATE.yVariable, STATE.xVariables);
@@ -2008,10 +2025,12 @@ function updateRegressionMethodUI() {
     const regularizedParams = document.getElementById('regularizedParams');
     const elasticNetOptions = document.getElementById('elasticNetOptions');
     const loessOptions = document.getElementById('loessOptions');
+    const wlsOptions = document.getElementById('wlsOptions');
 
     if (regularizedParams) regularizedParams.style.display = 'none';
     if (elasticNetOptions) elasticNetOptions.style.display = 'none';
     if (loessOptions) loessOptions.style.display = 'none';
+    if (wlsOptions) wlsOptions.style.display = 'none';
 
     // Show selected method panel
     switch (method) {
@@ -2032,6 +2051,43 @@ function updateRegressionMethodUI() {
         case 'loess':
             if (loessOptions) loessOptions.style.display = 'block';
             break;
+        case 'wls':
+            if (wlsOptions) wlsOptions.style.display = 'block';
+            // Populate weights selector
+            updateWlsWeightsSelector();
+            break;
+    }
+}
+
+/**
+ * Update the WLS weights selector with available numeric columns
+ */
+function updateWlsWeightsSelector() {
+    const selector = document.getElementById('wlsWeightsSelect');
+    if (!selector) return;
+
+    const numericCols = STATE.numericColumns;
+    const currentValue = selector.value;
+
+    // Clear and populate selector
+    selector.innerHTML = '<option value="">-- Select weights variable --</option>';
+    numericCols.forEach(col => {
+        const option = document.createElement('option');
+        option.value = col;
+        option.textContent = col;
+        if (col === currentValue) {
+            option.selected = true;
+        }
+        selector.appendChild(option);
+    });
+
+    // Set default to first available numeric column if nothing selected
+    if (!currentValue && numericCols.length > 0) {
+        // Prefer a column with 'weight' in the name, otherwise use first column
+        const weightCol = numericCols.find(c => c.toLowerCase().includes('weight')) || numericCols[0];
+        if (weightCol) {
+            selector.value = weightCol;
+        }
     }
 }
 

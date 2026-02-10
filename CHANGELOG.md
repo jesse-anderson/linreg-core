@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-02-10
+
+### Added
+- **Weighted Least Squares (WLS)** - Full WLS implementation with confidence intervals, Python/WASM bindings
+- **LOESS point fitting** - `fit_at_point()` for single-point LOESS prediction
+- **Statistics module** - Public `stats` module with mean, variance, stddev, median, quantile, correlation (Rust/Python/WASM)
+- **WASM module restructure** - Split monolithic `wasm.rs` into modular `src/wasm/` directory (csv, diagnostics, loess, regression, regularized, stats, tests)
+- **Enhanced benchmarks** - New `benches/linalg.rs` with SVD, matrix operations; expanded coverage
+
+### Changed
+- README - Added LOESS and WLS Rust examples, expanded diagnostic tests documentation
+
 ## [0.5.0] - 2026-01-30
 
 ### Added

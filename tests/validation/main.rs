@@ -42,6 +42,7 @@ mod dfbetas;
 mod dffits;
 mod durbin_watson;
 mod vif;
+mod wls;
 mod elastic_net;
 mod harvey_collier;
 mod jarque_bera;

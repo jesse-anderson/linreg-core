@@ -1,9 +1,22 @@
-//! Core OLS regression benchmarks.
+//! Core regression benchmarks.
 //!
-//! Benchmarks the main `ols_regression` function across varying dataset sizes.
+//! Benchmarks regression fitting functions across varying dataset sizes:
+//! - OLS regression
+//! - Ridge regression (L2)
+//! - Lasso regression (L1)
+//! - Elastic Net regression (L1 + L2)
+//! - WLS regression (weighted least squares)
+//! - LOESS (locally estimated scatterplot smoothing)
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use linreg_core::core::ols_regression;
+use linreg_core::linalg::Matrix;
+use linreg_core::loess::{loess_fit, LoessOptions};
+use linreg_core::regularized::{
+    elastic_net_fit, elastic_net_path, lasso_fit, make_lambda_path, ridge_fit, ElasticNetOptions,
+    LambdaPathOptions, LassoFitOptions, RidgeFitOptions,
+};
+use linreg_core::weighted_regression::wls_regression;
 
 /// Generates a synthetic dataset with the given dimensions.
 ///
@@ -122,10 +135,291 @@ fn bench_ols_observations(c: &mut Criterion) {
     group.finish();
 }
 
+/// Builds a design matrix (n × (k+1)) with intercept column from x_vars.
+fn build_design_matrix(x_vars: &[Vec<f64>], n: usize, k: usize) -> Matrix {
+    let mut data = Vec::with_capacity(n * (k + 1));
+    for i in 0..n {
+        data.push(1.0); // Intercept
+        for j in 0..k {
+            data.push(x_vars[j][i]);
+        }
+    }
+    Matrix::new(n, k + 1, data)
+}
+
+/// Benchmarks Ridge regression across dataset sizes.
+fn bench_ridge_sizes(c: &mut Criterion) {
+    let sizes = vec![
+        (50, 3),
+        (100, 5),
+        (500, 10),
+        (1000, 20),
+        (5000, 50),
+    ];
+
+    let mut group = c.benchmark_group("ridge_regression");
+
+    for &(n, k) in &sizes {
+        let (y, x_vars, _) = generate_data(n, k);
+        let x = build_design_matrix(&x_vars, n, k);
+        let options = RidgeFitOptions {
+            lambda: 1.0,
+            standardize: true,
+            intercept: true,
+            ..Default::default()
+        };
+
+        group.throughput(Throughput::Elements(n as u64));
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, k)),
+            &(n, k),
+            |b, _| {
+                b.iter(|| ridge_fit(black_box(&x), black_box(&y), black_box(&options)).unwrap())
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks Lasso regression across dataset sizes.
+fn bench_lasso_sizes(c: &mut Criterion) {
+    let sizes = vec![
+        (50, 3),
+        (100, 5),
+        (500, 10),
+        (1000, 20),
+        (5000, 50),
+    ];
+
+    let mut group = c.benchmark_group("lasso_regression");
+
+    for &(n, k) in &sizes {
+        let (y, x_vars, _) = generate_data(n, k);
+        let x = build_design_matrix(&x_vars, n, k);
+        let options = LassoFitOptions {
+            lambda: 0.1,
+            standardize: true,
+            intercept: true,
+            ..Default::default()
+        };
+
+        group.throughput(Throughput::Elements(n as u64));
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, k)),
+            &(n, k),
+            |b, _| {
+                b.iter(|| lasso_fit(black_box(&x), black_box(&y), black_box(&options)).unwrap())
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks Elastic Net regression across dataset sizes.
+fn bench_elastic_net_sizes(c: &mut Criterion) {
+    let sizes = vec![
+        (50, 3),
+        (100, 5),
+        (500, 10),
+        (1000, 20),
+        (5000, 50),
+    ];
+
+    let mut group = c.benchmark_group("elastic_net_regression");
+
+    for &(n, k) in &sizes {
+        let (y, x_vars, _) = generate_data(n, k);
+        let x = build_design_matrix(&x_vars, n, k);
+        let options = ElasticNetOptions {
+            lambda: 0.1,
+            alpha: 0.5,
+            standardize: true,
+            intercept: true,
+            ..Default::default()
+        };
+
+        group.throughput(Throughput::Elements(n as u64));
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, k)),
+            &(n, k),
+            |b, _| {
+                b.iter(|| {
+                    elastic_net_fit(black_box(&x), black_box(&y), black_box(&options)).unwrap()
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks WLS regression across dataset sizes.
+fn bench_wls_sizes(c: &mut Criterion) {
+    let sizes = vec![
+        (50, 3),
+        (100, 5),
+        (500, 10),
+        (1000, 20),
+        (5000, 50),
+    ];
+
+    let mut group = c.benchmark_group("wls_regression");
+
+    for &(n, k) in &sizes {
+        let (y, x_vars, _) = generate_data(n, k);
+        // Generate varying weights
+        let weights: Vec<f64> = (0..n).map(|i| 1.0 + (i as f64 * 0.07).sin().abs()).collect();
+
+        group.throughput(Throughput::Elements(n as u64));
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, k)),
+            &(n, k),
+            |b, _| {
+                b.iter(|| {
+                    wls_regression(black_box(&y), black_box(&x_vars), black_box(&weights)).unwrap()
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks LOESS fitting across dataset sizes.
+fn bench_loess_sizes(c: &mut Criterion) {
+    // LOESS is O(n²) so keep sizes modest
+    let sizes = vec![
+        (50, 1),
+        (100, 1),
+        (500, 1),
+        (1000, 1),
+        (100, 2),
+        (500, 2),
+    ];
+
+    let mut group = c.benchmark_group("loess_fit");
+
+    for &(n, k) in &sizes {
+        let (y, x_vars, _) = generate_data(n, k);
+        let options = LoessOptions {
+            span: 0.75,
+            degree: 1,
+            robust_iterations: 0,
+            n_predictors: k,
+            ..Default::default()
+        };
+
+        group.throughput(Throughput::Elements(n as u64));
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, k)),
+            &(n, k),
+            |b, _| {
+                b.iter(|| {
+                    loess_fit(black_box(&y), black_box(&x_vars), black_box(&options)).unwrap()
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks elastic net regularization path across dataset sizes.
+fn bench_elastic_net_path_sizes(c: &mut Criterion) {
+    let sizes = vec![
+        (100, 5),
+        (500, 10),
+        (1000, 20),
+    ];
+
+    let mut group = c.benchmark_group("elastic_net_path");
+
+    for &(n, k) in &sizes {
+        let (y, x_vars, _) = generate_data(n, k);
+        let x = build_design_matrix(&x_vars, n, k);
+        let path_options = LambdaPathOptions {
+            nlambda: 50,
+            ..Default::default()
+        };
+        let fit_options = ElasticNetOptions {
+            lambda: 0.1, // Will be overridden by path
+            alpha: 0.5,
+            standardize: true,
+            intercept: true,
+            ..Default::default()
+        };
+
+        group.throughput(Throughput::Elements(n as u64));
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, k)),
+            &(n, k),
+            |b, _| {
+                b.iter(|| {
+                    elastic_net_path(
+                        black_box(&x),
+                        black_box(&y),
+                        black_box(&path_options),
+                        black_box(&fit_options),
+                    )
+                    .unwrap()
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks lambda path generation across dataset sizes.
+fn bench_make_lambda_path(c: &mut Criterion) {
+    let sizes = vec![
+        (100, 5),
+        (500, 10),
+        (1000, 20),
+        (5000, 50),
+    ];
+
+    let mut group = c.benchmark_group("make_lambda_path");
+
+    for &(n, k) in &sizes {
+        let (y, x_vars, _) = generate_data(n, k);
+        let x = build_design_matrix(&x_vars, n, k);
+        let options = LambdaPathOptions::default();
+
+        group.throughput(Throughput::Elements(n as u64));
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, k)),
+            &(n, k),
+            |b, _| {
+                b.iter(|| {
+                    make_lambda_path(
+                        black_box(&x),
+                        black_box(&y),
+                        black_box(&options),
+                        black_box(None),
+                        black_box(Some(0)),
+                    )
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     regression,
     bench_ols_sizes,
     bench_ols_predictors,
-    bench_ols_observations
+    bench_ols_observations,
+    bench_ridge_sizes,
+    bench_lasso_sizes,
+    bench_elastic_net_sizes,
+    bench_elastic_net_path_sizes,
+    bench_make_lambda_path,
+    bench_wls_sizes,
+    bench_loess_sizes
 );
 criterion_main!(regression);

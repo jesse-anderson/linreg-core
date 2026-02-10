@@ -52,6 +52,11 @@ def main():
         default="verification/scripts/python/loess",
         help="Path to directory containing LOESS script"
     )
+    parser.add_argument(
+        "--core-dir",
+        default="verification/scripts/python/core",
+        help="Path to directory containing core scripts (OLS, WLS)"
+    )
 
     args = parser.parse_args()
 
@@ -66,6 +71,11 @@ def main():
     if not csv_files:
         print(f"Error: No CSV files found in: {args.csv_dir}", file=sys.stderr)
         sys.exit(1)
+
+    # Core scripts to run (in core/ directory)
+    core_scripts = [
+        {"name": "WLS", "script": "test_wls.py", "suffix": "wls"},
+    ]
 
     # Diagnostic scripts to run
     diagnostic_scripts = [
@@ -92,9 +102,10 @@ def main():
     ]
 
     script_dir = Path(args.script_dir)
+    core_dir = Path(args.core_dir)
 
     # Counter for results
-    total_tests = len(csv_files) * len(diagnostic_scripts)
+    total_tests = len(csv_files) * (len(diagnostic_scripts) + len(core_scripts) + len(loess_scripts))
     completed_tests = 0
     failed_tests = 0
 
@@ -107,9 +118,12 @@ def main():
     print(f"CSV Directory: {args.csv_dir}")
     print(f"Output Directory: {args.output_dir}")
     print(f"Script Directory: {args.script_dir}")
+    print(f"Core Directory: {args.core_dir}")
     print(f"LOESS Directory: {args.loess_dir}")
     print(f"Datasets: {len(csv_files)}")
+    print(f"Core Tests: {len(core_scripts)}")
     print(f"Diagnostic Tests: {len(diagnostic_scripts)}")
+    print(f"LOESS Tests: {len(loess_scripts)}")
     print(f"Total Tests to Run: {total_tests}")
     print("=" * 60)
     print()
@@ -119,6 +133,55 @@ def main():
         dataset_name = csv_file.stem
 
         print(f"--- Dataset: {dataset_name} ---")
+
+        # Run core tests (WLS, etc.)
+        for core in core_scripts:
+            test_name = core["name"]
+            script_path = core_dir / core["script"]
+
+            # Check if script exists
+            if not script_path.exists():
+                print(f"  [SKIP] {test_name} - Script not found: {script_path}")
+                continue
+
+            # Build command (core scripts use --csv and --output-dir)
+            cmd = [
+                sys.executable,
+                str(script_path),
+                "--csv", str(csv_file),
+                "--output-dir", args.output_dir
+            ]
+
+            # Run test
+            try:
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
+
+                # Check if output file was created
+                suffix = core.get("suffix", test_name.lower().replace(' ', '_').replace('-', '_'))
+                expected_output = Path(args.output_dir) / f"{dataset_name}_{suffix}.json"
+
+                if expected_output.exists():
+                    print(f"  [PASS] {test_name}")
+                    completed_tests += 1
+                else:
+                    print(f"  [FAIL] {test_name} - Output file not created")
+                    if result.stdout:
+                        print(f"    stdout: {result.stdout.strip()}")
+                    if result.stderr:
+                        print(f"    stderr: {result.stderr.strip()}")
+                    failed_tests += 1
+
+            except subprocess.TimeoutExpired:
+                print(f"  [FAIL] {test_name} - Timeout")
+                failed_tests += 1
+            except Exception as e:
+                print(f"  [FAIL] {test_name} - {e}")
+                failed_tests += 1
 
         # Loop through each diagnostic test
         for diag in diagnostic_scripts:

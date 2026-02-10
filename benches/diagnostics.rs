@@ -3,20 +3,26 @@
 //! Benchmarks all statistical diagnostic tests:
 //! - Rainbow test (linearity)
 //! - Harvey-Collier test (linearity)
+//! - RESET test (specification error)
 //! - Breusch-Pagan test (heteroscedasticity)
 //! - White test (heteroscedasticity)
 //! - Jarque-Bera test (normality)
 //! - Durbin-Watson test (autocorrelation)
+//! - Breusch-Godfrey test (higher-order autocorrelation)
 //! - Shapiro-Wilk test (normality)
 //! - Anderson-Darling test (normality)
 //! - Cook's Distance (influence)
+//! - DFBETAS (coefficient influence)
+//! - DFFITS (fitted value influence)
+//! - VIF (variance inflation factor)
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use linreg_core::core::ols_regression;
 use linreg_core::diagnostics::{
-    anderson_darling_test, breusch_pagan_test, cooks_distance_test, durbin_watson_test,
-    harvey_collier_test, jarque_bera_test, rainbow_test, shapiro_wilk_test, white_test,
-    RainbowMethod, WhiteMethod,
+    anderson_darling_test, breusch_godfrey_test, breusch_pagan_test, cooks_distance_test,
+    dfbetas_test, dffits_test, durbin_watson_test, harvey_collier_test, jarque_bera_test,
+    rainbow_test, reset_test, shapiro_wilk_test, vif_test, white_test, BGTestType,
+    HarveyCollierMethod, RainbowMethod, ResetType, WhiteMethod,
 };
 
 /// Generates a synthetic dataset for diagnostic benchmarks.
@@ -81,10 +87,39 @@ fn bench_rainbow_test(c: &mut Criterion) {
 }
 
 /// Benchmarks Harvey-Collier test across dataset sizes.
+///
+/// Harvey-Collier uses recursive residuals which require well-conditioned matrices.
+/// Uses a single predictor with simple integer sequence to match the test's own
+/// unit tests pattern, avoiding multi-predictor collinearity issues.
 fn bench_harvey_collier_test(c: &mut Criterion) {
-    // Skip Harvey-Collier for synthetic data - it's sensitive to data patterns
-    // and may fail on artificially generated data
-    // Real-world data should be used for this benchmark
+    let sizes = vec![50, 100, 500, 1000];
+
+    let mut group = c.benchmark_group("harvey_collier_test");
+
+    for &n in &sizes {
+        // Simple linear data with small noise (matches unit test pattern)
+        let y: Vec<f64> = (1..=n)
+            .map(|i| 1.0 + 2.0 * i as f64 + 0.01 * ((i % 7) as f64 - 3.0))
+            .collect();
+        let x: Vec<f64> = (1..=n).map(|i| i as f64).collect();
+
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_1", n)),
+            &n,
+            |b, _| {
+                b.iter(|| {
+                    harvey_collier_test(
+                        black_box(&y),
+                        black_box(&[x.clone()]),
+                        black_box(HarveyCollierMethod::R),
+                    )
+                    .unwrap()
+                })
+            },
+        );
+    }
+
+    group.finish();
 }
 
 /// Benchmarks Breusch-Pagan test across dataset sizes.
@@ -233,6 +268,122 @@ fn bench_cooks_distance_test(c: &mut Criterion) {
     group.finish();
 }
 
+/// Benchmarks RESET test across dataset sizes.
+fn bench_reset_test(c: &mut Criterion) {
+    let sizes = vec![(50, 3), (100, 5), (500, 10), (1000, 20), (5000, 50)];
+
+    let mut group = c.benchmark_group("reset_test");
+
+    for &(n, k) in &sizes {
+        let (y, x_vars) = generate_diagnostic_data(n, k);
+
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, k)),
+            &(n, k),
+            |b, _| {
+                b.iter(|| {
+                    reset_test(
+                        black_box(&y),
+                        black_box(&x_vars),
+                        black_box(&[2, 3]),
+                        black_box(ResetType::Fitted),
+                    )
+                    .unwrap()
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks Breusch-Godfrey test across dataset sizes.
+fn bench_breusch_godfrey_test(c: &mut Criterion) {
+    let sizes = vec![(50, 3), (100, 5), (500, 10), (1000, 20), (5000, 50)];
+
+    let mut group = c.benchmark_group("breusch_godfrey_test");
+
+    for &(n, k) in &sizes {
+        let (y, x_vars) = generate_diagnostic_data(n, k);
+
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, k)),
+            &(n, k),
+            |b, _| {
+                b.iter(|| {
+                    breusch_godfrey_test(
+                        black_box(&y),
+                        black_box(&x_vars),
+                        black_box(2),
+                        black_box(BGTestType::Chisq),
+                    )
+                    .unwrap()
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks DFBETAS across dataset sizes.
+fn bench_dfbetas_test(c: &mut Criterion) {
+    let sizes = vec![(50, 3), (100, 5), (500, 10), (1000, 20)];
+
+    let mut group = c.benchmark_group("dfbetas_test");
+
+    for &(n, k) in &sizes {
+        let (y, x_vars) = generate_diagnostic_data(n, k);
+
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, k)),
+            &(n, k),
+            |b, _| b.iter(|| dfbetas_test(black_box(&y), black_box(&x_vars)).unwrap()),
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks DFFITS across dataset sizes.
+fn bench_dffits_test(c: &mut Criterion) {
+    let sizes = vec![(50, 3), (100, 5), (500, 10), (1000, 20)];
+
+    let mut group = c.benchmark_group("dffits_test");
+
+    for &(n, k) in &sizes {
+        let (y, x_vars) = generate_diagnostic_data(n, k);
+
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, k)),
+            &(n, k),
+            |b, _| b.iter(|| dffits_test(black_box(&y), black_box(&x_vars)).unwrap()),
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks VIF across dataset sizes.
+fn bench_vif_test(c: &mut Criterion) {
+    // VIF requires at least 2 predictors
+    let sizes = vec![(50, 3), (100, 5), (500, 10), (1000, 20), (5000, 50)];
+
+    let mut group = c.benchmark_group("vif_test");
+
+    for &(n, k) in &sizes {
+        let (y, x_vars) = generate_diagnostic_data(n, k);
+
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, k)),
+            &(n, k),
+            |b, _| b.iter(|| vif_test(black_box(&y), black_box(&x_vars)).unwrap()),
+        );
+    }
+
+    group.finish();
+}
+
 /// Benchmarks running all diagnostics on a dataset (full pipeline).
 fn bench_full_diagnostics(c: &mut Criterion) {
     let sizes = vec![(100, 5), (500, 10), (1000, 20)];
@@ -259,12 +410,17 @@ fn bench_full_diagnostics(c: &mut Criterion) {
 
                     let _ = black_box(&rainbow_test(&y, &x_vars, 0.5, RainbowMethod::R).unwrap());
                     // Skip harvey_collier_test - sensitive to synthetic data patterns
+                    let _ = black_box(&reset_test(&y, &x_vars, &[2, 3], ResetType::Fitted).unwrap());
                     let _ = black_box(&breusch_pagan_test(&y, &x_vars).unwrap());
                     let _ = black_box(&jarque_bera_test(&y, &x_vars).unwrap());
                     let _ = black_box(&durbin_watson_test(&y, &x_vars).unwrap());
+                    let _ = black_box(&breusch_godfrey_test(&y, &x_vars, 2, BGTestType::Chisq).unwrap());
                     let _ = black_box(&shapiro_wilk_test(&y, &x_vars).unwrap());
                     let _ = black_box(&anderson_darling_test(&y, &x_vars).unwrap());
                     let _ = black_box(&cooks_distance_test(&y, &x_vars).unwrap());
+                    let _ = black_box(&dfbetas_test(&y, &x_vars).unwrap());
+                    let _ = black_box(&dffits_test(&y, &x_vars).unwrap());
+                    let _ = black_box(&vif_test(&y, &x_vars).unwrap());
                 })
             },
         );
@@ -276,13 +432,19 @@ fn bench_full_diagnostics(c: &mut Criterion) {
 criterion_group!(
     diagnostics,
     bench_rainbow_test,
+    bench_harvey_collier_test,
     bench_breusch_pagan_test,
     bench_white_test,
     bench_jarque_bera_test,
     bench_durbin_watson_test,
+    bench_breusch_godfrey_test,
     bench_shapiro_wilk_test,
     bench_anderson_darling_test,
     bench_cooks_distance_test,
+    bench_reset_test,
+    bench_dfbetas_test,
+    bench_dffits_test,
+    bench_vif_test,
     bench_full_diagnostics
 );
 criterion_main!(diagnostics);

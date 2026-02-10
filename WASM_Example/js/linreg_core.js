@@ -1481,6 +1481,69 @@ export function white_test(y_json, x_vars_json, method) {
     }
 }
 
+/**
+ * Performs Weighted Least Squares (WLS) regression via WASM.
+ *
+ * WLS regression allows each observation to have a different weight, which is
+ * useful for handling heteroscedasticity or when observations have different
+ * precision/variances.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `weights_json` - JSON array of observation weights (must be non-negative)
+ *
+ * # Returns
+ *
+ * JSON string containing:
+ * - `coefficients` - Coefficient values (including intercept as first element)
+ * - `standard_errors` - Standard errors of the coefficients
+ * - `t_statistics` - t-statistics for coefficient significance tests
+ * - `p_values` - Two-tailed p-values for coefficients
+ * - `r_squared` - R-squared (coefficient of determination)
+ * - `adj_r_squared` - Adjusted R-squared
+ * - `f_statistic` - F-statistic for overall model significance
+ * - `f_p_value` - p-value for F-statistic
+ * - `residual_std_error` - Residual standard error (sigma-hat estimate)
+ * - `df_residuals` - Degrees of freedom for residuals
+ * - `df_model` - Degrees of freedom for the model
+ * - `fitted_values` - Fitted values (predicted values)
+ * - `residuals` - Residuals (y - ŷ)
+ * - `mse` - Mean squared error
+ * - `rmse` - Root mean squared error
+ * - `mae` - Mean absolute error
+ * - `n` - Number of observations
+ * - `k` - Number of predictors (excluding intercept)
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, parameters are invalid,
+ * or domain check fails.
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @param {string} weights_json
+ * @returns {string}
+ */
+export function wls_regression(y_json, x_vars_json, weights_json) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(weights_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.wls_regression(ptr0, len0, ptr1, len1, ptr2, len2);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,

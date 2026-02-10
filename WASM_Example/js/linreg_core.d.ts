@@ -807,6 +807,48 @@ export function vif_test(y_json: string, x_vars_json: string): string;
  */
 export function white_test(y_json: string, x_vars_json: string, method: string): string;
 
+/**
+ * Performs Weighted Least Squares (WLS) regression via WASM.
+ *
+ * WLS regression allows each observation to have a different weight, which is
+ * useful for handling heteroscedasticity or when observations have different
+ * precision/variances.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `weights_json` - JSON array of observation weights (must be non-negative)
+ *
+ * # Returns
+ *
+ * JSON string containing:
+ * - `coefficients` - Coefficient values (including intercept as first element)
+ * - `standard_errors` - Standard errors of the coefficients
+ * - `t_statistics` - t-statistics for coefficient significance tests
+ * - `p_values` - Two-tailed p-values for coefficients
+ * - `r_squared` - R-squared (coefficient of determination)
+ * - `adj_r_squared` - Adjusted R-squared
+ * - `f_statistic` - F-statistic for overall model significance
+ * - `f_p_value` - p-value for F-statistic
+ * - `residual_std_error` - Residual standard error (sigma-hat estimate)
+ * - `df_residuals` - Degrees of freedom for residuals
+ * - `df_model` - Degrees of freedom for the model
+ * - `fitted_values` - Fitted values (predicted values)
+ * - `residuals` - Residuals (y - ŷ)
+ * - `mse` - Mean squared error
+ * - `rmse` - Root mean squared error
+ * - `mae` - Mean absolute error
+ * - `n` - Number of observations
+ * - `k` - Number of predictors (excluding intercept)
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, parameters are invalid,
+ * or domain check fails.
+ */
+export function wls_regression(y_json: string, x_vars_json: string, weights_json: string): string;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
@@ -847,6 +889,7 @@ export interface InitOutput {
     readonly test_t_critical: (a: number, b: number) => [number, number];
     readonly vif_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly white_test: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+    readonly wls_regression: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly get_t_cdf: (a: number, b: number) => number;
     readonly get_t_critical: (a: number, b: number) => number;
     readonly get_normal_inverse: (a: number) => number;

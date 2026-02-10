@@ -723,4 +723,258 @@ mod tests {
             assert!((y_standardized_w[i] - y_standardized[i]).abs() < 1e-10);
         }
     }
+
+    #[test]
+    fn test_standardize_xy_weights_dimension_mismatch() {
+        // Test the early return path when weights don't match data dimensions
+        let x_data = vec![1.0, 2.0, 3.0, 1.0, 4.0, 6.0];
+        let x = Matrix::new(2, 3, x_data);
+        let y = vec![3.0, 5.0];
+
+        // Wrong number of weights (3 instead of 2)
+        let weights = vec![1.0, 1.0, 1.0];
+
+        let options = StandardizeOptions {
+            intercept: true,
+            standardize_x: true,
+            standardize_y: false,
+            weights: Some(weights),
+        };
+
+        let (x_standardized, y_standardized, info) = standardize_xy(&x, &y, &options);
+
+        // Should return zero matrices with default info
+        assert_eq!(x_standardized.rows, 2);
+        assert_eq!(x_standardized.cols, 3);
+        assert_eq!(y_standardized, vec![0.0, 0.0]);
+        assert!(!info.standardized_y);
+        assert!(info.intercept);
+        assert!(info.standardized_x);
+    }
+
+    #[test]
+    #[should_panic(expected = "Weights must be non-negative")]
+    fn test_standardize_xy_negative_weights_panics() {
+        let x_data = vec![1.0, 2.0, 3.0, 1.0, 4.0, 6.0];
+        let x = Matrix::new(2, 3, x_data);
+        let y = vec![3.0, 5.0];
+
+        // Negative weight should panic
+        let weights = vec![1.0, -0.5];
+
+        let options = StandardizeOptions {
+            intercept: true,
+            standardize_x: true,
+            standardize_y: false,
+            weights: Some(weights),
+        };
+
+        let _ = standardize_xy(&x, &y, &options);
+    }
+
+    #[test]
+    fn test_standardize_xy_zero_sum_weights() {
+        // Test the zero-sum weights path (lines 217-219)
+        let x_data = vec![1.0, 2.0, 3.0, 1.0, 4.0, 6.0];
+        let x = Matrix::new(2, 3, x_data);
+        let y = vec![3.0, 5.0];
+
+        // All zeros - sum is 0
+        let weights = vec![0.0, 0.0];
+
+        let options = StandardizeOptions {
+            intercept: true,
+            standardize_x: true,
+            standardize_y: false,
+            weights: Some(weights),
+        };
+
+        let (_x_standardized, y_standardized, info) = standardize_xy(&x, &y, &options);
+
+        // With zero weights, y_mean should be 0 and y_standardized should be zeros
+        assert_eq!(info.y_mean, 0.0);
+        assert_eq!(y_standardized, vec![0.0, 0.0]);
+    }
+
+    #[test]
+    fn test_standardize_xy_without_intercept() {
+        // Test the no-intercept path (lines 264-278)
+        let x_data = vec![2.0, 3.0, 4.0, 6.0, 8.0, 9.0];  // No intercept column
+        let x = Matrix::new(2, 3, x_data);
+        let y = vec![3.0, 5.0];
+
+        let options = StandardizeOptions {
+            intercept: false,  // No intercept
+            standardize_x: true,
+            standardize_y: false,
+            weights: None,
+        };
+
+        let (_x_standardized, y_standardized, info) = standardize_xy(&x, &y, &options);
+
+        // Without intercept, y_mean should be 0
+        assert_eq!(info.y_mean, 0.0);
+        assert!(!info.intercept);
+
+        // y should still be scaled to unit norm
+        let y_norm: f64 = y_standardized.iter().map(|&v| v * v).sum::<f64>().sqrt();
+        assert!((y_norm - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_standardize_xy_constant_y() {
+        // Test the y_scale_val > 0.0 false branch (lines 258-262, 272-276)
+        // When y is constant, y_scale_val would be 0
+        let x_data = vec![1.0, 2.0, 3.0, 1.0, 4.0, 6.0];
+        let x = Matrix::new(2, 3, x_data);
+        let y = vec![5.0, 5.0];  // Constant y
+
+        let options = StandardizeOptions {
+            intercept: true,
+            standardize_x: true,
+            standardize_y: false,
+            weights: None,
+        };
+
+        let (_x_standardized, y_standardized, info) = standardize_xy(&x, &y, &options);
+
+        // With constant y, after centering we get zeros, so y_scale is 0
+        // y_standardized should be all zeros (can't normalize zero vector)
+        assert_eq!(y_standardized, vec![0.0, 0.0]);
+        assert_eq!(info.y_mean, 5.0);
+        // y_scale should be None or 0 since we can't normalize a zero vector
+        assert!(info.y_scale.unwrap_or(0.0) == 0.0);
+    }
+
+    #[test]
+    fn test_unstandardize_coefficients_no_intercept() {
+        // Test the no-intercept path in unstandardize_coefficients (line 489-490)
+        let x_mean = vec![0.0, 4.0, 6.0];
+        let x_scale = vec![1.0, 2.0, 3.0];
+        let column_squared_norms = vec![1.0, 1.0, 1.0];
+        let y_mean = 0.0;
+        let y_scale = Some(2.0);
+
+        let info = StandardizationInfo {
+            x_mean: x_mean.clone(),
+            x_scale: x_scale.clone(),
+            column_squared_norms,
+            y_mean,
+            y_scale,
+            y_scale_before_sqrt_weights_normalized: None,
+            intercept: false,  // No intercept
+            standardized_x: true,
+            standardized_y: true,
+        };
+
+        // Coefficients without intercept marker (all are slopes when intercept=false)
+        let coefficients_standardized = vec![1.0, 2.0, 3.0];
+
+        let (beta0, beta_slopes) = unstandardize_coefficients(&coefficients_standardized, &info);
+
+        // With no intercept, beta0 should be 0
+        assert_eq!(beta0, 0.0);
+        // All 3 coefficients should be unstandardized
+        assert_eq!(beta_slopes.len(), 3);
+        // beta_slopes[j] = (y_scale * coefficients_standardized[j]) / x_scale[j]
+        assert!((beta_slopes[0] - 2.0).abs() < 1e-10);  // (2 * 1) / 1
+        assert!((beta_slopes[1] - (2.0 * 2.0 / 2.0)).abs() < 1e-10);  // (2 * 2) / 2 = 2.0
+        assert!((beta_slopes[2] - (2.0 * 3.0 / 3.0)).abs() < 1e-10);  // (2 * 3) / 3 = 2.0
+    }
+
+    #[test]
+    fn test_unstandardize_coefficients_no_y_scale() {
+        // Test the y_scale.unwrap_or(1.0) path (line 463)
+        let x_mean = vec![0.0, 4.0, 6.0];
+        let x_scale = vec![1.0, 2.0, 3.0];
+        let column_squared_norms = vec![1.0, 1.0, 1.0];
+        let y_mean = 5.0;
+        let y_scale = None;  // No y_scale
+
+        let info = StandardizationInfo {
+            x_mean: x_mean.clone(),
+            x_scale: x_scale.clone(),
+            column_squared_norms,
+            y_mean,
+            y_scale,
+            y_scale_before_sqrt_weights_normalized: None,
+            intercept: true,
+            standardized_x: true,
+            standardized_y: false,
+        };
+
+        let coefficients_standardized = vec![0.0, 1.0, 2.0];
+
+        let (_beta0, beta_slopes) = unstandardize_coefficients(&coefficients_standardized, &info);
+
+        // Should use y_scale = 1.0
+        assert!((beta_slopes[0] - 0.5).abs() < 1e-10);  // (1 * 1) / 2
+    }
+
+    #[test]
+    fn test_predict_no_intercept_column() {
+        // Test when beta.len() == p (no intercept column in x)
+        let x_data = vec![2.0, 3.0, 4.0, 6.0];
+        let x = Matrix::new(2, 2, x_data);  // 2x2, no intercept column
+        let beta0 = 1.0;
+        let beta = vec![2.0, 3.0];  // 2 coefficients for 2 columns
+
+        let preds = predict(&x, beta0, &beta);
+
+        // pred[0] = 1 + 2*2 + 3*3 = 1 + 4 + 9 = 14
+        assert!((preds[0] - 14.0).abs() < 1e-10);
+        // pred[1] = 1 + 2*4 + 3*6 = 1 + 8 + 18 = 27
+        assert!((preds[1] - 27.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_predict_beta_longer_than_columns() {
+        // Test the col < p branch (line 544-545)
+        let x_data = vec![1.0, 2.0, 3.0];
+        let x = Matrix::new(1, 3, x_data);
+        let beta0 = 5.0;
+        let beta = vec![1.0, 2.0, 3.0, 4.0];  // More betas than columns
+
+        let preds = predict(&x, beta0, &beta);
+
+        // Should only use first 3 betas (matching columns)
+        // p=3, beta.len()=4, has_intercept_col=false, so uses betas[0..2]
+        // Wait: beta.len() (4) != p-1 (2), so has_intercept_col=false
+        // Uses betas[0..min(4, 3)] = betas[0..3]
+        // pred[0] = 5 + 1*1 + 2*2 + 3*3 = 5 + 1 + 4 + 9 = 19
+        assert!((preds[0] - 19.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_standardize_xy_no_standardize_x() {
+        // Test standardize_x=false path (lines 319-323, 368-372)
+        let x_data = vec![1.0, 2.0, 3.0, 1.0, 4.0, 6.0];
+        let x = Matrix::new(2, 3, x_data);
+        let y = vec![3.0, 5.0];
+
+        let options = StandardizeOptions {
+            intercept: true,
+            standardize_x: false,  // Don't standardize X
+            standardize_y: false,
+            weights: None,
+        };
+
+        let (x_standardized, _y_standardized, info) = standardize_xy(&x, &y, &options);
+
+        // Intercept column should still be unchanged
+        assert_eq!(x_standardized.get(0, 0), 1.0);
+        assert_eq!(x_standardized.get(1, 0), 1.0);
+
+        // When standardize_x=false with intercept:
+        // - Data is centered: x_centered = x - mean
+        // - Then transformed by sqrt_weights_normalized: x_new = sqrt(1/n) * x_centered
+        // Column 1: [2, 4] -> mean=3 -> centered: [-1, 1] -> sqrt(1/2) * centered
+        let sqrt_half = (0.5_f64).sqrt();
+        assert!((x_standardized.get(0, 1) - (-sqrt_half)).abs() < 1e-10);
+        assert!((x_standardized.get(1, 1) - sqrt_half).abs() < 1e-10);
+
+        // x_scale should be 1.0 for non-standardized columns
+        assert_eq!(info.x_scale[1], 1.0);
+        assert_eq!(info.x_scale[2], 1.0);
+    }
 }

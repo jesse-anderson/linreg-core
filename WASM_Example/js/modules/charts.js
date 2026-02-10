@@ -86,10 +86,10 @@ function updateSimpleRegressionChart(ctx, results, yData, colors) {
 
     let datasets = [];
 
-    // Add 95% confidence band for OLS
-    if (results.method === 'ols' && results.stdError && results.df) {
+    // Add 95% confidence band for OLS or WLS
+    if ((results.method === 'ols' || results.method === 'wls') && results.stdError && results.df) {
         const confidenceBand = createConfidenceBand(xData, xMin, xMax, b0, b1, results);
-        const ciColor = colors.line || '#06b6d4';
+        const ciColor = getMethodColor(results.method, colors);
 
         datasets.push(
             {
@@ -240,7 +240,7 @@ function updateMultipleRegressionChart(ctx, results, yData, colors) {
     const methodLabel = getMethodLabel(results);
 
     let ciLabel = '';
-    if (results.method === 'ols' && results.stdError) {
+    if ((results.method === 'ols' || results.method === 'wls') && results.stdError) {
         ciLabel = '95% Prediction Band';
     } else if (results.method === 'ridge' || results.method === 'lasso') {
         ciLabel = 'CI not available for regularized regression';
@@ -261,10 +261,10 @@ function updateMultipleRegressionChart(ctx, results, yData, colors) {
 
     let datasets = [];
 
-    // Add 95% prediction band for OLS
-    if (results.method === 'ols' && results.stdError && results.rmse) {
+    // Add 95% prediction band for OLS or WLS
+    if ((results.method === 'ols' || results.method === 'wls') && results.stdError && results.rmse) {
         const predictionBand = createPredictionBand(minVal, maxVal, results.rmse);
-        const ciColor = colors.line || '#06b6d4';
+        const ciColor = getMethodColor(results.method, colors);
 
         datasets.push(
             {
@@ -794,6 +794,7 @@ export function exportChartsAsPNG() {
  */
 function getMethodLabel(results) {
     if (results.method === 'ols') return 'OLS';
+    if (results.method === 'wls') return 'WLS';
     if (results.method === 'ridge') return `Ridge (λ=${results.lambda?.toFixed(2) || 'N/A'})`;
     if (results.method === 'lasso') return `Lasso (λ=${results.lambda?.toFixed(2) || 'N/A'})`;
     if (results.method === 'elastic_net') return `Elastic Net (λ=${results.lambda?.toFixed(2) || 'N/A'}, α=${results.alpha?.toFixed(2) || 'N/A'})`;
@@ -806,6 +807,7 @@ function getMethodLabel(results) {
  */
 function getMethodColor(method, colors) {
     if (method === 'ols') return colors.line || '#06b6d4';
+    if (method === 'wls') return '#f97316';
     if (method === 'ridge') return '#10b981';
     if (method === 'lasso') return '#f59e0b';
     if (method === 'elastic_net') return '#8b5cf6';

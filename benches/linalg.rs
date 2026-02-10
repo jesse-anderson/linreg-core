@@ -1,9 +1,13 @@
 //! Linear algebra benchmarks.
 //!
-//! Benchmarks matrix operations, QR decomposition, and linear solvers.
+//! Benchmarks matrix operations, decompositions, solvers, and vector operations.
+//! Covers all hot-path operations used by OLS, regularized regression, diagnostics,
+//! WLS, and LOESS fitting.
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use linreg_core::linalg::{vec_dot, vec_l2_norm, vec_mean, Matrix};
+use linreg_core::linalg::{
+    fit_and_predict_linpack, fit_ols_linpack, vec_dot, vec_l2_norm, vec_mean, vec_sub, Matrix,
+};
 
 /// Creates a random matrix of given dimensions.
 fn make_matrix(rows: usize, cols: usize) -> Matrix {
@@ -209,14 +213,329 @@ fn bench_vector_ops(c: &mut Criterion) {
     group.finish();
 }
 
+/// Benchmarks SVD decomposition.
+///
+/// SVD is the fallback solver for ill-conditioned matrices in WLS/LOESS.
+/// O(mn²) for an m×n matrix, significantly more expensive than QR.
+fn bench_svd(c: &mut Criterion) {
+    // SVD is expensive — keep sizes modest
+    let sizes = vec![
+        (10, 5),
+        (50, 10),
+        (100, 20),
+        (500, 50),
+        (1000, 100),
+    ];
+
+    let mut group = c.benchmark_group("svd");
+
+    for &(rows, cols) in &sizes {
+        let m = make_matrix(rows, cols);
+
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", rows, cols)),
+            &(rows, cols),
+            |b, _| b.iter(|| black_box(&m).svd()),
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks SVD solve (pseudoinverse solution).
+///
+/// Used as fallback when QR fails on singular/near-singular matrices.
+fn bench_svd_solve(c: &mut Criterion) {
+    let sizes = vec![
+        (10, 5),
+        (50, 10),
+        (100, 20),
+        (500, 50),
+    ];
+
+    let mut group = c.benchmark_group("svd_solve");
+
+    for &(rows, cols) in &sizes {
+        let m = make_matrix(rows, cols);
+        let svd_result = m.svd();
+        let rhs: Vec<f64> = (0..rows).map(|i| (i as f64 * 0.03).sin()).collect();
+
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", rows, cols)),
+            &(rows, cols),
+            |b, _| b.iter(|| black_box(&m).svd_solve(black_box(&svd_result), black_box(&rhs))),
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks chol2inv_from_qr (Cholesky-like inverse via QR).
+///
+/// Used by Harvey-Collier test for recursive residual computation.
+/// Operates on square matrices (p × p design matrix subsets).
+fn bench_chol2inv_from_qr(c: &mut Criterion) {
+    let sizes = vec![5, 10, 20, 50, 100, 200];
+
+    let mut group = c.benchmark_group("chol2inv_from_qr");
+
+    for &n in &sizes {
+        // Create a well-conditioned square matrix (rows of a design matrix)
+        let m = make_matrix(n, n);
+
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
+            b.iter(|| black_box(&m).chol2inv_from_qr())
+        });
+    }
+
+    group.finish();
+}
+
+/// Benchmarks vec_sub (element-wise vector subtraction).
+///
+/// Used in residual computation throughout OLS and diagnostics (5+ calls).
+fn bench_vec_sub(c: &mut Criterion) {
+    let sizes = vec![10, 100, 1000, 10000, 100000];
+
+    let mut group = c.benchmark_group("vec_sub");
+
+    for &n in &sizes {
+        let v1: Vec<f64> = (0..n).map(|i| (i as f64 * 0.01).sin()).collect();
+        let v2: Vec<f64> = (0..n).map(|i| (i as f64 * 0.02).cos()).collect();
+
+        group.throughput(Throughput::Elements(n as u64));
+        group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
+            b.iter(|| vec_sub(black_box(&v1), black_box(&v2)))
+        });
+    }
+
+    group.finish();
+}
+
+/// Benchmarks LINPACK QR OLS solver (fit_ols_linpack).
+///
+/// Used by White test for auxiliary regressions. Different code path from .qr().
+fn bench_fit_ols_linpack(c: &mut Criterion) {
+    let sizes = vec![
+        (50, 10),
+        (100, 20),
+        (500, 50),
+        (1000, 100),
+    ];
+
+    let mut group = c.benchmark_group("fit_ols_linpack");
+
+    for &(rows, cols) in &sizes {
+        let m = make_matrix(rows, cols);
+        let y: Vec<f64> = (0..rows).map(|i| (i as f64 * 0.03).sin() + 1.0).collect();
+
+        group.throughput(Throughput::Elements(rows as u64));
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", rows, cols)),
+            &(rows, cols),
+            |b, _| b.iter(|| fit_ols_linpack(black_box(&y), black_box(&m))),
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks LINPACK QR OLS solver with predictions (fit_and_predict_linpack).
+///
+/// Used by White test. Returns fitted values directly.
+fn bench_fit_and_predict_linpack(c: &mut Criterion) {
+    let sizes = vec![
+        (50, 10),
+        (100, 20),
+        (500, 50),
+        (1000, 100),
+    ];
+
+    let mut group = c.benchmark_group("fit_and_predict_linpack");
+
+    for &(rows, cols) in &sizes {
+        let m = make_matrix(rows, cols);
+        let y: Vec<f64> = (0..rows).map(|i| (i as f64 * 0.03).sin() + 1.0).collect();
+
+        group.throughput(Throughput::Elements(rows as u64));
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", rows, cols)),
+            &(rows, cols),
+            |b, _| b.iter(|| fit_and_predict_linpack(black_box(&y), black_box(&m))),
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks column dot product via scalar .get() access.
+///
+/// This is the #1 BLAS/SIMD optimization target. The elastic net coordinate
+/// descent inner loop (elastic_net.rs:826-828) computes:
+///   sum += x.get(i, j) * residuals[i]   for i in 0..n
+/// This is a column-dot-product pattern that would map to BLAS ddot or SIMD.
+fn bench_column_dot_scalar(c: &mut Criterion) {
+    let sizes = vec![
+        (100, 20),
+        (500, 50),
+        (1000, 100),
+        (5000, 100),
+        (10000, 100),
+    ];
+
+    let mut group = c.benchmark_group("column_dot_scalar_get");
+
+    for &(n, p) in &sizes {
+        let x = make_matrix(n, p);
+        let residuals: Vec<f64> = (0..n).map(|i| (i as f64 * 0.07).sin()).collect();
+        let col = p / 2; // Pick a middle column
+
+        group.throughput(Throughput::Elements(n as u64));
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, p)),
+            &(n, p),
+            |b, _| {
+                b.iter(|| {
+                    let mut sum = 0.0;
+                    for i in 0..n {
+                        sum += x.get(i, col) * residuals[i];
+                    }
+                    black_box(sum)
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks column axpy (residual update) via scalar .get() access.
+///
+/// This is the #2 BLAS/SIMD optimization target. The elastic net coordinate
+/// descent inner loop (elastic_net.rs:858-860) computes:
+///   residuals[i] -= x.get(i, j) * delta   for i in 0..n
+/// This is a column-axpy pattern that would map to BLAS daxpy or SIMD.
+fn bench_column_axpy_scalar(c: &mut Criterion) {
+    let sizes = vec![
+        (100, 20),
+        (500, 50),
+        (1000, 100),
+        (5000, 100),
+        (10000, 100),
+    ];
+
+    let mut group = c.benchmark_group("column_axpy_scalar_get");
+
+    for &(n, p) in &sizes {
+        let x = make_matrix(n, p);
+        let col = p / 2;
+        let delta = 0.42;
+
+        group.throughput(Throughput::Elements(n as u64));
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, p)),
+            &(n, p),
+            |b, _| {
+                b.iter(|| {
+                    let mut residuals: Vec<f64> =
+                        (0..n).map(|i| (i as f64 * 0.07).sin()).collect();
+                    for i in 0..n {
+                        residuals[i] -= x.get(i, col) * delta;
+                    }
+                    black_box(residuals)
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks a full coordinate descent iteration (dot + threshold + axpy).
+///
+/// Simulates one feature update from the elastic net inner loop to measure
+/// the combined cost of the column-dot and column-axpy pattern together,
+/// which is the actual bottleneck profile.
+fn bench_coordinate_descent_step(c: &mut Criterion) {
+    let sizes = vec![
+        (100, 20),
+        (500, 50),
+        (1000, 100),
+        (5000, 100),
+        (10000, 100),
+    ];
+
+    let mut group = c.benchmark_group("coord_descent_step");
+
+    for &(n, p) in &sizes {
+        let x = make_matrix(n, p);
+        let col = p / 2;
+        let lambda = 0.1;
+        let alpha = 0.5;
+        let col_norm_sq = 1.0; // Normalized column
+
+        group.throughput(Throughput::Elements(n as u64));
+        group.bench_with_input(
+            BenchmarkId::new("size", format!("{}_{}", n, p)),
+            &(n, p),
+            |b, _| {
+                b.iter(|| {
+                    let mut residuals: Vec<f64> =
+                        (0..n).map(|i| (i as f64 * 0.07).sin()).collect();
+                    let beta_old = 0.5;
+
+                    // Column dot product: rho = X_j' * residuals + norm_sq * beta
+                    let mut partial = 0.0;
+                    for i in 0..n {
+                        partial += x.get(i, col) * residuals[i];
+                    }
+                    let rho = partial + col_norm_sq * beta_old;
+
+                    // Soft threshold
+                    let threshold = lambda * alpha;
+                    let numerator = if rho > threshold {
+                        rho - threshold
+                    } else if rho < -threshold {
+                        rho + threshold
+                    } else {
+                        0.0
+                    };
+                    let beta_new = numerator / (col_norm_sq + lambda * (1.0 - alpha));
+
+                    // Column axpy: residuals -= X_j * (beta_new - beta_old)
+                    let delta = beta_new - beta_old;
+                    if delta != 0.0 {
+                        for i in 0..n {
+                            residuals[i] -= x.get(i, col) * delta;
+                        }
+                    }
+
+                    black_box((beta_new, residuals))
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     linalg,
     bench_transpose,
     bench_matmul,
     bench_mul_vec,
     bench_qr_decomposition,
+    bench_svd,
+    bench_svd_solve,
+    bench_chol2inv_from_qr,
     bench_invert_upper_triangular,
     bench_matrix_invert,
-    bench_vector_ops
+    bench_fit_ols_linpack,
+    bench_fit_and_predict_linpack,
+    bench_vector_ops,
+    bench_vec_sub,
+    bench_column_dot_scalar,
+    bench_column_axpy_scalar,
+    bench_coordinate_descent_step
 );
 criterion_main!(linalg);

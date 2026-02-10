@@ -1206,6 +1206,38 @@ pub fn expect_ols_by_dataset_result(json_path: &Path) -> OlsByDatasetResult {
 // Assertion Helpers
 // ============================================================================
 
+/// Helper function to assert two scalar values are close within tolerance
+pub fn assert_close_scalar(actual: &f64, expected: &f64, tolerance: f64, context: &str) {
+    let diff = (actual - expected).abs();
+    if diff > tolerance {
+        panic!(
+            "{} mismatch: actual = {:.10}, expected = {:.10}, diff = {:.2e} (tolerance = {:.2e})",
+            context, actual, expected, diff, tolerance
+        );
+    }
+}
+
+/// Helper function to assert two arrays are close within tolerance
+pub fn assert_close_array(actual: &[f64], expected: &[f64], tolerance: f64, context: &str) {
+    assert_eq!(
+        actual.len(),
+        expected.len(),
+        "{} length mismatch: actual = {}, expected = {}",
+        context,
+        actual.len(),
+        expected.len()
+    );
+    for (i, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
+        let diff = (a - e).abs();
+        if diff > tolerance {
+            panic!(
+                "{}[{}] mismatch: actual = {:.10}, expected = {:.10}, diff = {:.2e} (tolerance = {:.2e})",
+                context, i, a, e, diff, tolerance
+            );
+        }
+    }
+}
+
 /// Helper function to assert two values are close within tolerance
 ///
 /// Tolerance strategy:
@@ -1382,6 +1414,9 @@ pub fn load_python_vif_result(json_path: &Path) -> Option<PythonVifResult> {
 /// and neighborhood selection)
 pub const LOESS_TOLERANCE: f64 = 0.5;
 
+/// WLS tolerance (slightly looser than OLS due to additional numerical transformations)
+pub const WLS_TOLERANCE: f64 = 1e-8;
+
 /// R LOESS result format
 #[derive(Debug, Deserialize)]
 pub struct RLoessResult {
@@ -1439,4 +1474,85 @@ pub fn load_python_loess_result(json_path: &Path) -> Option<PythonLoessResult> {
     }
     let content = fs::read_to_string(json_path).ok()?;
     serde_json::from_str(&content).ok()
+}
+
+// ============================================================================
+// WLS Specific Structures
+// ============================================================================
+
+/// WLS result from R/Python validation (unified format)
+#[derive(Debug, Deserialize)]
+pub struct WlsResult {
+    #[allow(dead_code)]
+    pub test: String,
+    #[allow(dead_code)]
+    pub method: String,
+    #[allow(dead_code)]
+    pub dataset: String,
+    #[allow(dead_code)]
+    pub formula: String,
+    pub n: usize,
+    pub k: usize,
+    pub df_residual: i64,
+    pub df_model: i64,
+    pub variable_names: Vec<String>,
+    pub coefficients: Vec<f64>,
+    pub std_errors: Vec<f64>,
+    pub t_stats: Vec<f64>,
+    pub p_values: Vec<f64>,
+    pub r_squared: f64,
+    pub adj_r_squared: f64,
+    pub f_statistic: f64,
+    pub f_p_value: f64,
+    pub mse: f64,
+    pub rmse: f64,
+    pub mae: f64,
+    pub residual_std_error: f64,
+    #[allow(dead_code)]
+    pub log_likelihood: f64,
+    #[allow(dead_code)]
+    pub aic: f64,
+    #[allow(dead_code)]
+    pub bic: f64,
+    #[allow(dead_code)]
+    pub conf_int_lower: Vec<f64>,
+    #[allow(dead_code)]
+    pub conf_int_upper: Vec<f64>,
+    pub fitted_values: Vec<f64>,
+    pub residuals: Vec<f64>,
+    #[allow(dead_code)]
+    pub weights: Vec<f64>,
+}
+
+/// Load WLS result from JSON
+pub fn load_wls_result(json_path: &Path) -> Option<WlsResult> {
+    if !json_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(json_path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+/// Load WLS result, panicking loudly with instructions if file not found
+pub fn expect_wls_result(json_path: &Path) -> WlsResult {
+    if !json_path.exists() {
+        panic!(
+            "WLS result file not found: {}\n\
+             \n\
+             To generate this file, run:\n\
+               cd verification/scripts/runners && Rscript run_all_diagnostics_r.R\n\
+             \n\
+             Or generate individual WLS results:\n\
+               Rscript verification/scripts/r/core/test_wls.R <csv_path> <output_dir>",
+            json_path.display()
+        );
+    }
+    load_wls_result(json_path).unwrap_or_else(|| {
+        panic!(
+            "Failed to parse WLS result file: {}\n\
+             \n\
+             The file may be corrupted. Try regenerating it.",
+            json_path.display()
+        )
+    })
 }

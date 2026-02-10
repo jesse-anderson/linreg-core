@@ -42,6 +42,7 @@ include!("loess_impl.rs");
 include!("diagnostics_impl.rs");
 include!("stats_impl.rs");
 include!("csv_impl.rs");
+include!("wls_impl.rs");
 
 // ============================================================================
 // Python Module Definition
@@ -72,6 +73,7 @@ fn linreg_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyRainbowTestResult>()?;
     m.add_class::<PyWhiteTestResult>()?;
     m.add_class::<PyCSVResult>()?;
+    m.add_class::<PyWlsResult>()?;
 
     // OLS Regression
     m.add_function(wrap_pyfunction!(ols_regression, m)?)?;
@@ -85,6 +87,9 @@ fn linreg_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // LOESS Regression
     m.add_function(wrap_pyfunction!(loess_fit, m)?)?;
     m.add_function(wrap_pyfunction!(loess_predict, m)?)?;
+
+    // WLS Regression
+    m.add_function(wrap_pyfunction!(wls_regression, m)?)?;
 
     // Statistical Utilities
     m.add_function(wrap_pyfunction!(get_t_cdf, m)?)?;

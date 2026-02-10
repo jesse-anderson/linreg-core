@@ -58,6 +58,7 @@ if (length(csv_files) == 0) {
 # Diagnostic scripts to run
 diagnostic_scripts <- list(
   list(name = "OLS", script = "test_ols_by_dataset.R", dir = core_dir, suffix = "ols", args = ""),
+  list(name = "WLS", script = "test_wls.R", dir = core_dir, suffix = "wls", args = ""),
   list(name = "Rainbow", script = "test_rainbow.R", dir = script_dir, suffix = "rainbow", args = ""),
   list(name = "Harvey-Collier", script = "test_harvey_collier.R", dir = script_dir, suffix = "harvey_collier", args = ""),
   list(name = "Breusch-Pagan", script = "test_breusch_pagan.R", dir = script_dir, suffix = "breusch_pagan", args = ""),

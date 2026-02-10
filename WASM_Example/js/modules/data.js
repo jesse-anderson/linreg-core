@@ -126,6 +126,231 @@ Luxury,9200,59000`,
         yVar: 'Sales',
         xVars: ['Marketing_Spend'],
         toast: 'Messy data loaded (30 samples with hidden clustering)'
+    },
+    fuel_efficiency: {
+        name: 'Fuel Efficiency (Heteroscedastic)',
+        description: 'Highway MPG vs engine size. Small engines have 40-50 test vehicles (tight clusters). Large engines have only 2-8 test vehicles plus single-vehicle outliers tested under favorable conditions that bias OLS upward. Switch to WLS with Test_Count weights to downweight unreliable single-vehicle tests and recover the true steep decline.',
+        csv: `Engine_Size,Highway_MPG,Test_Count
+1.0,43.2,50
+1.0,42.6,50
+1.0,43.5,50
+1.0,42.8,50
+1.0,43.0,50
+1.0,43.4,50
+1.5,40.2,45
+1.5,39.8,45
+1.5,40.8,45
+1.5,40.5,45
+1.5,41.0,45
+2.0,37.5,40
+2.0,38.5,40
+2.0,37.0,40
+2.0,38.2,40
+2.0,37.8,40
+2.5,35.0,25
+2.5,34.5,25
+2.5,36.0,25
+2.5,33.5,25
+3.0,33.0,15
+3.0,31.0,15
+3.0,34.5,15
+3.0,30.5,15
+3.5,30.0,8
+3.5,28.5,8
+3.5,37.0,1
+4.0,27.0,5
+4.0,25.5,5
+4.0,36.0,1
+4.5,24.0,3
+4.5,22.0,3
+4.5,35.0,1
+5.0,21.0,2
+5.0,19.0,2
+5.0,33.0,1
+5.5,18.0,3
+5.5,32.0,1
+6.0,15.0,2
+6.0,30.0,1`,
+        yVar: 'Highway_MPG',
+        xVars: ['Engine_Size'],
+        toast: 'Fuel Efficiency loaded (40 samples, heteroscedastic — try WLS with Test_Count weights)'
+    },
+    cell_activity: {
+        name: 'Cell Activity (Substrate Cycles)',
+        description: 'Enzyme activity measured hourly as substrate is consumed via Michaelis-Menten kinetics. Fresh substrate is added every 24 hours (visible as activity jumps). Switch to LOESS to capture the non-linear decay pattern.',
+        csv: `Hour,Substrate_mM,Cell_Activity
+1,100.0,89.1
+2,88.7,84.0
+3,78.7,84.8
+4,69.8,79.1
+5,61.9,82.2
+6,54.9,78.2
+7,48.7,80.6
+8,43.2,71.4
+9,38.3,72.4
+10,34.0,72.6
+11,30.1,64.9
+12,26.7,66.5
+13,23.7,57.2
+14,21.0,59.5
+15,18.6,54.7
+16,16.5,55.9
+17,14.7,47.3
+18,13.0,47.3
+19,11.5,42.0
+20,10.2,43.3
+21,9.1,34.3
+22,8.0,35.8
+23,7.1,31.6
+24,6.3,33.8
+25,100.0,89.0
+26,88.7,90.8
+27,78.7,84.5
+28,69.8,85.9
+29,61.9,87.3
+30,54.9,80.3
+31,48.7,76.5
+32,43.2,79.2
+33,38.3,76.4
+34,34.0,71.6
+35,30.1,67.6
+36,26.7,70.3
+37,23.7,64.5
+38,21.0,56.8
+39,18.6,60.2
+40,16.5,53.8
+41,14.7,55.2
+42,13.0,49.2
+43,11.5,42.6
+44,10.2,44.9
+45,9.1,40.9
+46,8.0,35.2
+47,7.1,38.1
+48,6.3,31.3
+49,100.0,93.6
+50,88.7,87.1
+51,78.7,89.4
+52,69.8,89.5
+53,61.9,83.6
+54,54.9,87.1
+55,48.7,80.9
+56,43.2,76.8
+57,38.3,80.9
+58,34.0,75.5
+59,30.1,68.6
+60,26.7,69.7
+61,23.7,69.1
+62,21.0,61.6
+63,18.6,60.0
+64,16.5,60.8
+65,14.7,52.5
+66,13.0,52.7
+67,11.5,44.8
+68,10.2,48.1
+69,9.1,43.0
+70,8.0,38.7
+71,7.1,40.8
+72,6.3,31.7`,
+        yVar: 'Cell_Activity',
+        xVars: ['Hour'],
+        toast: 'Cell Activity loaded (72 samples, 3 substrate cycles — try LOESS)'
+    },
+    projectile: {
+        name: 'Projectile Motion (Polynomial)',
+        description: 'Height of a projectile over time follows a parabolic arc. With only Time_s, OLS gives a poor linear fit. Add Time_Squared as a predictor to capture the quadratic relationship. Time_Cubed is included for experimentation.',
+        csv: `Time_s,Height_m,Time_Squared,Time_Cubed
+0.0,2.5,0.00,0.000
+0.1,3.2,0.01,0.001
+0.2,7.0,0.04,0.008
+0.4,8.9,0.16,0.064
+0.5,12.3,0.25,0.125
+0.6,11.2,0.36,0.216
+0.8,15.6,0.64,0.512
+0.9,14.8,0.81,0.729
+1.0,17.4,1.00,1.000
+1.2,20.1,1.44,1.728
+1.3,19.2,1.69,2.197
+1.4,21.8,1.96,2.744
+1.6,21.3,2.56,4.096
+1.7,20.5,2.89,4.913
+1.8,22.9,3.24,5.832
+2.0,21.8,4.00,8.000
+2.1,23.4,4.41,9.261
+2.2,20.8,4.84,10.648
+2.4,22.2,5.76,13.824
+2.5,20.5,6.25,15.625
+2.6,22.5,6.76,17.576
+2.8,19.2,7.84,21.952
+3.0,18.1,9.00,27.000
+3.1,15.7,9.61,29.791
+3.2,16.7,10.24,32.768
+3.4,12.7,11.56,39.304
+3.5,13.3,12.25,42.875
+3.6,10.4,12.96,46.656
+3.8,8.0,14.44,54.872
+3.9,5.0,15.21,59.319
+4.0,3.9,16.00,64.000`,
+        yVar: 'Height_m',
+        xVars: ['Time_s'],
+        toast: 'Projectile loaded (31 samples — add Time_Squared for quadratic fit)'
+    },
+    cauchy_noise: {
+        name: 'Cauchy Noise (OLS Breaker)',
+        description: 'Linear data (Y = 10 + 2X) corrupted by heavy-tailed Cauchy noise. A few extreme outliers completely destroy the OLS fit. Compare Y_Observed vs Y_True to see the real relationship underneath. Quantile regression (coming soon) handles this correctly.',
+        csv: `X,Y_Observed,Y_True
+1,14.3,12
+2,12.5,14
+3,20.0,16
+4,17.2,18
+5,45.0,20
+6,18.8,22
+7,-126.0,24
+8,27.5,26
+9,22.2,28
+10,30.3,30
+11,35.7,32
+12,14.0,34
+13,33.9,36
+14,44.5,38
+15,39.1,40
+16,43.8,42
+17,39.5,44
+18,246.0,46
+19,46.8,48
+20,53.0,50
+21,44.5,52
+22,84.0,54
+23,56.8,56
+24,55.5,58
+25,65.2,60
+26,61.0,62
+27,68.3,64
+28,48.0,66
+29,70.0,68
+30,66.2,70
+31,73.5,72
+32,73.5,74
+33,-224.0,76
+34,81.5,78
+35,102.0,80
+36,76.0,82
+37,84.2,84
+38,83.2,86
+39,60.0,88
+40,94.8,90
+41,91.0,92
+42,214.0,94
+43,90.5,96
+44,100.2,98
+45,115.0,100
+46,99.0,102
+47,104.7,104
+48,81.0,106
+49,109.8,108
+50,109.5,110`,
+        yVar: 'Y_Observed',
+        xVars: ['X'],
+        toast: 'Cauchy Noise loaded (50 samples — watch OLS fail on heavy-tailed outliers!)'
     }
 };
 

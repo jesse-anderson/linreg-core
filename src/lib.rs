@@ -21,7 +21,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! linreg-core = { version = "0.5", default-features = false }
+//! linreg-core = { version = "0.6", default-features = false }
 //! ```
 //!
 //! ```rust
@@ -42,7 +42,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! linreg-core = "0.5"
+//! linreg-core = "0.6"
 //! ```
 //!
 //! Build with `wasm-pack build --target web`, then use in JavaScript:
@@ -132,7 +132,7 @@
 //! For native-only builds (smaller binary, no WASM deps):
 //!
 //! ```toml
-//! linreg-core = { version = "0.5", default-features = false }
+//! linreg-core = { version = "0.6", default-features = false }
 //! ```
 //!
 //! ## Why This Library?
@@ -174,6 +174,7 @@ pub mod error;
 pub mod linalg;
 pub mod loess;
 pub mod regularized;
+pub mod weighted_regression;
 pub mod stats;
 
 // Python bindings (only compiled when "python" feature is enabled)
@@ -201,6 +202,7 @@ pub use diagnostics::{
     WhiteMethod, WhiteSingleResult, WhiteTestOutput,
 };
 pub use loess::{loess_fit, LoessFit, LoessOptions};
+pub use weighted_regression::{wls_regression, WlsFit};
 
 // Re-export core test functions with different names to avoid WASM conflicts
 pub use diagnostics::rainbow_test as rainbow_test_core;

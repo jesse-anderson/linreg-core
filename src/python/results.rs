@@ -2010,3 +2010,199 @@ impl PyCSVResult {
         )
     }
 }
+
+// ============================================================================
+// WLSResult - Weighted Least Squares regression results
+// ============================================================================
+
+/// Result class for WLS regression with weights.
+///
+/// Provides comprehensive statistics matching R's `summary(lm(y ~ x, weights=w))` output.
+#[cfg(feature = "python")]
+#[pyclass(name = "WLSResult")]
+pub struct PyWlsResult {
+    // ============================================================
+    // Coefficient Statistics (matching R's coefficients table)
+    // ============================================================
+    /// Coefficient values (including intercept)
+    #[pyo3(get, set)]
+    pub coefficients: Vec<f64>,
+
+    /// Standard errors of the coefficients
+    #[pyo3(get, set)]
+    pub standard_errors: Vec<f64>,
+
+    /// t-statistics for coefficient significance tests
+    #[pyo3(get, set)]
+    pub t_statistics: Vec<f64>,
+
+    /// Two-tailed p-values for coefficients
+    #[pyo3(get, set)]
+    pub p_values: Vec<f64>,
+
+    /// Lower bounds of 95% confidence intervals for coefficients
+    #[pyo3(get, set)]
+    pub conf_int_lower: Vec<f64>,
+
+    /// Upper bounds of 95% confidence intervals for coefficients
+    #[pyo3(get, set)]
+    pub conf_int_upper: Vec<f64>,
+
+    // ============================================================
+    // Model Fit Statistics
+    // ============================================================
+    /// R-squared (coefficient of determination)
+    #[pyo3(get, set)]
+    pub r_squared: f64,
+
+    /// Adjusted R-squared
+    #[pyo3(get, set)]
+    pub r_squared_adjusted: f64,
+
+    /// F-statistic for overall model significance
+    #[pyo3(get, set)]
+    pub f_statistic: f64,
+
+    /// p-value for F-statistic
+    #[pyo3(get, set)]
+    pub f_p_value: f64,
+
+    /// Residual standard error
+    #[pyo3(get, set)]
+    pub residual_std_error: f64,
+
+    /// Degrees of freedom for residuals
+    #[pyo3(get, set)]
+    pub df_residuals: isize,
+
+    /// Degrees of freedom for the model
+    #[pyo3(get, set)]
+    pub df_model: isize,
+
+    // ============================================================
+    // Predictions and Diagnostics
+    // ============================================================
+    /// Fitted values
+    #[pyo3(get, set)]
+    pub fitted_values: Vec<f64>,
+
+    /// Residuals
+    #[pyo3(get, set)]
+    pub residuals: Vec<f64>,
+
+    /// Mean squared error
+    #[pyo3(get, set)]
+    pub mse: f64,
+
+    /// Root mean squared error
+    #[pyo3(get, set)]
+    pub rmse: f64,
+
+    /// Mean absolute error
+    #[pyo3(get, set)]
+    pub mae: f64,
+
+    // ============================================================
+    // Sample Information
+    // ============================================================
+    /// Number of observations
+    #[pyo3(get, set)]
+    pub n_observations: usize,
+
+    /// Number of predictors (excluding intercept)
+    #[pyo3(get, set)]
+    pub n_predictors: usize,
+}
+
+#[cfg(feature = "python")]
+#[pymethods]
+impl PyWlsResult {
+    /// Get the predicted values as a Python list.
+    fn get_fitted_values(&self) -> PyResult<Vec<f64>> {
+        Ok(self.fitted_values.clone())
+    }
+
+    /// Get the residuals as a Python list.
+    fn get_residuals(&self) -> PyResult<Vec<f64>> {
+        Ok(self.residuals.clone())
+    }
+
+    /// Summary of the WLS regression results.
+    fn summary(&self) -> String {
+        let coeff_table: String = self.coefficients
+            .iter()
+            .zip(&self.standard_errors)
+            .zip(&self.t_statistics)
+            .zip(&self.p_values)
+            .zip(&self.conf_int_lower)
+            .zip(&self.conf_int_upper)
+            .enumerate()
+            .map(|(i, (((((&coef, &se), &t), &p), &lower), &upper))| {
+                format!("  [{:2}] coef={:8.4}, SE={:8.4}, t={:6.3}, p={:8.4e}, 95% CI=[{:8.4}, {:8.4}]",
+                    i, coef, se, t, p, lower, upper)
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        format!(
+            "WLS Regression Results\n\
+             =====================\n\
+             Coefficients:\n{}\n\
+             \n\
+             R-squared: {:.4}\n\
+             Adjusted R-squared: {:.4}\n\
+             F-statistic: {:.4} (p-value: {:.4e})\n\
+             \n\
+             Residual Standard Error: {:.4}\n\
+             Degrees of Freedom: {} (model), {} (residuals)",
+            coeff_table,
+            self.r_squared,
+            self.r_squared_adjusted,
+            self.f_statistic,
+            self.f_p_value,
+            self.residual_std_error,
+            self.df_model,
+            self.df_residuals
+        )
+    }
+
+    /// Convert results to a Python dictionary.
+    fn to_dict(&self, py: Python) -> PyResult<PyObject> {
+        use pyo3::types::PyDict;
+        let dict = PyDict::new_bound(py);
+
+        dict.set_item("coefficients", &self.coefficients)?;
+        dict.set_item("standard_errors", &self.standard_errors)?;
+        dict.set_item("t_statistics", &self.t_statistics)?;
+        dict.set_item("p_values", &self.p_values)?;
+        dict.set_item("conf_int_lower", &self.conf_int_lower)?;
+        dict.set_item("conf_int_upper", &self.conf_int_upper)?;
+        dict.set_item("r_squared", self.r_squared)?;
+        dict.set_item("r_squared_adjusted", self.r_squared_adjusted)?;
+        dict.set_item("f_statistic", self.f_statistic)?;
+        dict.set_item("f_p_value", self.f_p_value)?;
+        dict.set_item("residual_std_error", self.residual_std_error)?;
+        dict.set_item("df_residuals", self.df_residuals)?;
+        dict.set_item("df_model", self.df_model)?;
+        dict.set_item("fitted_values", &self.fitted_values)?;
+        dict.set_item("residuals", &self.residuals)?;
+        dict.set_item("mse", self.mse)?;
+        dict.set_item("rmse", self.rmse)?;
+        dict.set_item("mae", self.mae)?;
+        dict.set_item("n_observations", self.n_observations)?;
+        dict.set_item("n_predictors", self.n_predictors)?;
+
+        Ok(dict.into())
+    }
+
+    fn __str__(&self) -> String {
+        self.summary()
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "WLSResult(n={}, k={}, R²={:.4})",
+            self.n_observations, self.n_predictors, self.r_squared
+        )
+    }
+}

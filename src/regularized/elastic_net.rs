@@ -866,3 +866,271 @@ fn update_feature(
         false // no change
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_soft_threshold_basic_cases() {
+        // Test soft_threshold function edge cases
+        assert_eq!(soft_threshold(5.0, 2.0), 3.0); // z > gamma
+        assert_eq!(soft_threshold(-5.0, 2.0), -3.0); // z < -gamma
+        assert_eq!(soft_threshold(1.0, 2.0), 0.0); // |z| <= gamma
+        assert_eq!(soft_threshold(2.0, 2.0), 0.0); // z == gamma
+        assert_eq!(soft_threshold(-2.0, 2.0), 0.0); // z == -gamma
+    }
+
+    #[test]
+    fn test_soft_threshold_zero() {
+        assert_eq!(soft_threshold(0.0, 0.0), 0.0);
+        assert_eq!(soft_threshold(5.0, 0.0), 5.0);
+        assert_eq!(soft_threshold(-5.0, 0.0), -5.0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Soft threshold gamma must be non-negative")]
+    fn test_soft_threshold_negative_gamma_panics() {
+        soft_threshold(1.0, -1.0);
+    }
+
+    #[test]
+    fn test_elastic_net_options_default() {
+        let options = ElasticNetOptions::default();
+        assert_eq!(options.lambda, 1.0);
+        assert_eq!(options.alpha, 1.0);  // Default is 1.0 (Lasso)
+        assert!(options.intercept);
+        assert!(options.standardize);
+        assert_eq!(options.max_iter, 100000);
+        assert_eq!(options.tol, 1e-7);
+        assert!(options.penalty_factor.is_none());
+        assert!(options.warm_start.is_none());
+        assert!(options.coefficient_bounds.is_none());
+    }
+
+    #[test]
+    fn test_elastic_net_fit_simple() {
+        // Simple linear relationship: y = 2*x + 1
+        let y = vec![3.0, 5.0, 7.0, 9.0, 11.0];
+        let x1: Vec<f64> = (1..=5).map(|i| i as f64).collect();
+
+        // Build matrix with intercept column
+        let n = 5;
+        let p = 1;
+        let mut x_data = vec![1.0; n * (p + 1)];  // Start with all 1s for intercept
+        for i in 0..n {
+            x_data[i * (p + 1) + 1] = x1[i];  // Fill in predictor column
+        }
+        let x = Matrix::new(n, p + 1, x_data);
+
+        let options = ElasticNetOptions {
+            lambda: 0.01,  // Small lambda for minimal regularization
+            alpha: 0.5,
+            intercept: true,
+            standardize: true,
+            ..Default::default()
+        };
+
+        let result = elastic_net_fit(&x, &y, &options);
+        assert!(result.is_ok());
+
+        let fit = result.unwrap();
+        assert!(fit.converged);
+        // Coefficients should be close to [1, 2] (intercept, slope)
+        assert!((fit.intercept - 1.0).abs() < 0.5);
+        assert!((fit.coefficients[0] - 2.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn test_elastic_net_fit_with_penalty_factor() {
+        let y = vec![3.0, 5.0, 7.0, 9.0, 11.0];
+        let x1: Vec<f64> = (1..=5).map(|i| i as f64).collect();
+
+        let n = 5;
+        let p = 1;
+        let mut x_data = vec![1.0; n * (p + 1)];
+        for i in 0..n {
+            x_data[i * (p + 1) + 1] = x1[i];
+        }
+        let x = Matrix::new(n, p + 1, x_data);
+
+        let options = ElasticNetOptions {
+            lambda: 0.1,
+            alpha: 0.5,
+            penalty_factor: Some(vec![1.0]),
+            intercept: true,
+            standardize: true,
+            ..Default::default()
+        };
+
+        let result = elastic_net_fit(&x, &y, &options);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_elastic_net_fit_with_coefficient_bounds() {
+        let y = vec![3.0, 5.0, 7.0, 9.0, 11.0];
+        let x1: Vec<f64> = (1..=5).map(|i| i as f64).collect();
+
+        let n = 5;
+        let p = 1;
+        let mut x_data = vec![1.0; n * (p + 1)];
+        for i in 0..n {
+            x_data[i * (p + 1) + 1] = x1[i];
+        }
+        let x = Matrix::new(n, p + 1, x_data);
+
+        let options = ElasticNetOptions {
+            lambda: 0.01,
+            alpha: 0.5,
+            coefficient_bounds: Some(vec![(0.0, 3.0)]), // Bound slope to [0, 3]
+            intercept: true,
+            standardize: true,
+            ..Default::default()
+        };
+
+        let result = elastic_net_fit(&x, &y, &options);
+        assert!(result.is_ok());
+
+        let fit = result.unwrap();
+        // Coefficient should be within bounds
+        assert!(fit.coefficients[0] >= 0.0);
+        assert!(fit.coefficients[0] <= 3.0);
+    }
+
+    #[test]
+    fn test_elastic_net_pure_lasso() {
+        // alpha = 1.0 means pure Lasso
+        let y = vec![3.0, 5.0, 7.0, 9.0, 11.0];
+        let x1: Vec<f64> = (1..=5).map(|i| i as f64).collect();
+
+        let n = 5;
+        let p = 1;
+        let mut x_data = vec![1.0; n * (p + 1)];
+        for i in 0..n {
+            x_data[i * (p + 1) + 1] = x1[i];
+        }
+        let x = Matrix::new(n, p + 1, x_data);
+
+        let options = ElasticNetOptions {
+            lambda: 1.0,
+            alpha: 1.0,  // Pure Lasso
+            intercept: true,
+            standardize: true,
+            ..Default::default()
+        };
+
+        let result = elastic_net_fit(&x, &y, &options);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_elastic_net_pure_ridge() {
+        // alpha = 0.0 means pure Ridge
+        let y = vec![3.0, 5.0, 7.0, 9.0, 11.0];
+        let x1: Vec<f64> = (1..=5).map(|i| i as f64).collect();
+
+        let n = 5;
+        let p = 1;
+        let mut x_data = vec![1.0; n * (p + 1)];
+        for i in 0..n {
+            x_data[i * (p + 1) + 1] = x1[i];
+        }
+        let x = Matrix::new(n, p + 1, x_data);
+
+        let options = ElasticNetOptions {
+            lambda: 0.1,
+            alpha: 0.0,  // Pure Ridge
+            intercept: true,
+            standardize: true,
+            ..Default::default()
+        };
+
+        let result = elastic_net_fit(&x, &y, &options);
+        assert!(result.is_ok());
+
+        let fit = result.unwrap();
+        // Ridge shouldn't zero out coefficients
+        assert!(fit.n_nonzero >= 1);
+    }
+
+    #[test]
+    fn test_elastic_fit_no_intercept() {
+        let y = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let x1: Vec<f64> = (1..=5).map(|i| i as f64).collect();
+
+        let n = 5;
+        let p = 1;
+        let x = Matrix::new(n, p, x1);  // No intercept column
+
+        let options = ElasticNetOptions {
+            lambda: 0.01,
+            alpha: 0.5,
+            intercept: false,  // No intercept
+            standardize: true,
+            ..Default::default()
+        };
+
+        let result = elastic_net_fit(&x, &y, &options);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_elastic_net_with_warm_start() {
+        let y = vec![3.0, 5.0, 7.0, 9.0, 11.0];
+        let x1: Vec<f64> = (1..=5).map(|i| i as f64).collect();
+
+        let n = 5;
+        let p = 1;
+        let mut x_data = vec![1.0; n * (p + 1)];
+        for i in 0..n {
+            x_data[i * (p + 1) + 1] = x1[i];
+        }
+        let x = Matrix::new(n, p + 1, x_data);
+
+        let warm = vec![1.5];
+
+        let options = ElasticNetOptions {
+            lambda: 0.1,
+            alpha: 0.5,
+            intercept: true,
+            standardize: true,
+            warm_start: Some(warm),
+            ..Default::default()
+        };
+
+        let result = elastic_net_fit(&x, &y, &options);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_elastic_net_multivariate() {
+        // Multiple predictors
+        let y = vec![3.0, 5.0, 7.0, 9.0, 11.0];
+        let x1: Vec<f64> = (1..=5).map(|i| i as f64).collect();
+        let x2 = vec![2.0, 4.0, 5.0, 4.0, 3.0];
+
+        let n = 5;
+        let p = 2;
+        let mut x_data = vec![1.0; n * (p + 1)];  // Intercept column
+        for i in 0..n {
+            x_data[i * (p + 1) + 1] = x1[i];
+            x_data[i * (p + 1) + 2] = x2[i];
+        }
+        let x = Matrix::new(n, p + 1, x_data);
+
+        let options = ElasticNetOptions {
+            lambda: 0.1,
+            alpha: 0.5,
+            intercept: true,
+            standardize: true,
+            ..Default::default()
+        };
+
+        let result = elastic_net_fit(&x, &y, &options);
+        assert!(result.is_ok());
+
+        let fit = result.unwrap();
+        assert_eq!(fit.coefficients.len(), 2); // Two predictors
+    }
+}

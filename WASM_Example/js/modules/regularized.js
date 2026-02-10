@@ -259,7 +259,9 @@ export function formatMethodName(method) {
         'ols': 'OLS',
         'ridge': 'Ridge',
         'lasso': 'Lasso',
-        'elastic_net': 'Elastic Net'
+        'elastic_net': 'Elastic Net',
+        'wls': 'WLS',
+        'loess': 'LOESS'
     };
     return names[method] || method.toUpperCase();
 }
@@ -277,6 +279,10 @@ export function getMethodParameters(result) {
             return { Lambda: result.lambda, 'Non-zero': result.nNonzero };
         case 'elastic_net':
             return { Lambda: result.lambda, Alpha: result.alpha, 'Non-zero': result.nNonzero };
+        case 'wls':
+            return { Weights: result.weights };
+        case 'loess':
+            return { Span: result.span, Degree: result.degree };
         default:
             return {};
     }

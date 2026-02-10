@@ -2,6 +2,27 @@
 
 use crate::{error::Error, linalg::Matrix};
 
+/// Result from weighted least squares decomposition
+///
+/// Contains coefficients plus decomposition information needed for
+/// computing covariance matrices (standard errors) without re-running
+/// the decomposition.
+pub struct WlsDecomposition {
+    /// Fitted coefficients (in original scale, after equilibration compensation)
+    pub coefficients: Vec<f64>,
+
+    /// Column equilibration scales used during decomposition
+    pub column_scales: Vec<f64>,
+
+    /// Inverse of R matrix from QR decomposition (if QR was used)
+    /// This is in the equilibrated scale
+    pub r_inv: Option<Matrix>,
+
+    /// SVD components (if SVD fallback was used)
+    /// Contains (V, singular_values) where V is the right singular vectors matrix
+    pub svd_components: Option<(Matrix, Vec<f64>)>,
+}
+
 /// Solve weighted least squares: minimize ||W^(1/2) * (y - X*b)||²
 ///
 /// Transforms the problem by multiplying X and y by sqrt(weights), then
@@ -49,6 +70,30 @@ use crate::{error::Error, linalg::Matrix};
 /// # Ok::<(), linreg_core::Error>(())
 /// ```
 pub fn weighted_least_squares(x: &Matrix, y: &[f64], weights: &[f64]) -> Result<Vec<f64>, Error> {
+    Ok(weighted_least_squares_with_decomposition(x, y, weights)?.coefficients)
+}
+
+/// Solve WLS and return decomposition info for covariance computation
+///
+/// This function performs the same computation as `weighted_least_squares()`
+/// but additionally returns the decomposition information needed to compute
+/// the covariance matrix without re-running the decomposition.
+///
+/// # Arguments
+///
+/// * `x` - Design matrix (n × p), should include intercept column if needed
+/// * `y` - Response vector (n)
+/// * `weights` - Weight vector (n), all values must be non-negative
+///
+/// # Returns
+///
+/// `WlsDecomposition` containing coefficients, column scales, and either
+/// QR or SVD decomposition info for covariance computation.
+pub fn weighted_least_squares_with_decomposition(
+    x: &Matrix,
+    y: &[f64],
+    weights: &[f64],
+) -> Result<WlsDecomposition, Error> {
     let n = x.rows;
     let p = x.cols;
 
@@ -88,28 +133,38 @@ pub fn weighted_least_squares(x: &Matrix, y: &[f64], weights: &[f64]) -> Result<
     let column_scales = equilibrate_columns(&mut x_weighted);
 
     // First try QR decomposition
-    let qr_result = try_qr_solve(&x_weighted, &y_weighted, p);
+    let qr_result = try_qr_solve_with_r_inv(&x_weighted, &y_weighted, p);
 
     match qr_result {
-        Ok(coeffs) => {
+        Ok((coeffs, r_inv)) => {
             // Compensate for column equilibration
             let mut final_coeffs = Vec::with_capacity(p);
             for j in 0..p {
                 final_coeffs.push(coeffs[j] / column_scales[j]);
             }
-            Ok(final_coeffs)
+            Ok(WlsDecomposition {
+                coefficients: final_coeffs,
+                column_scales,
+                r_inv: Some(r_inv),
+                svd_components: None,
+            })
         }
         Err(Error::SingularMatrix) => {
             // Fall back to SVD with pseudoinverse for rank-deficient cases
-            let svd_result = try_svd_solve(&x_weighted, &y_weighted, p);
+            let svd_result = try_svd_solve_with_components(&x_weighted, &y_weighted, p);
             match svd_result {
-                Ok(coeffs) => {
+                Ok((coeffs, v, singular_values)) => {
                     // Compensate for column equilibration
                     let mut final_coeffs = Vec::with_capacity(p);
                     for j in 0..p {
                         final_coeffs.push(coeffs[j] / column_scales[j]);
                     }
-                    Ok(final_coeffs)
+                    Ok(WlsDecomposition {
+                        coefficients: final_coeffs,
+                        column_scales,
+                        r_inv: None,
+                        svd_components: Some((v, singular_values)),
+                    })
                 }
                 Err(e) => Err(e),
             }
@@ -118,10 +173,14 @@ pub fn weighted_least_squares(x: &Matrix, y: &[f64], weights: &[f64]) -> Result<
     }
 }
 
-/// Attempt to solve using QR decomposition.
+/// Attempt to solve using QR decomposition, returning both coefficients and R^-1.
 ///
 /// Returns `Error::SingularMatrix` if the matrix is too ill-conditioned.
-fn try_qr_solve(x_weighted: &Matrix, y_weighted: &[f64], p: usize) -> Result<Vec<f64>, Error> {
+fn try_qr_solve_with_r_inv(
+    x_weighted: &Matrix,
+    y_weighted: &[f64],
+    p: usize,
+) -> Result<(Vec<f64>, Matrix), Error> {
     // QR Decomposition on weighted matrix
     let (q, r) = x_weighted.qr();
 
@@ -156,10 +215,10 @@ fn try_qr_solve(x_weighted: &Matrix, y_weighted: &[f64], p: usize) -> Result<Vec
         coeffs.push(result.get(j, 0));
     }
 
-    Ok(coeffs)
+    Ok((coeffs, r_inv))
 }
 
-/// Attempt to solve using SVD with pseudoinverse for rank-deficient matrices.
+/// Attempt to solve using SVD with pseudoinverse, returning coefficients, V, and singular values.
 ///
 /// Implementation:
 /// - Compute SVD of the design matrix
@@ -167,14 +226,22 @@ fn try_qr_solve(x_weighted: &Matrix, y_weighted: &[f64], p: usize) -> Result<Vec
 /// - For sigma\[j\] > tol: coefficient = (U^T * y)\[j\] / sigma\[j\]
 /// - For sigma\[j\] <= tol: coefficient = 0
 /// - Final solution: x = V * coefficients
-fn try_svd_solve(x_weighted: &Matrix, y_weighted: &[f64], _p: usize) -> Result<Vec<f64>, Error> {
+fn try_svd_solve_with_components(
+    x_weighted: &Matrix,
+    y_weighted: &[f64],
+    _p: usize,
+) -> Result<(Vec<f64>, Matrix, Vec<f64>), Error> {
     // Compute SVD
     let svd_result = x_weighted.svd();
 
     // Use the SVD solver which handles rank deficiency
     let coeffs = x_weighted.svd_solve(&svd_result, y_weighted);
 
-    Ok(coeffs)
+    // Transpose V^T to get V for covariance computation
+    let v = svd_result.v_t.transpose();
+    let singular_values = svd_result.sigma;
+
+    Ok((coeffs, v, singular_values))
 }
 
 /// Equilibrate columns of a matrix
@@ -189,7 +256,7 @@ fn try_svd_solve(x_weighted: &Matrix, y_weighted: &[f64], _p: usize) -> Result<V
 /// # Returns
 ///
 /// Vector of scaling factors for each column
-fn equilibrate_columns(x: &mut Matrix) -> Vec<f64> {
+pub fn equilibrate_columns(x: &mut Matrix) -> Vec<f64> {
     let n = x.rows;
     let p = x.cols;
 
@@ -488,5 +555,30 @@ mod tests {
             let pred = coeffs[0] + coeffs[1] * (i + 1) as f64 + coeffs[2] * 5.0;
             assert!((pred - y[i]).abs() < 1.0);
         }
+    }
+
+    #[test]
+    fn test_weighted_least_squares_unchanged_behavior() {
+        // Verify that weighted_least_squares and weighted_least_squares_with_decomposition
+        // produce identical coefficients
+        let x = Matrix::new(5, 2, vec![1.0,1.0, 1.0,2.0, 1.0,3.0, 1.0,4.0, 1.0,5.0]);
+        let y = vec![2.1, 3.9, 6.1, 7.9, 10.0];
+        let w = vec![1.0, 2.0, 1.0, 2.0, 1.0];
+
+        let coeffs = weighted_least_squares(&x, &y, &w).unwrap();
+        let decomp = weighted_least_squares_with_decomposition(&x, &y, &w).unwrap();
+
+        assert_eq!(coeffs.len(), decomp.coefficients.len());
+        for i in 0..coeffs.len() {
+            assert!(
+                (coeffs[i] - decomp.coefficients[i]).abs() < 1e-15,
+                "Coefficient {} differs: {} vs {}",
+                i, coeffs[i], decomp.coefficients[i]
+            );
+        }
+
+        // QR path should have been used
+        assert!(decomp.r_inv.is_some());
+        assert!(decomp.svd_components.is_none());
     }
 }
