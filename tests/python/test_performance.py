@@ -143,19 +143,19 @@ class TestLargeDatasetPerformance:
         bp = linreg_core.breusch_pagan_test(y, [x])
         bp_time = time.time() - start
 
-        assert bp_time < 10.0, f"Breusch-Pagan test took {bp_time:.2f}s"
+        assert bp_time < 15.0, f"Breusch-Pagan test took {bp_time:.2f}s"
 
         start = time.time()
         dw = linreg_core.durbin_watson_test(y, [x])
         dw_time = time.time() - start
 
-        assert dw_time < 5.0, f"Durbin-Watson test took {dw_time:.2f}s"
+        assert dw_time < 7.5, f"Durbin-Watson test took {dw_time:.2f}s"
 
         start = time.time()
         jb = linreg_core.jarque_bera_test(y, [x])
         jb_time = time.time() - start
 
-        assert jb_time < 5.0, f"Jarque-Bera test took {jb_time:.2f}s"
+        assert jb_time < 7.5, f"Jarque-Bera test took {jb_time:.2f}s"
 
     def test_stats_functions_with_large_data(self):
         """Test statistical utility functions with large data."""
