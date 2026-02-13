@@ -52,8 +52,11 @@ fn temp_file_path(name: &str) -> String {
     // Use a simple temp file approach without tempfile crate
     let temp_dir = std::env::temp_dir();
     let mut path = PathBuf::from(temp_dir);
-    // Use a unique name based on the test name and a random component
-    let random_suffix: u64 = unsafe { std::arch::x86_64::_rdtsc() };
+    // Use a unique name based on the test name and current time
+    let random_suffix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     path.push(format!("{}_{}.json", name, random_suffix));
     path.to_str().unwrap().to_string()
 }
