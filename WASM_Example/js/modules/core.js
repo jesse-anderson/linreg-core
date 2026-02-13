@@ -37,7 +37,11 @@ import init, {
     loess_predict,
     serialize_model,
     deserialize_model,
-    get_model_metadata
+    get_model_metadata,
+    kfold_cv_ols,
+    kfold_cv_ridge,
+    kfold_cv_lasso,
+    kfold_cv_elastic_net
 } from '../linreg_core.js';
 
 import { STATE, showToast } from './utils.js';
@@ -251,6 +255,40 @@ export const WasmRegression = {
         const origXJson = JSON.stringify(originalX);
         const origYJson = JSON.stringify(originalY);
         return loess_predict(newXJson, origXJson, origYJson, span, degree, robustIterations, surface);
+    },
+
+    // K-Fold Cross-Validation
+    kfoldCvOls: (y, xVars, names, nFolds, shuffle, seed) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const namesJson = JSON.stringify(names);
+        const shuffleJson = JSON.stringify(shuffle);
+        const seedJson = seed === null ? 'null' : JSON.stringify(seed);
+        return kfold_cv_ols(yJson, xJson, namesJson, nFolds, shuffleJson, seedJson);
+    },
+
+    kfoldCvRidge: (y, xVars, lambda, standardize, nFolds, shuffle, seed) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const shuffleJson = JSON.stringify(shuffle);
+        const seedJson = seed === null ? 'null' : JSON.stringify(seed);
+        return kfold_cv_ridge(yJson, xJson, lambda, standardize, nFolds, shuffleJson, seedJson);
+    },
+
+    kfoldCvLasso: (y, xVars, lambda, standardize, nFolds, shuffle, seed) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const shuffleJson = JSON.stringify(shuffle);
+        const seedJson = seed === null ? 'null' : JSON.stringify(seed);
+        return kfold_cv_lasso(yJson, xJson, lambda, standardize, nFolds, shuffleJson, seedJson);
+    },
+
+    kfoldCvElasticNet: (y, xVars, lambda, alpha, standardize, nFolds, shuffle, seed) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const shuffleJson = JSON.stringify(shuffle);
+        const seedJson = seed === null ? 'null' : JSON.stringify(seed);
+        return kfold_cv_elastic_net(yJson, xJson, lambda, alpha, standardize, nFolds, shuffleJson, seedJson);
     }
 };
 

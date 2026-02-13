@@ -5,7 +5,7 @@
 import { STATE, updateState, escapeHtml, formatPValue, showToast, getCurrentTheme } from './utils.js';
 import { updateCharts } from './charts.js';
 import { runDiagnostics } from './diagnostics.js';
-import { calculateRegression, calculateRidgeRegression, calculateLassoRegression, calculateElasticNetRegression, calculateWlsRegression, calculateLoessRegression } from './core.js';
+import { calculateRegression, calculateRidgeRegression, calculateLassoRegression, calculateElasticNetRegression, calculateWlsRegression, calculateLoessRegression, WasmRegression } from './core.js';
 import { formatMethodName } from './regularized.js';
 import { getExampleDescription } from './data.js';
 
@@ -110,6 +110,9 @@ export function updateColumnSelectors() {
 
     const methodPanel = document.getElementById('regressionMethodPanel');
     if (methodPanel) methodPanel.style.display = 'block';
+
+    const cvPanel = document.getElementById('cvPanel');
+    if (cvPanel) cvPanel.style.display = 'block';
 
     // Refresh method-specific panels (e.g., WLS weights selector) with current data columns
     updateWlsWeightsSelector();
@@ -974,10 +977,313 @@ export async function runRegression() {
         updateResultsDisplay(results);
         showToast(`Regression complete (${formatMethodName(results.method)})`, 'success');
 
+        // Run cross-validation if enabled (checkbox is disabled for unsupported methods)
+        const cvEnabled = document.getElementById('cvEnableCheck')?.checked;
+        if (cvEnabled) {
+            try {
+                const nFolds = parseInt(document.getElementById('cvFoldsSelect')?.value) || 5;
+                const shuffle = document.getElementById('cvShuffleCheck')?.checked ?? true;
+                const seedVal = document.getElementById('cvSeedInput')?.value;
+                const seed = seedVal ? parseInt(seedVal) : null;
+
+                const cvResult = runCrossValidation(method, nFolds, shuffle, seed);
+                updateState({ cvResults: cvResult });
+                updateCVDisplay(cvResult);
+                showToast(`Cross-validation complete (${nFolds}-fold)`, 'success');
+            } catch (cvError) {
+                console.error('Cross-validation error:', cvError);
+                showToast(`CV error: ${cvError.message}`, 'error');
+            }
+        } else {
+            updateState({ cvResults: null });
+            resetCVDisplay();
+        }
+
     } catch (error) {
         console.error('Regression error:', error);
         showToast(error.message, 'error');
     }
+}
+
+// ============================================================================
+// CROSS-VALIDATION
+// ============================================================================
+
+/**
+ * Run cross-validation for the current regression method
+ * @param {string} method - Regression method
+ * @param {number} nFolds - Number of folds
+ * @param {boolean} shuffle - Whether to shuffle data
+ * @param {number|null} seed - Random seed or null
+ * @returns {Object} Parsed CV results
+ */
+function runCrossValidation(method, nFolds, shuffle, seed) {
+    const yData = STATE.rawData.map(row => row[STATE.yVariable]);
+    const xData = STATE.xVariables.map(v => STATE.rawData.map(row => row[v]));
+    const names = ['Intercept', ...STATE.xVariables];
+
+    let resultJson;
+    switch (method) {
+        case 'ridge': {
+            const lambda = parseFloat(document.getElementById('lambdaSlider')?.value) || 1.0;
+            const standardize = document.getElementById('standardizeCheck')?.checked ?? true;
+            resultJson = WasmRegression.kfoldCvRidge(yData, xData, lambda, standardize, nFolds, shuffle, seed);
+            break;
+        }
+        case 'lasso': {
+            const lambda = parseFloat(document.getElementById('lambdaSlider')?.value) || 1.0;
+            const standardize = document.getElementById('standardizeCheck')?.checked ?? true;
+            resultJson = WasmRegression.kfoldCvLasso(yData, xData, lambda, standardize, nFolds, shuffle, seed);
+            break;
+        }
+        case 'elastic_net': {
+            const lambda = parseFloat(document.getElementById('enLambdaSlider')?.value) || 1.0;
+            const alpha = parseFloat(document.getElementById('enAlphaSlider')?.value) || 0.5;
+            const standardize = document.getElementById('enStandardizeCheck')?.checked ?? true;
+            resultJson = WasmRegression.kfoldCvElasticNet(yData, xData, lambda, alpha, standardize, nFolds, shuffle, seed);
+            break;
+        }
+        default:
+            resultJson = WasmRegression.kfoldCvOls(yData, xData, names, nFolds, shuffle, seed);
+    }
+
+    const result = JSON.parse(resultJson);
+    if (result.error) {
+        throw new Error(result.error);
+    }
+
+    console.log(`[linreg-core] CV complete: ${nFolds}-fold, mean R²=${result.mean_r_squared?.toFixed(4)}, mean RMSE=${result.mean_rmse?.toFixed(4)}`);
+    return result;
+}
+
+/**
+ * Reset CV display to placeholder state
+ */
+function resetCVDisplay() {
+    const container = document.getElementById('cvResultsContainer');
+    if (container) {
+        container.innerHTML = `
+            <div class="diagnostics-empty">
+                <p style="color: var(--text-muted); font-size: 0.875rem;">Enable cross-validation and run regression to see results</p>
+            </div>
+        `;
+    }
+
+    // Collapse the section
+    const toggle = document.getElementById('cvResultsToggle');
+    const content = document.getElementById('cvResultsContent');
+    if (toggle && !toggle.classList.contains('collapsed')) {
+        toggle.classList.add('collapsed');
+        toggle.setAttribute('aria-expanded', 'false');
+    }
+    if (content && !content.classList.contains('collapsed')) {
+        content.classList.add('collapsed');
+    }
+
+    // Destroy CV chart
+    if (STATE.charts.cv && typeof STATE.charts.cv.destroy === 'function') {
+        STATE.charts.cv.destroy();
+        STATE.charts.cv = null;
+    }
+}
+
+/**
+ * Render cross-validation results
+ * @param {Object} cv - CV result object from WASM
+ */
+function updateCVDisplay(cv) {
+    const container = document.getElementById('cvResultsContainer');
+    if (!container) return;
+
+    const folds = cv.fold_results || [];
+    const nFolds = cv.n_folds || folds.length;
+
+    // Format helper
+    const fmt = (v, d = 4) => (v != null && !isNaN(v)) ? v.toFixed(d) : 'N/A';
+    const fmtPm = (mean, std, d = 4) => `${fmt(mean, d)} &plusmn; ${fmt(std, d)}`;
+
+    // Build summary stats cards
+    let html = `
+        <div class="stats-grid" style="margin-bottom: 16px;">
+            <div class="stat-card">
+                <div class="value" style="font-size: 1rem;">${fmtPm(cv.mean_rmse, cv.std_rmse)}</div>
+                <div class="label">Mean RMSE</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size: 1rem;">${fmtPm(cv.mean_r_squared, cv.std_r_squared)}</div>
+                <div class="label">Mean R²</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size: 1rem;">${fmtPm(cv.mean_mae, cv.std_mae)}</div>
+                <div class="label">Mean MAE</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size: 1rem;">${fmt(cv.mean_mse)}</div>
+                <div class="label">Mean MSE</div>
+            </div>
+        </div>
+    `;
+
+    // Fold results table
+    html += `
+        <div style="margin-bottom: 16px;">
+            <div style="font-weight: 600; font-size: 0.8125rem; margin-bottom: 8px;">Fold Results</div>
+            <div class="table-container" style="max-height: 250px;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Fold</th>
+                            <th>Train Size</th>
+                            <th>Test Size</th>
+                            <th>Test RMSE</th>
+                            <th>Test R²</th>
+                            <th>Train R²</th>
+                            <th>Overfit Gap</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+
+    folds.forEach((fold, i) => {
+        const gap = (fold.train_r_squared != null && fold.r_squared != null)
+            ? (fold.train_r_squared - fold.r_squared)
+            : null;
+        const gapClass = (gap != null && gap > 0.1) ? 'color: var(--accent-danger);' : '';
+
+        html += `
+            <tr>
+                <td>${fold.fold_index != null ? fold.fold_index : i + 1}</td>
+                <td>${fold.train_size}</td>
+                <td>${fold.test_size}</td>
+                <td>${fmt(fold.rmse)}</td>
+                <td>${fmt(fold.r_squared)}</td>
+                <td>${fmt(fold.train_r_squared)}</td>
+                <td style="${gapClass}">${gap != null ? fmt(gap) : 'N/A'}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    // Chart canvas
+    html += `
+        <div style="margin-bottom: 8px;">
+            <div style="font-weight: 600; font-size: 0.8125rem; margin-bottom: 8px;">Test RMSE by Fold</div>
+            <div style="position: relative; height: 200px;">
+                <canvas id="cvChart"></canvas>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    // Auto-expand the section
+    const toggle = document.getElementById('cvResultsToggle');
+    const content = document.getElementById('cvResultsContent');
+    if (toggle && toggle.classList.contains('collapsed')) {
+        toggle.classList.remove('collapsed');
+        toggle.setAttribute('aria-expanded', 'true');
+    }
+    if (content && content.classList.contains('collapsed')) {
+        content.classList.remove('collapsed');
+    }
+
+    // Create chart
+    createCVChart(folds, cv.mean_rmse);
+}
+
+/**
+ * Create the CV RMSE bar chart
+ * @param {Array} folds - Array of fold results
+ * @param {number} meanRmse - Mean RMSE across folds
+ */
+function createCVChart(folds, meanRmse) {
+    // Destroy previous chart
+    if (STATE.charts.cv && typeof STATE.charts.cv.destroy === 'function') {
+        STATE.charts.cv.destroy();
+    }
+
+    const canvas = document.getElementById('cvChart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const theme = getCurrentTheme();
+    const isDark = theme === 'dark';
+
+    const labels = folds.map((f, i) => `Fold ${f.fold_index != null ? f.fold_index : i + 1}`);
+    const rmseValues = folds.map(f => f.rmse);
+
+    STATE.charts.cv = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Test RMSE',
+                    data: rmseValues,
+                    backgroundColor: isDark ? 'rgba(96, 165, 250, 0.6)' : 'rgba(59, 130, 246, 0.6)',
+                    borderColor: isDark ? '#60a5fa' : '#3b82f6',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                annotation: undefined
+            },
+            scales: {
+                x: {
+                    ticks: { color: isDark ? '#e5e7eb' : '#374151', font: { size: 11 } },
+                    grid: { display: false }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: isDark ? '#e5e7eb' : '#374151', font: { size: 11 } },
+                    grid: { color: isDark ? '#374151' : '#e5e7eb' },
+                    title: {
+                        display: true,
+                        text: 'RMSE',
+                        color: isDark ? '#e5e7eb' : '#374151',
+                        font: { size: 12 }
+                    }
+                }
+            }
+        },
+        plugins: [{
+            id: 'meanLine',
+            afterDraw(chart) {
+                if (meanRmse == null || isNaN(meanRmse)) return;
+                const yAxis = chart.scales.y;
+                const yPixel = yAxis.getPixelForValue(meanRmse);
+                const ctx = chart.ctx;
+                ctx.save();
+                ctx.strokeStyle = isDark ? '#f87171' : '#ef4444';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 3]);
+                ctx.beginPath();
+                ctx.moveTo(chart.chartArea.left, yPixel);
+                ctx.lineTo(chart.chartArea.right, yPixel);
+                ctx.stroke();
+
+                // Label
+                ctx.fillStyle = isDark ? '#f87171' : '#ef4444';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(`Mean: ${meanRmse.toFixed(4)}`, chart.chartArea.right - 4, yPixel - 6);
+                ctx.restore();
+            }
+        }]
+    });
 }
 
 /**
@@ -1997,7 +2303,19 @@ export function initUI() {
     setupCollapsible('disclaimerToggle', 'disclaimerContent');
     setupCollapsible('helpToggle', 'helpContent');
     setupCollapsible('residualsToggle', 'residualsContent');
+    setupCollapsible('cvResultsToggle', 'cvResultsContent');
     setupCollapsible('licensesToggle', 'licensesContent');
+
+    // Cross-validation enable checkbox toggle
+    const cvEnableCheck = document.getElementById('cvEnableCheck');
+    if (cvEnableCheck) {
+        cvEnableCheck.addEventListener('change', () => {
+            const cvOptions = document.getElementById('cvOptions');
+            if (cvOptions) {
+                cvOptions.style.display = cvEnableCheck.checked ? 'block' : 'none';
+            }
+        });
+    }
 
     // Theme toggle buttons
     const themeButtons = document.querySelectorAll('[data-theme-toggle]');
@@ -2250,6 +2568,27 @@ function updateRegressionMethodUI() {
             // Populate weights selector
             updateWlsWeightsSelector();
             break;
+    }
+
+    // Disable CV checkbox for methods without CV support
+    const cvSupported = !['wls', 'loess'].includes(method);
+    const cvEnableCheck = document.getElementById('cvEnableCheck');
+    const cvOptions = document.getElementById('cvOptions');
+    if (cvEnableCheck) {
+        cvEnableCheck.disabled = !cvSupported;
+        if (!cvSupported) {
+            cvEnableCheck.checked = false;
+            if (cvOptions) cvOptions.style.display = 'none';
+        }
+    }
+    // Update the label to indicate why it's disabled
+    const cvLabel = cvEnableCheck?.closest('label');
+    const cvLabelSpan = cvLabel?.querySelector('span');
+    if (cvLabelSpan) {
+        cvLabelSpan.textContent = cvSupported
+            ? 'Enable Cross-Validation'
+            : 'Cross-Validation (not available for this method)';
+        cvLabelSpan.style.opacity = cvSupported ? '1' : '0.5';
     }
 }
 

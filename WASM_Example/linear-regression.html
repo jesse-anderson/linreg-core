@@ -296,6 +296,39 @@ X1,X2,Y
                     </div>
                 </div>
 
+                <!-- Cross-Validation Options -->
+                <div id="cvPanel" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                    <div class="selector-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="cvEnableCheck">
+                            <span style="font-weight: 600;">Enable Cross-Validation</span>
+                        </label>
+                    </div>
+                    <div id="cvOptions" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px;">
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label for="cvFoldsSelect">K (Folds)</label>
+                            <select id="cvFoldsSelect" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
+                                <option value="3">3 folds</option>
+                                <option value="5" selected>5 folds (recommended)</option>
+                                <option value="10">10 folds</option>
+                            </select>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="cvShuffleCheck" checked>
+                                <span>Shuffle data before splitting</span>
+                            </label>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 8px;">
+                            <label for="cvSeedInput">Random Seed (optional)</label>
+                            <input type="number" id="cvSeedInput" placeholder="Leave empty for random" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
+                        </div>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
+                            Cross-validation estimates how well the model generalizes to unseen data by training and testing on different subsets.
+                        </p>
+                    </div>
+                </div>
+
                 <button class="tool-btn primary" id="runRegressionBtn" style="width: 100%; margin-top: 16px; padding: 12px; font-size: 0.9375rem; display: none;" aria-label="Run linear regression analysis">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; vertical-align: text-bottom;">
                         <polygon points="5 3 19 12 5 21 5 3"/>
@@ -472,6 +505,30 @@ X1,X2,Y
                         <div id="diagnosticsResults">
                             <div class="diagnostics-empty">
                                 <p style="color: var(--text-muted); font-size: 0.875rem;">Run regression to see diagnostic test results</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cross-Validation Results -->
+                    <div style="margin-top: 24px;">
+                        <div class="collapsible-header collapsed" id="cvResultsToggle" aria-expanded="false" role="button" tabindex="0">
+                            <span class="title">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: text-bottom;">
+                                    <path d="M4 4h16v16H4z"/>
+                                    <path d="M4 12h16"/>
+                                    <path d="M12 4v16"/>
+                                </svg>
+                                Cross-Validation Results
+                            </span>
+                            <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </div>
+                        <div class="collapsible-content collapsed" id="cvResultsContent">
+                            <div id="cvResultsContainer">
+                                <div class="diagnostics-empty">
+                                    <p style="color: var(--text-muted); font-size: 0.875rem;">Enable cross-validation and run regression to see results</p>
+                                </div>
                             </div>
                         </div>
                     </div>
