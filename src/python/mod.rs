@@ -43,6 +43,7 @@ include!("diagnostics_impl.rs");
 include!("stats_impl.rs");
 include!("csv_impl.rs");
 include!("wls_impl.rs");
+include!("serialization_impl.rs");
 
 // ============================================================================
 // Python Module Definition
@@ -125,6 +126,10 @@ fn linreg_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // CSV Parsing
     m.add_function(wrap_pyfunction!(parse_csv, m)?)?;
+
+    // Model Serialization
+    m.add_function(wrap_pyfunction!(save_model, m)?)?;
+    m.add_function(wrap_pyfunction!(load_model, m)?)?;
 
     Ok(())
 }

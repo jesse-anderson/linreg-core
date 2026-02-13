@@ -669,3 +669,55 @@ def stats_correlation(x: FloatArray, y: FloatArray) -> float: ...
 # ============================================================================
 
 def parse_csv(content: str) -> CSVResult: ...
+
+
+# ============================================================================
+# Model Serialization Functions
+# ============================================================================
+
+def save_model(
+    result: Union[OLSResult, RidgeResult, LassoResult, ElasticNetResult, LoessResult, WlsResult],
+    path: str,
+    name: Optional[str] = None
+) -> dict:
+    """Save a trained model to a file.
+
+    Args:
+        result: A regression result object (OLSResult, RidgeResult, etc.)
+        path: File path to save the model (will be created/overwritten)
+        name: Optional custom name for the model
+
+    Returns:
+        A dictionary with metadata about the saved model:
+        - model_type: str - Type of model that was saved
+        - path: str - Path where the model was saved
+        - format_version: str - Serialization format version
+        - library_version: str - linreg-core version used
+        - name: str - Optional model name (if provided)
+
+    Example:
+        >>> result = ols_regression(y, [x1, x2], ["Intercept", "X1", "X2"])
+        >>> metadata = save_model(result, "my_model.json", name="My Housing Model")
+        >>> print(metadata["model_type"])
+        OLS
+    """
+
+def load_model(path: str) -> Union[OLSResult, RidgeResult, LassoResult, ElasticNetResult, LoessResult, WlsResult]:
+    """Load a trained model from a file.
+
+    Args:
+        path: File path to load the model from
+
+    Returns:
+        The appropriate result object (OLSResult, RidgeResult, etc.)
+        based on the model type stored in the file
+
+    Raises:
+        IOError: If the file cannot be read
+        ValueError: If the file contains invalid data or an unsupported model type
+
+    Example:
+        >>> result = load_model("my_model.json")
+        >>> print(result.coefficients)
+        [2.5, 1.3]
+    """

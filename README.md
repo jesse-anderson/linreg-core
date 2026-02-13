@@ -7,6 +7,7 @@
 [![npm](https://img.shields.io/npm/v/linreg-core?color=red)](https://www.npmjs.com/package/linreg-core)
 [![PyPI](https://img.shields.io/pypi/v/linreg-core)](https://pypi.org/project/linreg-core/)
 [![docs.rs](https://img.shields.io/badge/docs.rs-linreg__core-green)](https://docs.rs/linreg-core)
+[![Live Demo](https://img.shields.io/badge/demo-online-brightgreen)](https://jesse-anderson.net/linreg-core/)
 
 
 A lightweight, self-contained linear regression library written in Rust. Compiles to WebAssembly for browser use, Python bindings via PyO3, or runs as a native Rust crate.
@@ -38,6 +39,7 @@ A lightweight, self-contained linear regression library written in Rust. Compile
 - **Elastic Net:** Combined L1 + L2 regularization for variable selection with multicollinearity handling, active set convergence, model selection criteria
 - **LOESS:** Locally estimated scatterplot smoothing for non-parametric curve fitting with configurable span, polynomial degree, and robust fitting
 - **WLS (Weighted Least Squares):** Regression with observation weights for heteroscedastic data, includes confidence intervals
+- **K-Fold Cross Validation:** Model evaluation and hyperparameter tuning for all regression types (OLS, Ridge, Lasso, Elastic Net) with customizable folds, shuffling, and seeding
 - **Lambda Path Generation:** Create regularization paths for cross-validation
 
 ### Model Statistics
@@ -336,6 +338,62 @@ let options = LoessOptions {
 let result = loess_fit(&y, &[x], &options)?;
 ```
 
+### K-Fold Cross Validation (Rust)
+
+Cross-validation is used for model evaluation and hyperparameter tuning. The library supports K-Fold CV for all regression types:
+
+```rust,no_run
+use linreg_core::cross_validation::{kfold_cv_ols, kfold_cv_ridge, kfold_cv_lasso, kfold_cv_elastic_net, KFoldOptions};
+
+fn main() -> Result<(), linreg_core::Error> {
+    let y = vec![2.5, 3.7, 4.2, 5.1, 6.3, 7.0, 7.5, 8.1];
+    let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+    let x2 = vec![2.0, 4.0, 5.0, 4.0, 3.0, 4.5, 5.5, 6.0];
+    let names = vec!["Intercept".to_string(), "X1".to_string(), "X2".to_string()];
+
+    // Configure CV options
+    let options = KFoldOptions {
+        n_folds: 5,
+        shuffle: true,
+        seed: Some(42),  // For reproducibility
+    };
+
+    // OLS cross-validation
+    let ols_cv = kfold_cv_ols(&y, &[x1.clone(), x2.clone()], &names, &options)?;
+    println!("OLS CV RMSE: {:.4} (±{:.4})", ols_cv.mean_rmse, ols_cv.std_rmse);
+    println!("OLS CV R²: {:.4} (±{:.4})", ols_cv.mean_r_squared, ols_cv.std_r_squared);
+
+    // Ridge cross-validation (for lambda selection)
+    let lambda = 1.0;
+    let ridge_cv = kfold_cv_ridge(&[x1.clone(), x2.clone()], &y, lambda, true, &options)?;
+    println!("Ridge CV RMSE: {:.4}", ridge_cv.mean_rmse);
+
+    // Lasso cross-validation
+    let lasso_cv = kfold_cv_lasso(&[x1.clone(), x2.clone()], &y, 0.1, true, &options)?;
+    println!("Lasso CV RMSE: {:.4}", lasso_cv.mean_rmse);
+
+    // Elastic Net cross-validation
+    let enet_cv = kfold_cv_elastic_net(&[x1, x2], &y, 0.1, 0.5, true, &options)?;
+    println!("Elastic Net CV RMSE: {:.4}", enet_cv.mean_rmse);
+
+    // Access per-fold results
+    for fold in &ols_cv.fold_results {
+        println!("Fold {}: train={}, test={}, R²={:.4}",
+            fold.fold_index, fold.train_size, fold.test_size, fold.r_squared);
+    }
+
+    Ok(())
+}
+```
+
+**CV Result fields:**
+- `mean_rmse`, `std_rmse` - Mean and std of RMSE across folds
+- `mean_mae`, `std_mae` - Mean and std of MAE across folds
+- `mean_r_squared`, `std_r_squared` - Mean and std of R² across folds
+- `mean_train_r_squared` - Mean training R² (for overfitting detection)
+- `fold_results` - Per-fold metrics (train/test sizes, MSE, RMSE, MAE, R²)
+- `fold_coefficients` - Coefficients from each fold (for stability analysis)
+
 ### Lambda Path Generation (Rust)
 
 ```rust,no_run
@@ -359,9 +417,33 @@ for &lambda in lambdas.iter() {
 }
 ```
 
+### Model Save/Load (Rust)
+
+All trained models can be saved to disk and loaded back later:
+
+```rust,no_run
+use linreg_core::{ModelSave, ModelLoad};
+
+// Train a model
+let result = ols_regression(&y, &[x1], &names)?;
+
+// Save to file
+result.save("my_model.json")?;
+
+// Or with a custom name
+result.save_with_name("my_model.json", Some("My Housing Model".to_string()))?;
+
+// Load back
+let loaded = linreg_core::core::RegressionOutput::load("my_model.json")?;
+```
+
+The same `save()` and `load()` methods work for all model types: `RegressionOutput`, `RidgeFit`, `LassoFit`, `ElasticNetFit`, `WlsFit`, and `LoessFit`.
+
 ---
 
 ## WebAssembly Usage
+
+**[Live Demo →](https://jesse-anderson.net/linreg-core/)**
 
 Build with wasm-pack:
 
@@ -502,6 +584,64 @@ const result = JSON.parse(loess_fit(
 console.log("Fitted values:", result.fitted_values);
 console.log("Residuals:", result.residuals);
 ```
+
+### K-Fold Cross Validation (WASM)
+
+```javascript
+// OLS cross-validation
+const ols_cv = JSON.parse(kfold_cv_ols(
+    JSON.stringify(y),
+    JSON.stringify(x),
+    JSON.stringify(["Intercept", "X1", "X2"]),
+    5,         // n_folds
+    "true",    // shuffle (JSON boolean)
+    "42"       // seed (JSON string number, or "null" for no seed)
+));
+
+console.log("OLS CV RMSE:", ols_cv.mean_rmse, "±", ols_cv.std_rmse);
+console.log("OLS CV R²:", ols_cv.mean_r_squared, "±", ols_cv.std_r_squared);
+
+// Ridge cross-validation
+const ridge_cv = JSON.parse(kfold_cv_ridge(
+    JSON.stringify(y),
+    JSON.stringify(x),
+    1.0,       // lambda
+    true,      // standardize
+    5,         // n_folds
+    "true",    // shuffle
+    "42"       // seed
+));
+
+// Lasso cross-validation
+const lasso_cv = JSON.parse(kfold_cv_lasso(
+    JSON.stringify(y),
+    JSON.stringify(x),
+    0.1,       // lambda
+    true,      // standardize
+    5,         // n_folds
+    "true",    // shuffle
+    "42"       // seed
+));
+
+// Elastic Net cross-validation
+const enet_cv = JSON.parse(kfold_cv_elastic_net(
+    JSON.stringify(y),
+    JSON.stringify(x),
+    0.1,       // lambda
+    0.5,       // alpha (0 = Ridge, 1 = Lasso)
+    true,      // standardize
+    5,         // n_folds
+    "true",    // shuffle
+    "42"       // seed
+));
+
+// Access per-fold results
+ols_cv.fold_results.forEach(fold => {
+    console.log(`Fold ${fold.fold_index}: R²=${fold.r_squared.toFixed(4)}`);
+});
+```
+
+**Note:** In WASM, boolean and seed parameters are passed as JSON strings. Use `"true"`/`"false"` for shuffle and `"42"` or `"null"` for seed.
 
 ### Diagnostic Tests (WASM)
 
@@ -649,6 +789,43 @@ console.log("Numeric columns:", parsed.numeric_columns);
 ```javascript
 const version = get_version();  // e.g., "0.5.0"
 const msg = test();             // "Rust WASM is working!"
+```
+
+### Model Serialization (WASM)
+
+```javascript
+// Train a model
+const resultJson = ols_regression(
+    JSON.stringify(y),
+    JSON.stringify(x),
+    JSON.stringify(names)
+);
+const result = JSON.parse(resultJson);
+
+// Serialize with metadata
+const serialized = serialize_model(
+    resultJson,        // model JSON
+    "OLS",             // model type: "OLS", "Ridge", "Lasso", "ElasticNet", "WLS", "LOESS"
+    "My Model"         // optional name (null to omit)
+);
+
+// Get metadata without loading full model
+const metadataJson = get_model_metadata(serialized);
+const metadata = JSON.parse(metadataJson);
+console.log("Model type:", metadata.model_type);
+console.log("Created:", metadata.created_at);
+
+// Deserialize to get model data back
+const modelJson = deserialize_model(serialized);
+const model = JSON.parse(modelJson);
+
+// Download in browser
+const blob = new Blob([serialized], { type: 'application/json' });
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'model.json';
+a.click();
 ```
 
 ### Domain Security (WASM)
@@ -907,6 +1084,23 @@ print(f"Headers: {result.headers}")
 print(f"Numeric columns: {result.numeric_columns}")
 print(f"Data rows: {result.n_rows}")
 ```
+
+### Model Save/Load (Python)
+
+```python
+# Train a model
+result = linreg_core.ols_regression(y, x, names)
+
+# Save to file
+linreg_core.save_model(result, "my_model.json", name="My Housing Model")
+
+# Load back
+loaded = linreg_core.load_model("my_model.json")
+print(f"R²: {loaded.r_squared}")
+print(f"Coefficients: {loaded.coefficients}")
+```
+
+The `save_model()` and `load_model()` functions work with all result types: `OLSResult`, `RidgeResult`, `LassoResult`, `ElasticNetResult`, `LoessResult`, and `WlsResult`.
 
 ---
 

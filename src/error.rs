@@ -68,6 +68,44 @@ pub enum Error {
     /// LINREG_DOMAIN_RESTRICT=example.com,yoursite.com wasm-pack build
     /// ```
     DomainCheck(String),
+
+    /// File I/O error during model save/load operations.
+    ///
+    /// Raised when reading or writing model files fails due to permissions,
+    /// missing files, or other I/O issues.
+    IoError(String),
+
+    /// Serialization error when converting model to JSON.
+    ///
+    /// Raised when a model cannot be serialized to JSON format.
+    SerializationError(String),
+
+    /// Deserialization error when parsing model from JSON.
+    ///
+    /// Raised when a JSON file cannot be parsed into a model structure.
+    DeserializationError(String),
+
+    /// Incompatible format version when loading a model.
+    ///
+    /// Raised when the format version of a saved model is not compatible
+    /// with the current library version.
+    IncompatibleFormatVersion {
+        /// Version from the file
+        file_version: String,
+        /// Version supported by this library
+        supported: String,
+    },
+
+    /// Model type mismatch when loading a model.
+    ///
+    /// Raised when attempting to load a model as the wrong type
+    /// (e.g., loading an OLS model as Ridge).
+    ModelTypeMismatch {
+        /// Expected model type
+        expected: String,
+        /// Actual model type found in file
+        found: String,
+    },
 }
 
 impl fmt::Display for Error {
@@ -103,6 +141,29 @@ impl fmt::Display for Error {
             },
             Error::DomainCheck(msg) => {
                 write!(f, "Domain check failed: {}", msg)
+            },
+            Error::IoError(msg) => {
+                write!(f, "I/O error: {}", msg)
+            },
+            Error::SerializationError(msg) => {
+                write!(f, "Serialization error: {}", msg)
+            },
+            Error::DeserializationError(msg) => {
+                write!(f, "Deserialization error: {}", msg)
+            },
+            Error::IncompatibleFormatVersion { file_version, supported } => {
+                write!(
+                    f,
+                    "Incompatible format version: file has version {}, supported version is {}",
+                    file_version, supported
+                )
+            },
+            Error::ModelTypeMismatch { expected, found } => {
+                write!(
+                    f,
+                    "Model type mismatch: expected {}, found {}",
+                    expected, found
+                )
             },
         }
     }
@@ -315,5 +376,76 @@ mod tests {
 
         assert_eq!(returns_ok().unwrap(), 42.0);
         assert!(returns_err().is_err());
+    }
+
+    /// Test Error::IoError Display implementation
+    #[test]
+    fn test_io_error_display() {
+        let err = Error::IoError("Failed to open file".to_string());
+        let msg = err.to_string();
+        assert!(msg.contains("I/O error"));
+        assert!(msg.contains("Failed to open file"));
+    }
+
+    /// Test Error::SerializationError Display implementation
+    #[test]
+    fn test_serialization_error_display() {
+        let err = Error::SerializationError("Failed to serialize model".to_string());
+        let msg = err.to_string();
+        assert!(msg.contains("Serialization error"));
+        assert!(msg.contains("Failed to serialize"));
+    }
+
+    /// Test Error::DeserializationError Display implementation
+    #[test]
+    fn test_deserialization_error_display() {
+        let err = Error::DeserializationError("Invalid JSON".to_string());
+        let msg = err.to_string();
+        assert!(msg.contains("Deserialization error"));
+        assert!(msg.contains("Invalid JSON"));
+    }
+
+    /// Test Error::IncompatibleFormatVersion Display implementation
+    #[test]
+    fn test_incompatible_format_version_display() {
+        let err = Error::IncompatibleFormatVersion {
+            file_version: "2.0".to_string(),
+            supported: "1.0".to_string(),
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("Incompatible format version"));
+        assert!(msg.contains("2.0"));
+        assert!(msg.contains("1.0"));
+    }
+
+    /// Test Error::ModelTypeMismatch Display implementation
+    #[test]
+    fn test_model_type_mismatch_display() {
+        let err = Error::ModelTypeMismatch {
+            expected: "OLS".to_string(),
+            found: "Ridge".to_string(),
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("Model type mismatch"));
+        assert!(msg.contains("OLS"));
+        assert!(msg.contains("Ridge"));
+    }
+
+    /// Test serialization errors work with error_to_json
+    #[test]
+    fn test_error_to_json_serialization() {
+        let err = Error::SerializationError("test".to_string());
+        let json = error_to_json(&err);
+        assert!(json.contains(r#""error":"#));
+        assert!(json.contains("Serialization"));
+    }
+
+    /// Test deserialization errors work with error_to_json
+    #[test]
+    fn test_error_to_json_deserialization() {
+        let err = Error::DeserializationError("test".to_string());
+        let json = error_to_json(&err);
+        assert!(json.contains(r#""error":"#));
+        assert!(json.contains("Deserialization"));
     }
 }

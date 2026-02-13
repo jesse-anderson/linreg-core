@@ -470,8 +470,8 @@ fn test_insufficient_data_error() {
 
 #[test]
 fn test_singular_matrix_error() {
-    // Perfect multicollinearity should fail
-    // Need at least n = k + 2 = 4 observations
+    // Perfect multicollinearity: handled gracefully via pivoted QR 
+    // The redundant column's coefficient is set to NAN
     let y = vec![1.0, 2.0, 3.0, 4.0];
     let x1 = vec![1.0, 2.0, 3.0, 4.0];
     let x2 = vec![2.0, 4.0, 6.0, 8.0]; // x2 = 2 * x1 (perfect collinearity)
@@ -479,18 +479,14 @@ fn test_singular_matrix_error() {
 
     let result = ols_regression(&y, &[x1, x2], &names);
 
-    // Should return SingularMatrix error
-    match result {
-        Err(Error::SingularMatrix) => {
-            // Expected
-        },
-        Ok(_) => {
-            panic!("Should return SingularMatrix error for perfectly collinear data");
-        },
-        Err(e) => {
-            panic!("Unexpected error type: {:?}", e);
-        },
-    }
+    // Should succeed with one coefficient set to NAN (dropped column)
+    let output = result.expect("Rank-deficient OLS should succeed with pivoted QR");
+    let nan_count = output.coefficients.iter().filter(|c| c.is_nan()).count();
+    assert_eq!(nan_count, 1, "Exactly one coefficient should be NAN for one redundant column");
+
+    // Predictions should still be valid (NAN coefficients treated as 0)
+    assert!(output.predictions.iter().all(|p| p.is_finite()),
+        "Predictions should be finite even with rank-deficient data");
 }
 
 #[test]
@@ -540,8 +536,8 @@ fn test_mismatched_lengths_return_error() {
 
 #[test]
 fn test_nan_input_returns_error() {
-    // Let's test with a case that produces NaN in coefficients
-    // This can happen with perfect multicollinearity or other numerical issues
+    // Perfect collinearity (x2 = x1): handled gracefully via pivoted QR
+    // The redundant column's coefficient is set to NAN
     let y = vec![1.0, 2.0, 3.0, 4.0, 5.0];
     let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
     let x2 = vec![1.0, 2.0, 3.0, 4.0, 5.0]; // x2 = x1 (perfect collinearity)
@@ -549,18 +545,14 @@ fn test_nan_input_returns_error() {
 
     let result = ols_regression(&y, &[x1, x2], &names);
 
-    match result {
-        Err(Error::SingularMatrix) => {
-            // Expected
-        },
-        Err(e) => {
-            eprintln!("Got error: {:?}", e);
-            panic!("Expected SingularMatrix, got: {:?}", e);
-        },
-        Ok(_) => {
-            panic!("Should return SingularMatrix error");
-        },
-    }
+    // Should succeed with NAN for the dropped coefficient
+    let output = result.expect("Rank-deficient OLS should succeed with pivoted QR");
+    let nan_count = output.coefficients.iter().filter(|c| c.is_nan()).count();
+    assert_eq!(nan_count, 1, "Exactly one coefficient should be NAN for one redundant column");
+
+    // The non-NAN coefficients should produce valid predictions
+    assert!(output.predictions.iter().all(|p| p.is_finite()),
+        "Predictions should be finite even with collinear data");
 }
 
 // ============================================================================

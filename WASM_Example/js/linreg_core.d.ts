@@ -96,6 +96,41 @@ export function breusch_pagan_test(y_json: string, x_vars_json: string): string;
 export function cooks_distance_test(y_json: string, x_vars_json: string): string;
 
 /**
+ * Deserialize a serialized model, extracting the inner model data.
+ *
+ * This function takes a serialized model JSON (as created by serialize_model),
+ * validates the format version, and returns the inner model data as JSON.
+ *
+ * # Arguments
+ *
+ * * `json_string` - JSON string of the serialized model (with metadata wrapper)
+ *
+ * # Returns
+ *
+ * JSON string of the inner model data (coefficients, statistics, etc.),
+ * or a JSON error object if the input is invalid, the format version is
+ * incompatible, or the domain check fails.
+ *
+ * # Example
+ *
+ * ```javascript
+ * import { deserialize_model } from './linreg_core.js';
+ *
+ * // Load from file (browser-side)
+ * const response = await fetch('my_model.json');
+ * const serialized = await response.text();
+ *
+ * // Deserialize to get the model data
+ * const modelJson = deserialize_model(serialized);
+ * const model = JSON.parse(modelJson);
+ *
+ * console.log(model.coefficients);
+ * console.log(model.r_squared);
+ * ```
+ */
+export function deserialize_model(json_string: string): string;
+
+/**
  * Performs DFBETAS analysis via WASM.
  *
  * DFBETAS measures the influence of each observation on each regression coefficient.
@@ -187,6 +222,46 @@ export function durbin_watson_test(y_json: string, x_vars_json: string): string;
  * or domain check fails.
  */
 export function elastic_net_regression(y_json: string, x_vars_json: string, _variable_names: string, lambda: number, alpha: number, standardize: boolean, max_iter: number, tol: number): string;
+
+/**
+ * Extract metadata from a serialized model without deserializing the full model.
+ *
+ * This function returns only the metadata portion of a serialized model,
+ * which includes information like model type, library version, creation time,
+ * and optional model name.
+ *
+ * # Arguments
+ *
+ * * `json_string` - JSON string of the serialized model
+ *
+ * # Returns
+ *
+ * JSON string containing the metadata object with fields:
+ * - `format_version` - Format version (e.g., "1.0")
+ * - `library_version` - linreg-core version used to create the model
+ * - `model_type` - Type of model ("OLS", "Ridge", etc.)
+ * - `created_at` - ISO 8601 timestamp of creation
+ * - `name` - Optional custom model name
+ *
+ * Returns a JSON error object if the input is invalid or the domain check fails.
+ *
+ * # Example
+ *
+ * ```javascript
+ * import { get_model_metadata } from './linreg_core.js';
+ *
+ * const response = await fetch('my_model.json');
+ * const serialized = await response.text();
+ *
+ * const metadataJson = get_model_metadata(serialized);
+ * const metadata = JSON.parse(metadataJson);
+ *
+ * console.log('Model type:', metadata.model_type);
+ * console.log('Created:', metadata.created_at);
+ * console.log('Name:', metadata.name || '(unnamed)');
+ * ```
+ */
+export function get_model_metadata(json_string: string): string;
 
 /**
  * Computes the inverse of the standard normal CDF (probit function).
@@ -290,6 +365,110 @@ export function harvey_collier_test(y_json: string, x_vars_json: string): string
  * Returns a JSON error object if parsing fails or domain check fails.
  */
 export function jarque_bera_test(y_json: string, x_vars_json: string): string;
+
+/**
+ * Performs K-Fold Cross Validation for Elastic Net regression via WASM.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `lambda` - Regularization strength (>= 0)
+ * * `alpha` - Mixing parameter (0 = Ridge, 1 = Lasso)
+ * * `standardize` - Whether to standardize predictors
+ * * `n_folds` - Number of folds (must be >= 2)
+ * * `shuffle_json` - JSON boolean: whether to shuffle data before splitting
+ * * `seed_json` - JSON string with seed number or "null" for no seed
+ *
+ * # Returns
+ *
+ * JSON string containing CV results (same structure as OLS).
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, parameters are invalid,
+ * or domain check fails.
+ */
+export function kfold_cv_elastic_net(y_json: string, x_vars_json: string, lambda: number, alpha: number, standardize: boolean, n_folds: number, shuffle_json: string, seed_json: string): string;
+
+/**
+ * Performs K-Fold Cross Validation for Lasso regression via WASM.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `lambda` - Regularization strength (>= 0)
+ * * `standardize` - Whether to standardize predictors
+ * * `n_folds` - Number of folds (must be >= 2)
+ * * `shuffle_json` - JSON boolean: whether to shuffle data before splitting
+ * * `seed_json` - JSON string with seed number or "null" for no seed
+ *
+ * # Returns
+ *
+ * JSON string containing CV results (same structure as OLS).
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, parameters are invalid,
+ * or domain check fails.
+ */
+export function kfold_cv_lasso(y_json: string, x_vars_json: string, lambda: number, standardize: boolean, n_folds: number, shuffle_json: string, seed_json: string): string;
+
+/**
+ * Performs K-Fold Cross Validation for OLS regression via WASM.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `variable_names_json` - JSON array of variable names
+ * * `n_folds` - Number of folds (must be >= 2)
+ * * `shuffle_json` - JSON boolean: whether to shuffle data before splitting
+ * * `seed_json` - JSON string with seed number or "null" for no seed
+ *
+ * # Returns
+ *
+ * JSON string containing CV results:
+ * - `n_folds` - Number of folds used
+ * - `n_samples` - Total number of observations
+ * - `mean_mse`, `std_mse` - Mean and std of MSE across folds
+ * - `mean_rmse`, `std_rmse` - Mean and std of RMSE across folds
+ * - `mean_mae`, `std_mae` - Mean and std of MAE across folds
+ * - `mean_r_squared`, `std_r_squared` - Mean and std of R² across folds
+ * - `fold_results` - Array of individual fold results
+ * - `fold_coefficients` - Array of coefficient arrays from each fold
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, parameters are invalid,
+ * or domain check fails.
+ */
+export function kfold_cv_ols(y_json: string, x_vars_json: string, variable_names_json: string, n_folds: number, shuffle_json: string, seed_json: string): string;
+
+/**
+ * Performs K-Fold Cross Validation for Ridge regression via WASM.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `lambda` - Regularization strength (>= 0)
+ * * `standardize` - Whether to standardize predictors
+ * * `n_folds` - Number of folds (must be >= 2)
+ * * `shuffle_json` - JSON boolean: whether to shuffle data before splitting
+ * * `seed_json` - JSON string with seed number or "null" for no seed
+ *
+ * # Returns
+ *
+ * JSON string containing CV results (same structure as OLS).
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, parameters are invalid,
+ * or domain check fails.
+ */
+export function kfold_cv_ridge(y_json: string, x_vars_json: string, lambda: number, standardize: boolean, n_folds: number, shuffle_json: string, seed_json: string): string;
 
 /**
  * Performs Lasso regression via WASM.
@@ -593,6 +772,46 @@ export function reset_test(y_json: string, x_vars_json: string, powers_json: str
 export function ridge_regression(y_json: string, x_vars_json: string, _variable_names: string, lambda: number, standardize: boolean): string;
 
 /**
+ * Serialize a model by wrapping its JSON data with metadata.
+ *
+ * This function takes a model's JSON representation (as returned by regression
+ * functions), wraps it with version and type metadata, and returns a serialized
+ * JSON string suitable for storage or download.
+ *
+ * # Arguments
+ *
+ * * `model_json` - JSON string of the model result (e.g., from ols_regression)
+ * * `model_type` - Type of model: "OLS", "Ridge", "Lasso", "ElasticNet", "WLS", or "LOESS"
+ * * `name` - Optional custom name for the model
+ *
+ * # Returns
+ *
+ * JSON string containing the serialized model with metadata, or a JSON error object
+ * if the input is invalid or the domain check fails.
+ *
+ * # Example
+ *
+ * ```javascript
+ * import { serialize_model, ols_regression } from './linreg_core.js';
+ *
+ * // Train a model
+ * const resultJson = ols_regression(yJson, xJson, namesJson);
+ *
+ * // Serialize it
+ * const serialized = serialize_model(resultJson, "OLS", "My Housing Model");
+ *
+ * // Download (browser-side)
+ * const blob = new Blob([serialized], { type: 'application/json' });
+ * const url = URL.createObjectURL(blob);
+ * const a = document.createElement('a');
+ * a.href = url;
+ * a.download = 'my_model.json';
+ * a.click();
+ * ```
+ */
+export function serialize_model(model_json: string, model_type: string, name?: string | null): string;
+
+/**
  * Performs the Shapiro-Wilk test for normality via WASM.
  *
  * The Shapiro-Wilk test is a powerful test for normality,
@@ -857,13 +1076,19 @@ export interface InitOutput {
     readonly breusch_godfrey_test: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly breusch_pagan_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly cooks_distance_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly deserialize_model: (a: number, b: number) => [number, number];
     readonly dfbetas_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly dffits_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly durbin_watson_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly elastic_net_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
+    readonly get_model_metadata: (a: number, b: number) => [number, number];
     readonly get_version: () => [number, number];
     readonly harvey_collier_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly jarque_bera_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly kfold_cv_elastic_net: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => [number, number];
+    readonly kfold_cv_lasso: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
+    readonly kfold_cv_ols: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
+    readonly kfold_cv_ridge: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
     readonly lasso_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
     readonly loess_fit: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
     readonly loess_predict: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
@@ -875,6 +1100,7 @@ export interface InitOutput {
     readonly rainbow_test: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly reset_test: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
     readonly ridge_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
+    readonly serialize_model: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly shapiro_wilk_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly stats_correlation: (a: number, b: number, c: number, d: number) => [number, number];
     readonly stats_mean: (a: number, b: number) => [number, number];

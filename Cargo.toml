@@ -1,6 +1,6 @@
 [package]
 name = "linreg-core"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 description = "Lightweight linear regression (OLS, Ridge, Lasso, Elastic Net) with diagnostic tests. Pure Rust - no external math dependencies."
 license = "MIT OR Apache-2.0"

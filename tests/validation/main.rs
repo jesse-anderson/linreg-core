@@ -38,6 +38,7 @@ mod breusch_godfrey;
 mod breusch_pagan;
 mod cooks_distance;
 mod core_regression;
+mod cross_validation;  // K-Fold Cross Validation tests
 mod dfbetas;
 mod dffits;
 mod durbin_watson;

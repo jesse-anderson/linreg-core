@@ -16,14 +16,16 @@ use crate::{
     distributions::student_t_cdf,
     error::{Error, Result},
     linalg::Matrix,
+    serialization::types::ModelType,
+    impl_serialization,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// WLS regression result
 ///
 /// Contains the fitted coefficients and comprehensive model fit statistics
 /// matching R's `summary(lm(y ~ x, weights=w))` output.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WlsFit {
     // ============================================================
     // Coefficient Statistics (matching R's coefficients table)
@@ -430,6 +432,13 @@ fn compute_covariance_from_svd(
     }
     cov
 }
+
+// ============================================================================
+// Model Serialization Traits
+// ============================================================================
+
+// Generate ModelSave and ModelLoad implementations using macro
+impl_serialization!(WlsFit, ModelType::WLS, "WLS");
 
 #[cfg(test)]
 mod tests {

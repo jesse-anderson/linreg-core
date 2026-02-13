@@ -171,6 +171,56 @@ export function cooks_distance_test(y_json, x_vars_json) {
 }
 
 /**
+ * Deserialize a serialized model, extracting the inner model data.
+ *
+ * This function takes a serialized model JSON (as created by serialize_model),
+ * validates the format version, and returns the inner model data as JSON.
+ *
+ * # Arguments
+ *
+ * * `json_string` - JSON string of the serialized model (with metadata wrapper)
+ *
+ * # Returns
+ *
+ * JSON string of the inner model data (coefficients, statistics, etc.),
+ * or a JSON error object if the input is invalid, the format version is
+ * incompatible, or the domain check fails.
+ *
+ * # Example
+ *
+ * ```javascript
+ * import { deserialize_model } from './linreg_core.js';
+ *
+ * // Load from file (browser-side)
+ * const response = await fetch('my_model.json');
+ * const serialized = await response.text();
+ *
+ * // Deserialize to get the model data
+ * const modelJson = deserialize_model(serialized);
+ * const model = JSON.parse(modelJson);
+ *
+ * console.log(model.coefficients);
+ * console.log(model.r_squared);
+ * ```
+ * @param {string} json_string
+ * @returns {string}
+ */
+export function deserialize_model(json_string) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(json_string, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.deserialize_model(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
  * Performs DFBETAS analysis via WASM.
  *
  * DFBETAS measures the influence of each observation on each regression coefficient.
@@ -344,6 +394,61 @@ export function elastic_net_regression(y_json, x_vars_json, _variable_names, lam
 }
 
 /**
+ * Extract metadata from a serialized model without deserializing the full model.
+ *
+ * This function returns only the metadata portion of a serialized model,
+ * which includes information like model type, library version, creation time,
+ * and optional model name.
+ *
+ * # Arguments
+ *
+ * * `json_string` - JSON string of the serialized model
+ *
+ * # Returns
+ *
+ * JSON string containing the metadata object with fields:
+ * - `format_version` - Format version (e.g., "1.0")
+ * - `library_version` - linreg-core version used to create the model
+ * - `model_type` - Type of model ("OLS", "Ridge", etc.)
+ * - `created_at` - ISO 8601 timestamp of creation
+ * - `name` - Optional custom model name
+ *
+ * Returns a JSON error object if the input is invalid or the domain check fails.
+ *
+ * # Example
+ *
+ * ```javascript
+ * import { get_model_metadata } from './linreg_core.js';
+ *
+ * const response = await fetch('my_model.json');
+ * const serialized = await response.text();
+ *
+ * const metadataJson = get_model_metadata(serialized);
+ * const metadata = JSON.parse(metadataJson);
+ *
+ * console.log('Model type:', metadata.model_type);
+ * console.log('Created:', metadata.created_at);
+ * console.log('Name:', metadata.name || '(unnamed)');
+ * ```
+ * @param {string} json_string
+ * @returns {string}
+ */
+export function get_model_metadata(json_string) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(json_string, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.get_model_metadata(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
  * Computes the inverse of the standard normal CDF (probit function).
  *
  * Returns the z-score such that P(Z ≤ z) = p for a standard normal distribution.
@@ -508,6 +613,220 @@ export function jarque_bera_test(y_json, x_vars_json) {
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
         wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Performs K-Fold Cross Validation for Elastic Net regression via WASM.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `lambda` - Regularization strength (>= 0)
+ * * `alpha` - Mixing parameter (0 = Ridge, 1 = Lasso)
+ * * `standardize` - Whether to standardize predictors
+ * * `n_folds` - Number of folds (must be >= 2)
+ * * `shuffle_json` - JSON boolean: whether to shuffle data before splitting
+ * * `seed_json` - JSON string with seed number or "null" for no seed
+ *
+ * # Returns
+ *
+ * JSON string containing CV results (same structure as OLS).
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, parameters are invalid,
+ * or domain check fails.
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @param {number} lambda
+ * @param {number} alpha
+ * @param {boolean} standardize
+ * @param {number} n_folds
+ * @param {string} shuffle_json
+ * @param {string} seed_json
+ * @returns {string}
+ */
+export function kfold_cv_elastic_net(y_json, x_vars_json, lambda, alpha, standardize, n_folds, shuffle_json, seed_json) {
+    let deferred5_0;
+    let deferred5_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(shuffle_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(seed_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.kfold_cv_elastic_net(ptr0, len0, ptr1, len1, lambda, alpha, standardize, n_folds, ptr2, len2, ptr3, len3);
+        deferred5_0 = ret[0];
+        deferred5_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred5_0, deferred5_1, 1);
+    }
+}
+
+/**
+ * Performs K-Fold Cross Validation for Lasso regression via WASM.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `lambda` - Regularization strength (>= 0)
+ * * `standardize` - Whether to standardize predictors
+ * * `n_folds` - Number of folds (must be >= 2)
+ * * `shuffle_json` - JSON boolean: whether to shuffle data before splitting
+ * * `seed_json` - JSON string with seed number or "null" for no seed
+ *
+ * # Returns
+ *
+ * JSON string containing CV results (same structure as OLS).
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, parameters are invalid,
+ * or domain check fails.
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @param {number} lambda
+ * @param {boolean} standardize
+ * @param {number} n_folds
+ * @param {string} shuffle_json
+ * @param {string} seed_json
+ * @returns {string}
+ */
+export function kfold_cv_lasso(y_json, x_vars_json, lambda, standardize, n_folds, shuffle_json, seed_json) {
+    let deferred5_0;
+    let deferred5_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(shuffle_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(seed_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.kfold_cv_lasso(ptr0, len0, ptr1, len1, lambda, standardize, n_folds, ptr2, len2, ptr3, len3);
+        deferred5_0 = ret[0];
+        deferred5_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred5_0, deferred5_1, 1);
+    }
+}
+
+/**
+ * Performs K-Fold Cross Validation for OLS regression via WASM.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `variable_names_json` - JSON array of variable names
+ * * `n_folds` - Number of folds (must be >= 2)
+ * * `shuffle_json` - JSON boolean: whether to shuffle data before splitting
+ * * `seed_json` - JSON string with seed number or "null" for no seed
+ *
+ * # Returns
+ *
+ * JSON string containing CV results:
+ * - `n_folds` - Number of folds used
+ * - `n_samples` - Total number of observations
+ * - `mean_mse`, `std_mse` - Mean and std of MSE across folds
+ * - `mean_rmse`, `std_rmse` - Mean and std of RMSE across folds
+ * - `mean_mae`, `std_mae` - Mean and std of MAE across folds
+ * - `mean_r_squared`, `std_r_squared` - Mean and std of R² across folds
+ * - `fold_results` - Array of individual fold results
+ * - `fold_coefficients` - Array of coefficient arrays from each fold
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, parameters are invalid,
+ * or domain check fails.
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @param {string} variable_names_json
+ * @param {number} n_folds
+ * @param {string} shuffle_json
+ * @param {string} seed_json
+ * @returns {string}
+ */
+export function kfold_cv_ols(y_json, x_vars_json, variable_names_json, n_folds, shuffle_json, seed_json) {
+    let deferred6_0;
+    let deferred6_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(variable_names_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(shuffle_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ptr4 = passStringToWasm0(seed_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len4 = WASM_VECTOR_LEN;
+        const ret = wasm.kfold_cv_ols(ptr0, len0, ptr1, len1, ptr2, len2, n_folds, ptr3, len3, ptr4, len4);
+        deferred6_0 = ret[0];
+        deferred6_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred6_0, deferred6_1, 1);
+    }
+}
+
+/**
+ * Performs K-Fold Cross Validation for Ridge regression via WASM.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `lambda` - Regularization strength (>= 0)
+ * * `standardize` - Whether to standardize predictors
+ * * `n_folds` - Number of folds (must be >= 2)
+ * * `shuffle_json` - JSON boolean: whether to shuffle data before splitting
+ * * `seed_json` - JSON string with seed number or "null" for no seed
+ *
+ * # Returns
+ *
+ * JSON string containing CV results (same structure as OLS).
+ *
+ * # Errors
+ *
+ * Returns a JSON error object if parsing fails, parameters are invalid,
+ * or domain check fails.
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @param {number} lambda
+ * @param {boolean} standardize
+ * @param {number} n_folds
+ * @param {string} shuffle_json
+ * @param {string} seed_json
+ * @returns {string}
+ */
+export function kfold_cv_ridge(y_json, x_vars_json, lambda, standardize, n_folds, shuffle_json, seed_json) {
+    let deferred5_0;
+    let deferred5_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(shuffle_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(seed_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.kfold_cv_ridge(ptr0, len0, ptr1, len1, lambda, standardize, n_folds, ptr2, len2, ptr3, len3);
+        deferred5_0 = ret[0];
+        deferred5_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred5_0, deferred5_1, 1);
     }
 }
 
@@ -1050,6 +1369,67 @@ export function ridge_regression(y_json, x_vars_json, _variable_names, lambda, s
 }
 
 /**
+ * Serialize a model by wrapping its JSON data with metadata.
+ *
+ * This function takes a model's JSON representation (as returned by regression
+ * functions), wraps it with version and type metadata, and returns a serialized
+ * JSON string suitable for storage or download.
+ *
+ * # Arguments
+ *
+ * * `model_json` - JSON string of the model result (e.g., from ols_regression)
+ * * `model_type` - Type of model: "OLS", "Ridge", "Lasso", "ElasticNet", "WLS", or "LOESS"
+ * * `name` - Optional custom name for the model
+ *
+ * # Returns
+ *
+ * JSON string containing the serialized model with metadata, or a JSON error object
+ * if the input is invalid or the domain check fails.
+ *
+ * # Example
+ *
+ * ```javascript
+ * import { serialize_model, ols_regression } from './linreg_core.js';
+ *
+ * // Train a model
+ * const resultJson = ols_regression(yJson, xJson, namesJson);
+ *
+ * // Serialize it
+ * const serialized = serialize_model(resultJson, "OLS", "My Housing Model");
+ *
+ * // Download (browser-side)
+ * const blob = new Blob([serialized], { type: 'application/json' });
+ * const url = URL.createObjectURL(blob);
+ * const a = document.createElement('a');
+ * a.href = url;
+ * a.download = 'my_model.json';
+ * a.click();
+ * ```
+ * @param {string} model_json
+ * @param {string} model_type
+ * @param {string | null} [name]
+ * @returns {string}
+ */
+export function serialize_model(model_json, model_type, name) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(model_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(model_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        var ptr2 = isLikeNone(name) ? 0 : passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len2 = WASM_VECTOR_LEN;
+        const ret = wasm.serialize_model(ptr0, len0, ptr1, len1, ptr2, len2);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * Performs the Shapiro-Wilk test for normality via WASM.
  *
  * The Shapiro-Wilk test is a powerful test for normality,
@@ -1577,6 +1957,10 @@ function getUint8ArrayMemory0() {
         cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
     }
     return cachedUint8ArrayMemory0;
+}
+
+function isLikeNone(x) {
+    return x === undefined || x === null;
 }
 
 function passStringToWasm0(arg, malloc, realloc) {

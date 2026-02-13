@@ -34,7 +34,10 @@ import init, {
     stats_quantile,
     stats_correlation,
     loess_fit,
-    loess_predict
+    loess_predict,
+    serialize_model,
+    deserialize_model,
+    get_model_metadata
 } from '../linreg_core.js';
 
 import { STATE, showToast } from './utils.js';
@@ -862,5 +865,46 @@ export const Stats = {
             return 0; // Fallback
         }
         return get_normal_inverse(p);
+    },
+
+    /**
+     * Serialize a model with metadata wrapper
+     * @param {Object} result - Regression result object
+     * @param {string} modelType - Model type ("OLS", "Ridge", "Lasso", "ElasticNet", "WLS", "LOESS")
+     * @param {string} name - Optional model name
+     * @returns {string} Serialized JSON string
+     */
+    serializeModel: (result, modelType, name = null) => {
+        if (!wasmReady || typeof serialize_model !== 'function') {
+            throw new Error('WASM serialize_model not available');
+        }
+        const resultJson = JSON.stringify(result);
+        return serialize_model(resultJson, modelType, name);
+    },
+
+    /**
+     * Deserialize a model (extract model data from wrapper)
+     * @param {string} serializedJson - Serialized model JSON string
+     * @returns {Object} Model data object
+     */
+    deserializeModel: (serializedJson) => {
+        if (!wasmReady || typeof deserialize_model !== 'function') {
+            throw new Error('WASM deserialize_model not available');
+        }
+        const modelJson = deserialize_model(serializedJson);
+        return JSON.parse(modelJson);
+    },
+
+    /**
+     * Get metadata from serialized model
+     * @param {string} serializedJson - Serialized model JSON string
+     * @returns {Object} Metadata object
+     */
+    getModelMetadata: (serializedJson) => {
+        if (!wasmReady || typeof get_model_metadata !== 'function') {
+            throw new Error('WASM get_model_metadata not available');
+        }
+        const metadataJson = get_model_metadata(serializedJson);
+        return JSON.parse(metadataJson);
     }
 };

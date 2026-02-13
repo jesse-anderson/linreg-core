@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-02-12
+
+### Added
+- **K-Fold Cross Validation** - K-fold CV for OLS, Ridge, Lasso, and Elastic Net with configurable folds, shuffling, and seeding
+- **Model Serialization** - Save/load trained models to/from JSON files for all model types (OLS, Ridge, Lasso, ElasticNet, WLS, LOESS) with version compatibility and metadata support
+- **Code refactoring** - Reduced ~260 lines through helper functions and `impl_serialization!` macro
+- **Test coverage** - Increased to 94.13%
+
 ## [0.6.0] - 2026-02-10
 
 ### Added

@@ -7,9 +7,9 @@ use crate::error::Result;
 use crate::linalg::Matrix;
 use crate::regularized::elastic_net::{elastic_net_fit, ElasticNetOptions};
 use crate::regularized::preprocess::predict;
-
-#[cfg(feature = "wasm")]
-use serde::Serialize;
+use crate::serialization::types::ModelType;
+use crate::impl_serialization;
+use serde::{Deserialize, Serialize};
 
 /// Options for ridge regression fitting.
 ///
@@ -102,8 +102,7 @@ impl Default for RidgeFitOptions {
 /// println!("AIC: {}", fit.aic);
 /// # Ok::<(), linreg_core::Error>(())
 /// ```
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "wasm", derive(Serialize))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RidgeFit {
     pub lambda: f64,
     pub intercept: f64,
@@ -262,6 +261,13 @@ pub fn ridge_fit(x: &Matrix, y: &[f64], options: &RidgeFitOptions) -> Result<Rid
 pub fn predict_ridge(fit: &RidgeFit, x_new: &Matrix) -> Vec<f64> {
     predict(x_new, fit.intercept, &fit.coefficients)
 }
+
+// ============================================================================
+// Model Serialization Traits
+// ============================================================================
+
+// Generate ModelSave and ModelLoad implementations using macro
+impl_serialization!(RidgeFit, ModelType::Ridge, "Ridge");
 
 #[cfg(test)]
 mod tests {

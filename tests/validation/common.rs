@@ -1556,3 +1556,79 @@ pub fn expect_wls_result(json_path: &Path) -> WlsResult {
         )
     })
 }
+
+// ============================================================================
+// K-Fold Cross Validation Specific Structures
+// ============================================================================
+
+/// Cross-validation tolerance (allows for small differences in fold splitting)
+pub const CV_TOLERANCE: f64 = 1e-4;
+
+/// K-Fold CV result format
+#[derive(Debug, Deserialize)]
+pub struct RKfoldCVResult {
+    #[allow(dead_code)]
+    pub test: String,
+    #[allow(dead_code)]
+    pub method: String,
+    #[allow(dead_code)]
+    pub dataset: String,
+    pub n_folds: usize,
+    pub n_samples: usize,
+    pub mean_mse: f64,
+    pub std_mse: f64,
+    pub mean_rmse: f64,
+    pub std_rmse: f64,
+    pub mean_mae: f64,
+    pub std_mae: f64,
+    pub mean_r_squared: f64,
+    pub std_r_squared: f64,
+    #[serde(default)]
+    pub mean_train_r_squared: Option<f64>,
+    #[allow(dead_code)]
+    pub fold_results: Vec<CVFoldResult>,
+}
+
+/// Single fold result from cross-validation
+#[derive(Debug, Deserialize)]
+pub struct CVFoldResult {
+    pub fold_index: usize,
+    pub train_size: usize,
+    pub test_size: usize,
+    pub mse: f64,
+    pub rmse: f64,
+    pub mae: f64,
+    pub r_squared: f64,
+    #[serde(default)]
+    pub train_r_squared: Option<f64>,
+}
+
+/// Load K-Fold CV result from JSON
+pub fn load_kfold_cv_result(json_path: &Path) -> Option<RKfoldCVResult> {
+    if !json_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(json_path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+/// Load K-Fold CV result, panicking loudly with instructions if file not found
+pub fn expect_kfold_cv_result(json_path: &Path) -> RKfoldCVResult {
+    if !json_path.exists() {
+        panic!(
+            "K-Fold CV result file not found: {}\n\
+             \n\
+             To generate this file, run the R validation script:\n\
+               Rscript verification/scripts/r/cross_validation/test_kfold_cv.R",
+            json_path.display()
+        );
+    }
+    load_kfold_cv_result(json_path).unwrap_or_else(|| {
+        panic!(
+            "Failed to parse K-Fold CV result file: {}\n\
+             \n\
+             The file may be corrupted. Try regenerating it.",
+            json_path.display()
+        )
+    })
+}

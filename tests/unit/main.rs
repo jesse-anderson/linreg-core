@@ -8,6 +8,7 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 mod core_tests;
+mod cross_validation_tests;  // K-Fold Cross Validation tests
 mod diagnostics;        // New modular test structure for diagnostics
 mod diagnostics_tests;
 mod distributions; // New modular test structure for distributions
@@ -19,3 +20,4 @@ mod input_validation_tests;
 mod linalg;
 mod loess_tests;  // LOESS non-parametric regression tests
 mod regularized_tests;
+mod serialization_tests;  // Model save/load tests

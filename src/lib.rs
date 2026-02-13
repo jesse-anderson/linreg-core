@@ -6,6 +6,8 @@
 //! and statistical functions (distributions, hypothesis tests) are implemented from
 //! scratch. Compiles to WebAssembly for browser use or runs as a native Rust crate.
 //!
+//! **[Live Demo →](https://jesse-anderson.net/linreg-core/)**
+//!
 //! ## What This Does
 //!
 //! - **OLS Regression** — Ordinary Least Squares with numerically stable QR decomposition
@@ -147,6 +149,7 @@
 //!
 //! - [`core`] — OLS regression, coefficients, residuals, VIF
 //! - [`regularized`] — Ridge, Lasso, Elastic Net, regularization paths
+//! - [`cross_validation`] — K-Fold Cross Validation for model evaluation
 //! - [`diagnostics`] — All diagnostic tests (linearity, heteroscedasticity, normality, autocorrelation)
 //! - [`distributions`] — Statistical distributions (t, F, χ², normal, beta, gamma)
 //! - [`linalg`] — Matrix operations, QR decomposition, linear system solver
@@ -168,14 +171,16 @@
 
 // Import core modules (always available)
 pub mod core;
+pub mod cross_validation;
 pub mod diagnostics;
 pub mod distributions;
 pub mod error;
 pub mod linalg;
 pub mod loess;
 pub mod regularized;
-pub mod weighted_regression;
+pub mod serialization;
 pub mod stats;
+pub mod weighted_regression;
 
 // Python bindings (only compiled when "python" feature is enabled)
 // Module structure: src/python/ with mod.rs, error.rs, types.rs, results.rs
@@ -200,6 +205,10 @@ pub use diagnostics::{
     BGTestType, BreuschGodfreyResult, CooksDistanceResult, DiagnosticTestResult,
     RainbowMethod, RainbowSingleResult, RainbowTestOutput, ResetType,
     WhiteMethod, WhiteSingleResult, WhiteTestOutput,
+};
+pub use cross_validation::{
+    CVResult, FoldResult, KFoldOptions, kfold_cv_elastic_net, kfold_cv_lasso, kfold_cv_ols,
+    kfold_cv_ridge,
 };
 pub use loess::{loess_fit, LoessFit, LoessOptions};
 pub use weighted_regression::{wls_regression, WlsFit};

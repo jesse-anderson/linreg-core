@@ -25,7 +25,10 @@
 use crate::distributions::{fisher_snedecor_cdf, student_t_cdf, student_t_inverse_cdf};
 use crate::error::{Error, Result};
 use crate::linalg::{vec_dot, vec_mean, vec_sub, Matrix};
-use serde::Serialize;
+use crate::serialization::types::ModelType;
+// Import the macro from crate root (where #[macro_export] places it)
+use crate::impl_serialization;
+use serde::{Deserialize, Serialize};
 
 // ============================================================================
 // Numerical Constants
@@ -66,7 +69,7 @@ const MIN_LEVERAGE_DENOM: f64 = 1e-10;
 /// };
 /// assert_eq!(vif.variable, "X1");
 /// ```
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VifResult {
     /// Name of the predictor variable
     pub variable: String,
@@ -87,6 +90,8 @@ pub struct VifResult {
 ///
 /// ```
 /// # use linreg_core::core::ols_regression;
+/// # use linreg_core::serialization::{ModelSave, ModelLoad};
+/// # use std::fs;
 /// let y = vec![1.0, 2.0, 3.0, 4.0, 5.0];
 /// let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
 /// let names = vec!["Intercept".to_string(), "X1".to_string()];
@@ -94,8 +99,15 @@ pub struct VifResult {
 /// let result = ols_regression(&y, &[x1], &names).unwrap();
 /// assert!(result.r_squared > 0.0);
 /// assert_eq!(result.coefficients.len(), 2); // intercept + 1 predictor
+///
+/// // Save and load the model
+/// # let path = "test_model.json";
+/// # result.save(path).unwrap();
+/// # let loaded = linreg_core::core::RegressionOutput::load(path).unwrap();
+/// # assert_eq!(loaded.coefficients, result.coefficients);
+/// # fs::remove_file(path).ok();
 /// ```
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegressionOutput {
     /// Regression coefficients (including intercept)
     pub coefficients: Vec<f64>,
@@ -652,43 +664,29 @@ pub fn ols_regression(
 
     let x_matrix = Matrix::new(n, p, x_data);
 
-    // QR Decomposition
-    let (q, r) = x_matrix.qr();
+    // QR Decomposition with column pivoting (LINPACK)
+    // This handles rank-deficient matrices gracefully
+    let qr_result = x_matrix.qr_linpack(None);
+    let rank = qr_result.rank;
 
-    // Solve R * beta = Q^T * y
-    // extract upper p x p part of R
-    let mut r_upper = Matrix::zeros(p, p);
-    for i in 0..p {
-        for j in 0..p {
-            r_upper.set(i, j, r.get(i, j));
-        }
-    }
-
-    // Q^T * y
-    let q_t = q.transpose();
-    let qty = q_t.mul_vec(y);
-
-    // Take first p elements of qty
-    let rhs_vec = qty[0..p].to_vec();
-    let rhs_mat = Matrix::new(p, 1, rhs_vec); // column vector
-
-    // Invert R_upper
-    let r_inv = match r_upper.invert_upper_triangular() {
-        Some(inv) => inv,
+    // Solve for coefficients using the pivoted QR
+    // For rank-deficient cases, dropped coefficients are set to NAN
+    let beta = match x_matrix.qr_solve_linpack(&qr_result, y) {
+        Some(b) => b,
         None => return Err(Error::SingularMatrix),
     };
 
-    let beta_mat = r_inv.matmul(&rhs_mat);
-    let beta = beta_mat.data;
+    // Identify which coefficients are active (non-NAN) vs dropped
+    let active: Vec<bool> = beta.iter().map(|b| !b.is_nan()).collect();
+    let n_active = active.iter().filter(|&&a| a).count();
 
-    // Validate coefficients
-    if beta.iter().any(|&b| b.is_nan()) {
-        return Err(Error::InvalidInput("Coefficients contain NaN".to_string()));
-    }
-
-    // Compute predictions and residuals
-    let predictions = x_matrix.mul_vec(&beta);
+    // For predictions, treat NAN coefficients as 0
+    let beta_for_pred: Vec<f64> = beta.iter().map(|&b| if b.is_nan() { 0.0 } else { b }).collect();
+    let predictions = x_matrix.mul_vec(&beta_for_pred);
     let residuals = vec_sub(y, &predictions);
+
+    // Degrees of freedom based on rank 
+    let df = n - rank;
 
     // Compute sums of squares
     let y_mean = vec_mean(y);
@@ -697,65 +695,87 @@ pub fn ols_regression(
     let ss_regression = ss_total - ss_residual;
 
     // R-squared and adjusted R-squared
+    // For rank-deficient cases, use rank-1 as the number of effective predictors
+    let k_effective = rank.saturating_sub(1); // rank minus intercept
     let r_squared = if ss_total == 0.0 {
         f64::NAN
     } else {
         1.0 - ss_residual / ss_total
     };
 
-    let adj_r_squared = if ss_total == 0.0 {
+    let adj_r_squared = if ss_total == 0.0 || df == 0 {
         f64::NAN
     } else {
-        1.0 - (1.0 - r_squared) * ((n - 1) as f64 / (n - k - 1) as f64)
+        1.0 - (1.0 - r_squared) * ((n - 1) as f64 / df as f64)
     };
 
     // Mean squared error and standard error
-    let df = n - k - 1;
-    let mse = ss_residual / df as f64;
+    let mse = if df > 0 { ss_residual / df as f64 } else { f64::NAN };
     let std_error = mse.sqrt();
 
-    // Standard errors using (X'X)^-1 = R^-1 (R')^-1
-    // xtx_inv = r_inv * r_inv^T
-    let xtx_inv = r_inv.matmul(&r_inv.transpose());
+    // Standard errors, t-stats, p-values, confidence intervals
+    // For active coefficients: compute from (X'X)^{-1} of the active subset
+    // For dropped coefficients: NAN (matching R's behavior)
+    let mut std_errors = vec![f64::NAN; p];
+    let mut t_stats = vec![f64::NAN; p];
+    let mut p_values = vec![f64::NAN; p];
 
-    let mut std_errors = vec![0.0; k + 1];
-    for i in 0..=k {
-        std_errors[i] = (xtx_inv.get(i, i) * mse).sqrt();
-        if std_errors[i].is_nan() {
-            return Err(Error::InvalidInput(format!(
-                "Standard error for coefficient {} is NaN",
-                i
-            )));
+    // Build (X'X)^{-1} for the full model using the LINPACK R matrix
+    // Extract the rank×rank upper triangular R and invert it
+    let mut xtx_inv = Matrix::zeros(p, p);
+    if rank > 0 && df > 0 {
+        // Extract the rank×rank R sub-matrix (in pivoted order)
+        let mut r_sub = Matrix::zeros(rank, rank);
+        for i in 0..rank {
+            for j in i..rank {
+                r_sub.set(i, j, qr_result.qr.get(i, j));
+            }
+        }
+
+        // Invert the R sub-matrix
+        if let Some(r_inv_sub) = r_sub.invert_upper_triangular() {
+            // Compute (R^{-1})(R^{-1})^T in pivoted space
+            let xtx_inv_pivoted = r_inv_sub.matmul(&r_inv_sub.transpose());
+
+            // Map back to original column order via pivot permutation
+            for i in 0..rank {
+                let orig_i = qr_result.pivot[i] - 1; // Convert to 0-based
+                for j in 0..rank {
+                    let orig_j = qr_result.pivot[j] - 1;
+                    xtx_inv.set(orig_i, orig_j, xtx_inv_pivoted.get(i, j));
+                }
+            }
+
+            // Compute standard errors for active coefficients
+            for col in 0..p {
+                if active[col] {
+                    let se = (xtx_inv.get(col, col) * mse).sqrt();
+                    if !se.is_nan() {
+                        std_errors[col] = se;
+                        t_stats[col] = beta[col] / se;
+                        p_values[col] = two_tailed_p_value(t_stats[col], df as f64);
+                    }
+                }
+            }
         }
     }
 
-    // T-statistics and p-values
-    let t_stats: Vec<f64> = beta
-        .iter()
-        .zip(&std_errors)
-        .map(|(&b, &se)| b / se)
-        .collect();
-    let p_values: Vec<f64> = t_stats
-        .iter()
-        .map(|&t| two_tailed_p_value(t, df as f64))
-        .collect();
-
     // Confidence intervals
     let alpha = 0.05;
-    let t_critical = t_critical_quantile(df as f64, alpha);
+    let t_critical = if df > 0 { t_critical_quantile(df as f64, alpha) } else { f64::NAN };
 
     let conf_int_lower: Vec<f64> = beta
         .iter()
         .zip(&std_errors)
-        .map(|(&b, &se)| b - t_critical * se)
+        .map(|(&b, &se)| if b.is_nan() || se.is_nan() { f64::NAN } else { b - t_critical * se })
         .collect();
     let conf_int_upper: Vec<f64> = beta
         .iter()
         .zip(&std_errors)
-        .map(|(&b, &se)| b + t_critical * se)
+        .map(|(&b, &se)| if b.is_nan() || se.is_nan() { f64::NAN } else { b + t_critical * se })
         .collect();
 
-    // Leverage
+    // Leverage (using the rank-restricted (X'X)^{-1})
     let leverage = compute_leverage(&x_matrix, &xtx_inv);
 
     // Standardized residuals
@@ -774,9 +794,17 @@ pub fn ols_regression(
         })
         .collect();
 
-    // F-statistic
-    let f_statistic = (ss_regression / k as f64) / mse;
-    let f_p_value = f_p_value(f_statistic, k as f64, df as f64);
+    // F-statistic (uses effective number of predictors)
+    let f_statistic = if k_effective > 0 && df > 0 {
+        (ss_regression / k_effective as f64) / mse
+    } else {
+        f64::NAN
+    };
+    let f_p_value = if f_statistic.is_nan() {
+        f64::NAN
+    } else {
+        f_p_value(f_statistic, k_effective as f64, df as f64)
+    };
 
     // RMSE and MAE
     let rmse = std_error;
@@ -787,7 +815,7 @@ pub fn ols_regression(
 
     // Model selection criteria (for model comparison)
     let ll = log_likelihood(n, mse, ss_residual);
-    let n_coef = k + 1;  // predictors + intercept
+    let n_coef = n_active;  // only active coefficients
     let aic_val = aic(ll, n_coef);
     let bic_val = bic(ll, n_coef, n);
 
@@ -820,6 +848,13 @@ pub fn ols_regression(
         bic: bic_val,
     })
 }
+
+// ============================================================================
+// Model Serialization Traits
+// ============================================================================
+
+// Generate ModelSave and ModelLoad implementations using macro
+impl_serialization!(RegressionOutput, ModelType::OLS, "OLS");
 
 #[cfg(test)]
 mod tests {

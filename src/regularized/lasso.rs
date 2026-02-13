@@ -6,9 +6,9 @@ use crate::error::Result;
 use crate::linalg::Matrix;
 use crate::regularized::elastic_net::{elastic_net_fit, ElasticNetOptions};
 use crate::regularized::preprocess::predict;
-
-#[cfg(feature = "wasm")]
-use serde::Serialize;
+use crate::serialization::types::ModelType;
+use crate::impl_serialization;
+use serde::{Deserialize, Serialize};
 
 pub use crate::regularized::elastic_net::soft_threshold;
 
@@ -109,8 +109,7 @@ impl Default for LassoFitOptions {
 /// println!("AIC: {}", fit.aic);
 /// # Ok::<(), linreg_core::Error>(())
 /// ```
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "wasm", derive(Serialize))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LassoFit {
     pub lambda: f64,
     pub intercept: f64,
@@ -243,6 +242,13 @@ pub fn lasso_fit(x: &Matrix, y: &[f64], options: &LassoFitOptions) -> Result<Las
 pub fn predict_lasso(fit: &LassoFit, x_new: &Matrix) -> Vec<f64> {
     predict(x_new, fit.intercept, &fit.coefficients)
 }
+
+// ============================================================================
+// Model Serialization Traits
+// ============================================================================
+
+// Generate ModelSave and ModelLoad implementations using macro
+impl_serialization!(LassoFit, ModelType::Lasso, "Lasso");
 
 #[cfg(test)]
 mod tests {

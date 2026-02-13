@@ -2,6 +2,9 @@
 //!
 //! Contains the main data structures for LOESS fitting.
 
+use crate::serialization::types::ModelType;
+use crate::impl_serialization;
+
 /// Surface computation method for LOESS
 ///
 /// Controls whether fitted values are computed directly at each point
@@ -163,3 +166,10 @@ pub struct LoessFit {
     /// Surface computation method used
     pub surface: LoessSurface,
 }
+
+// ============================================================================
+// Model Serialization Traits
+// ============================================================================
+
+// Generate ModelSave and ModelLoad implementations using macro
+impl_serialization!(LoessFit, ModelType::LOESS, "LOESS");

@@ -47,7 +47,9 @@ import {
     saveModel,
     showModelComparison,
     closeModelComparison,
-    exportModelComparison
+    exportModelComparison,
+    exportModelAsJSON,
+    importModelFromJSON
 } from './modules/ui.js';
 
 // Import chart functions

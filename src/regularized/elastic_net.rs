@@ -21,9 +21,9 @@ use crate::linalg::Matrix;
 use crate::regularized::preprocess::{
     predict, standardize_xy, unstandardize_coefficients, StandardizeOptions,
 };
-
-#[cfg(feature = "wasm")]
-use serde::Serialize;
+use crate::serialization::types::ModelType;
+use crate::impl_serialization;
+use serde::{Deserialize, Serialize};
 
 /// Soft-thresholding operator: S(z, γ) = sign(z) * max(|z| - γ, 0)
 ///
@@ -206,8 +206,7 @@ impl Default for ElasticNetOptions {
 /// println!("AIC: {}", fit.aic);
 /// # Ok::<(), linreg_core::Error>(())
 /// ```
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "wasm", derive(Serialize))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ElasticNetFit {
     pub lambda: f64,
     pub alpha: f64,
@@ -866,6 +865,13 @@ fn update_feature(
         false // no change
     }
 }
+
+// ============================================================================
+// Model Serialization Traits
+// ============================================================================
+
+// Generate ModelSave and ModelLoad implementations using macro
+impl_serialization!(ElasticNetFit, ModelType::ElasticNet, "ElasticNet");
 
 #[cfg(test)]
 mod tests {

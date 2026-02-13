@@ -1145,6 +1145,189 @@ export function exportAugmentedData() {
 }
 
 /**
+ * Export trained model as JSON file
+ */
+export function exportModelAsJSON() {
+    if (!STATE.regressionResults) {
+        showToast('No regression results to export', 'warning');
+        return;
+    }
+
+    const results = STATE.regressionResults;
+
+    // Determine model type
+    const modelTypeMap = {
+        'ols': 'OLS',
+        'ridge': 'Ridge',
+        'lasso': 'Lasso',
+        'elastic_net': 'ElasticNet',
+        'wls': 'WLS',
+        'loess': 'LOESS'
+    };
+    const modelType = modelTypeMap[results.method] || 'OLS';
+
+    // Create a complete model object with all data needed for reconstruction
+    const modelData = {
+        coefficients: results.coefficients,
+        stdErrors: results.stdErrors,
+        tStats: results.tStats,
+        pValues: results.pValues,
+        confIntLower: results.confIntLower,
+        confIntUpper: results.confIntUpper,
+        rSquared: results.rSquared,
+        adjRSquared: results.adjRSquared,
+        fStat: results.fStat,
+        fPValue: results.fPValue,
+        residualStdError: results.stdError,
+        dfResiduals: results.dfResiduals,
+        dfModel: results.dfModel,
+        fittedValues: results.predictions,
+        residuals: results.residuals,
+        mse: results.mse,
+        rmse: results.rmse,
+        mae: results.mae,
+        nObservations: results.n,
+        nPredictors: results.k,
+        variableNames: results.variableNames,
+        logLikelihood: results.logLikelihood,
+        aic: results.aic,
+        bic: results.bic
+    };
+
+    // Add method-specific fields
+    if (results.method === 'ridge' || results.method === 'lasso' || results.method === 'elastic_net') {
+        modelData.intercept = results.intercept;
+        modelData.lambda = results.lambda;
+    }
+    if (results.method === 'elastic_net') {
+        modelData.alpha = results.alpha;
+    }
+    if (results.method === 'loess') {
+        modelData.fitted = results.fittedValues || results.predictions;
+        modelData.span = results.span;
+        modelData.degree = results.degree;
+        modelData.robustIterations = results.robustIterations;
+        modelData.surface = results.surface;
+    }
+
+    // Use WASM serialization function
+    import('./core.js').then(({ WasmRegression }) => {
+        try {
+            const serialized = WasmRegression.serializeModel(
+                modelData,
+                modelType,
+                `Model from ${STATE.dataSourceName || 'Unknown'} (${new Date().toISOString().split('T')[0]})`
+            );
+
+            // Download the file
+            const blob = new Blob([serialized], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `linreg_${results.method}_model.json`;
+            link.click();
+
+            showToast('Model exported as JSON', 'success');
+        } catch (e) {
+            console.error('Error exporting model:', e);
+            showToast('Failed to export model', 'error');
+        }
+    });
+}
+
+/**
+ * Import trained model from JSON file
+ */
+export function importModelFromJSON() {
+    // Create a file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const serialized = event.target.result;
+
+                // Use WASM deserialization function to get metadata
+                import('./core.js').then(({ WasmRegression }) => {
+                    const metadata = WasmRegression.getModelMetadata(serialized);
+
+                    // Show metadata and confirm
+                    const confirmed = confirm(
+                        `Load model?\n\n` +
+                        `Type: ${metadata.model_type}\n` +
+                        `Library Version: ${metadata.library_version}\n` +
+                        `Format Version: ${metadata.format_version}\n` +
+                        `Created: ${metadata.created_at}\n` +
+                        (metadata.name ? `Name: ${metadata.name}\n` : '')
+                    );
+
+                    if (confirmed) {
+                        const modelData = WasmRegression.deserializeModel(serialized);
+
+                        // Store in STATE for later use
+                        STATE.importedModel = {
+                            ...modelData,
+                            metadata: metadata
+                        };
+
+                        // Update UI with imported model
+                        if (modelData.coefficients) {
+                            updateResultsDisplay({
+                                method: metadata.model_type.toLowerCase(),
+                                coefficients: modelData.coefficients,
+                                stdErrors: modelData.stdErrors,
+                                tStats: modelData.tStats,
+                                pValues: modelData.pValues,
+                                confIntLower: modelData.confIntLower,
+                                confIntUpper: modelData.confIntUpper,
+                                rSquared: modelData.rSquared,
+                                adjRSquared: modelData.adjRSquared,
+                                fStat: modelData.fStat,
+                                fPValue: modelData.fPValue,
+                                stdError: modelData.residualStdError,
+                                rmse: modelData.rmse,
+                                mae: modelData.mae,
+                                mse: modelData.mse,
+                                predictions: modelData.fittedValues,
+                                residuals: modelData.residuals,
+                                standardizedResiduals: modelData.residuals?.map((r, i) => {
+                                    // Recalculate if we have stdError
+                                    return modelData.residualStdError ?
+                                        r / modelData.residualStdError : 0;
+                                }),
+                                n: modelData.nObservations,
+                                k: modelData.nPredictors,
+                                variableNames: modelData.variableNames || [],
+                                logLikelihood: modelData.logLikelihood,
+                                aic: modelData.aic,
+                                bic: modelData.bic,
+                                lambda: modelData.lambda,
+                                alpha: modelData.alpha,
+                                isImported: true
+                            });
+
+                            showToast(`Loaded ${metadata.model_type} model`, 'success');
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error('Error importing model:', e);
+                showToast('Failed to import model. Invalid JSON format.', 'error');
+            }
+        };
+
+        reader.readAsText(file);
+    };
+
+    input.click();
+}
+
+/**
  * Filter residuals table by influential observations
  */
 export function filterInfluential() {
@@ -1951,6 +2134,17 @@ export function initUI() {
     const exportAugmentedBtn = document.getElementById('exportAugmentedBtn');
     if (exportAugmentedBtn) {
         exportAugmentedBtn.addEventListener('click', exportAugmentedData);
+    }
+
+    // Export/Import model buttons
+    const exportModelBtn = document.getElementById('exportModelBtn');
+    if (exportModelBtn) {
+        exportModelBtn.addEventListener('click', exportModelAsJSON);
+    }
+
+    const importModelBtn = document.getElementById('importModelBtn');
+    if (importModelBtn) {
+        importModelBtn.addEventListener('click', importModelFromJSON);
     }
 
     // Model comparison modal
