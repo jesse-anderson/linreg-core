@@ -210,22 +210,32 @@ class TestOLSEdgeCases:
         result = linreg_core.ols_regression(y, x, ["Intercept", "X1"])
         assert len(result.coefficients) == 2
 
-    def test_constant_predictor_raises_error(self):
-        """Test that a constant predictor (zero variance) raises an error."""
+    def test_constant_predictor_handled_gracefully(self):
+        """Test that a constant predictor (zero variance) is handled gracefully."""
         y = [1.0, 2.0, 3.0, 4.0, 5.0]
-        x = [[1.0, 1.0, 1.0, 1.0, 1.0]]  # Constant predictor
+        x = [[1.0, 1.0, 1.0, 1.0, 1.0]]  # Constant predictor (collinear with intercept)
 
-        with pytest.raises(Exception):
-            linreg_core.ols_regression(y, x, ["Intercept", "X1"])
+        # LINPACK QR handles rank-deficiency by dropping redundant columns
+        result = linreg_core.ols_regression(y, x, ["Intercept", "X1"])
+        assert result is not None
+        assert len(result.coefficients) == 2
+        # At least one coefficient should be NaN (dropped)
+        import math
+        assert any(math.isnan(c) for c in result.coefficients)
 
-    def test_perfect_collinearity_raises_error(self):
-        """Test that perfectly collinear predictors raise an error."""
+    def test_perfect_collinearity_handled_gracefully(self):
+        """Test that perfectly collinear predictors are handled gracefully."""
         y = [1.0, 2.0, 3.0, 4.0, 5.0]
         x1 = [1.0, 2.0, 3.0, 4.0, 5.0]
         x2 = [2.0, 4.0, 6.0, 8.0, 10.0]  # Exactly 2 * x1
 
-        with pytest.raises(Exception):
-            linreg_core.ols_regression(y, [x1, x2], ["Intercept", "X1", "X2"])
+        # LINPACK QR handles rank-deficiency by dropping redundant columns
+        result = linreg_core.ols_regression(y, [x1, x2], ["Intercept", "X1", "X2"])
+        assert result is not None
+        assert len(result.coefficients) == 3
+        # At least one coefficient should be NaN (dropped)
+        import math
+        assert any(math.isnan(c) for c in result.coefficients)
 
     def test_negative_values(self):
         """Test that negative values are handled correctly."""

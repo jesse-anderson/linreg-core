@@ -53,20 +53,20 @@ class TestErrorMessageQuality:
         # Ideally should mention required vs available
         # (This depends on the specific error implementation)
 
-    def test_singular_matrix_error_message(self):
-        """Test that singular matrix error mentions multicollinearity."""
+    def test_singular_matrix_handled_gracefully(self):
+        """Test that collinear predictors are handled by dropping redundant columns."""
         # Perfectly collinear predictors
         y = [1.0, 2.0, 3.0, 4.0, 5.0]
         x1 = [1.0, 2.0, 3.0, 4.0, 5.0]
         x2 = [2.0, 4.0, 6.0, 8.0, 10.0]  # Exactly 2 * x1
 
-        with pytest.raises(Exception) as exc_info:
-            linreg_core.ols_regression(y, [x1, x2], ["Intercept", "X1", "X2"])
-
-        error_msg = str(exc_info.value)
-        # Should mention singular matrix or multicollinearity
-        assert any(term in error_msg.lower() for term in
-                   ["singular", "multicollinear", "redundant", "linear", "dependent"])
+        # LINPACK QR handles rank-deficiency by dropping redundant columns
+        result = linreg_core.ols_regression(y, [x1, x2], ["Intercept", "X1", "X2"])
+        assert result is not None
+        assert len(result.coefficients) == 3
+        # At least one coefficient should be NaN (dropped)
+        import math
+        assert any(math.isnan(c) for c in result.coefficients)
 
     def test_nan_value_error_message(self):
         """Test error message for NaN values."""
@@ -94,18 +94,18 @@ class TestErrorMessageQuality:
         assert any(term in error_msg.lower() for term in
                    ["inf", "infinite", "invalid", "finite"])
 
-    def test_constant_predictor_error_message(self):
-        """Test error message for constant predictor."""
+    def test_constant_predictor_handled_gracefully(self):
+        """Test that constant predictor is handled by dropping the redundant column."""
         y = [1.0, 2.0, 3.0, 4.0, 5.0]
-        x = [[1.0, 1.0, 1.0, 1.0, 1.0]]  # No variance
+        x = [[1.0, 1.0, 1.0, 1.0, 1.0]]  # No variance (collinear with intercept)
 
-        with pytest.raises(Exception) as exc_info:
-            linreg_core.ols_regression(y, x, ["Intercept", "X1"])
-
-        error_msg = str(exc_info.value)
-        # Should mention variance or singular matrix
-        assert any(term in error_msg.lower() for term in
-                   ["singular", "variance", "constant", "multicollinear"])
+        # LINPACK QR handles rank-deficiency by dropping redundant columns
+        result = linreg_core.ols_regression(y, x, ["Intercept", "X1"])
+        assert result is not None
+        assert len(result.coefficients) == 2
+        # At least one coefficient should be NaN (dropped)
+        import math
+        assert any(math.isnan(c) for c in result.coefficients)
 
     def test_negative_lambda_error_message(self):
         """Test error message for invalid lambda parameter."""
@@ -228,18 +228,20 @@ class TestErrorRecoverability:
         assert len(result.coefficients) == 2
 
     def test_singular_matrix_recoverable_by_removing_predictor(self):
-        """Test that singular matrix error can be fixed by removing predictor."""
+        """Test that removing a collinear predictor gives a cleaner result."""
+        import math
         y = [1.0, 2.0, 3.0, 4.0, 5.0]
         x1 = [1.0, 2.0, 3.0, 4.0, 5.0]
         x2 = [2.0, 4.0, 6.0, 8.0, 10.0]  # Collinear with x1
 
-        # Should fail with both predictors
-        with pytest.raises(Exception):
-            linreg_core.ols_regression(y, [x1, x2], ["Intercept", "X1", "X2"])
+        # With both predictors, LINPACK QR drops a column (NaN coefficient)
+        result_both = linreg_core.ols_regression(y, [x1, x2], ["Intercept", "X1", "X2"])
+        assert any(math.isnan(c) for c in result_both.coefficients)
 
-        # Should succeed with just one predictor
-        result = linreg_core.ols_regression(y, [x1], ["Intercept", "X1"])
-        assert result.r_squared > 0.9
+        # With just one predictor, all coefficients are valid
+        result_one = linreg_core.ols_regression(y, [x1], ["Intercept", "X1"])
+        assert result_one.r_squared > 0.9
+        assert not any(math.isnan(c) for c in result_one.coefficients)
 
 
 class TestErrorMessageLanguage:
