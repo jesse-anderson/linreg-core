@@ -114,7 +114,9 @@ fn test_wasm_error_handling_insufficient_data() {
 
 #[wasm_bindgen_test]
 fn test_wasm_error_handling_singular_matrix() {
-    // Perfect multicollinearity: x2 = 2 * x1 - use more observations to pass validation
+    // Perfect multicollinearity: x2 = 2 * x1
+    // LINPACK QR with column pivoting handles this gracefully by dropping
+    // the redundant column, rather than erroring.
     let y = vec![1.0, 2.0, 3.0, 4.0, 5.0];
     let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
     let x2 = vec![2.0, 4.0, 6.0, 8.0, 10.0]; // x2 = 2 * x1
@@ -126,19 +128,23 @@ fn test_wasm_error_handling_singular_matrix() {
     let result_json = ols_regression(&y_json, &x_vars_json, &names_json);
     let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
 
-    // Should have error field
+    // Should succeed (not error) - LINPACK QR drops redundant columns gracefully
     assert!(
-        result.get("error").is_some(),
-        "Should return error for singular matrix, got: {:?}",
-        result
+        result.get("error").is_none(),
+        "LINPACK QR should handle singular matrix gracefully, got error: {:?}",
+        result.get("error")
     );
 
-    let error_msg = result.get("error").unwrap().as_str().unwrap();
+    // The result should have coefficients, with the dropped column having NaN stats
+    let coefficients = result.get("coefficients").unwrap().as_array().unwrap();
+    assert_eq!(coefficients.len(), 3, "Should have 3 coefficients (Intercept + X1 + X2)");
+
+    // At least one standard error should be null (the dropped column)
+    let std_errors = result.get("std_errors").unwrap().as_array().unwrap();
+    let has_dropped = std_errors.iter().any(|se| se.is_null());
     assert!(
-        error_msg.to_lowercase().contains("singular")
-            || error_msg.to_lowercase().contains("multicollinearity"),
-        "Error should mention singular or multicollinearity, got: {}",
-        error_msg
+        has_dropped,
+        "At least one std_error should be null due to collinearity"
     );
 }
 

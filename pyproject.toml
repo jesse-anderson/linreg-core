@@ -30,7 +30,7 @@ classifiers = [
 Homepage = "https://jesse-anderson.net/linreg-core/"
 Repository = "https://github.com/jesse-anderson/linreg-core"
 Documentation = "https://docs.rs/linreg-core"
-Live Demo = "https://jesse-anderson.net/linreg-core/"
+"Live Demo" = "https://jesse-anderson.net/linreg-core/"
 
 [tool.maturin]
 features = ["python"]
