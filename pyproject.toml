@@ -38,5 +38,3 @@ features = ["python"]
 module-name = "linreg_core"
 # Strip symbols from release builds
 strip = true
-# Look for Python files (.pyi) in the project root
-python-source = "."
