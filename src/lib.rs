@@ -206,7 +206,7 @@
 //! - [`weighted_regression`] — Weighted Least Squares (WLS)
 //! - [`loess`] — Locally weighted scatterplot smoothing
 //! - [`cross_validation`] — K-Fold Cross Validation for all regression types
-//! - [`prediction_intervals`] — Prediction and confidence intervals for all model types
+//! - [`mod@prediction_intervals`] — Prediction and confidence intervals for all model types
 //! - [`diagnostics`] — 14 statistical tests (linearity, heteroscedasticity, normality, autocorrelation, influence)
 //! - [`serialization`] — Model save/load to JSON (native Rust)
 //! - [`stats`] — Descriptive statistics utilities
