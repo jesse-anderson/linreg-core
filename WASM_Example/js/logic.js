@@ -49,11 +49,12 @@ import {
     closeModelComparison,
     exportModelComparison,
     exportModelAsJSON,
-    importModelFromJSON
+    importModelFromJSON,
+    runTracePath
 } from './modules/ui.js';
 
 // Import chart functions
-import { updateCharts, exportChartsAsPNG } from './modules/charts.js';
+import { updateCharts, exportChartsAsPNG, updateCorrelationHeatmap } from './modules/charts.js';
 
 // Import regularized regression helpers
 import { formatMethodName } from './modules/regularized.js';
@@ -151,6 +152,9 @@ window.saveModel = saveModel;
 window.showModelComparison = showModelComparison;
 window.closeModelComparison = closeModelComparison;
 window.exportModelComparison = exportModelComparison;
+window.exportModelAsJSON = exportModelAsJSON;
+window.importModelFromJSON = importModelFromJSON;
+window.runTracePath = runTracePath;
 
 // Utilities
 window.showToast = showToast;
@@ -254,8 +258,19 @@ function handleDataLoaded(e) {
     const dataPreview = document.getElementById('dataPreview');
     if (dataPreview) dataPreview.style.display = 'block';
 
+    const edaSection = document.getElementById('edaSection');
+    if (edaSection) edaSection.style.display = 'block';
+
     updateDataPreview();
     updateColumnSelectors();
+
+    // Update heatmap
+    const correlationToggle = document.getElementById('correlationToggle');
+    if (correlationToggle) {
+        const titleSpan = correlationToggle.querySelector('.title');
+        if (titleSpan) titleSpan.textContent = `Correlation Matrix (${rowCount} obs)`;
+    }
+    updateCorrelationHeatmap();
 }
 
 // ============================================================================

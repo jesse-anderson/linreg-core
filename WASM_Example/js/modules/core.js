@@ -38,10 +38,15 @@ import init, {
     serialize_model,
     deserialize_model,
     get_model_metadata,
+    elastic_net_path_wasm,
     kfold_cv_ols,
     kfold_cv_ridge,
     kfold_cv_lasso,
-    kfold_cv_elastic_net
+    kfold_cv_elastic_net,
+    ols_prediction_intervals,
+    ridge_prediction_intervals,
+    lasso_prediction_intervals,
+    elastic_net_prediction_intervals
 } from '../linreg_core.js';
 
 import { STATE, showToast } from './utils.js';
@@ -257,6 +262,34 @@ export const WasmRegression = {
         return loess_predict(newXJson, origXJson, origYJson, span, degree, robustIterations, surface);
     },
 
+    // Model Serialization
+    serializeModel: async (modelData, modelType, name = null) => {
+        await initWasm();
+        if (typeof serialize_model !== 'function') {
+            throw new Error('WASM serialize_model not available');
+        }
+        const modelJson = JSON.stringify(modelData);
+        return serialize_model(modelJson, modelType, name);
+    },
+
+    deserializeModel: async (jsonString) => {
+        await initWasm();
+        if (typeof deserialize_model !== 'function') {
+            throw new Error('WASM deserialize_model not available');
+        }
+        const resultJson = deserialize_model(jsonString);
+        return JSON.parse(resultJson);
+    },
+
+    getModelMetadata: async (jsonString) => {
+        await initWasm();
+        if (typeof get_model_metadata !== 'function') {
+            throw new Error('WASM get_model_metadata not available');
+        }
+        const resultJson = get_model_metadata(jsonString);
+        return JSON.parse(resultJson);
+    },
+
     // K-Fold Cross-Validation
     kfoldCvOls: (y, xVars, names, nFolds, shuffle, seed) => {
         const yJson = JSON.stringify(y);
@@ -289,6 +322,13 @@ export const WasmRegression = {
         const shuffleJson = JSON.stringify(shuffle);
         const seedJson = seed === null ? 'null' : JSON.stringify(seed);
         return kfold_cv_elastic_net(yJson, xJson, lambda, alpha, standardize, nFolds, shuffleJson, seedJson);
+    },
+
+    // Trace Path (Coefficient Path)
+    tracePath: (y, xVars, nLambda, lambdaMinRatio, alpha, standardize, maxIter, tol) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        return elastic_net_path_wasm(yJson, xJson, nLambda, lambdaMinRatio, alpha, standardize, maxIter, tol);
     }
 };
 
@@ -373,6 +413,8 @@ export async function calculateRegression(yVar, xVars) {
         standardizedResiduals: result.standardized_residuals,
         leverage: result.leverage,
         confidenceIntervals: result.conf_int_lower.map((lower, i) => [lower, result.conf_int_upper[i]]),
+        confIntLower: result.conf_int_lower,
+        confIntUpper: result.conf_int_upper,
         vif: result.vif,
         n: result.n,
         k: result.k,
@@ -714,6 +756,8 @@ export async function calculateWlsRegression(yVar, xVars, weightsVar) {
         tStats: result.t_statistics,
         pValues: result.p_values,
         confidenceIntervals: result.conf_int_lower.map((lower, i) => [lower, result.conf_int_upper[i]]),
+        confIntLower: result.conf_int_lower,
+        confIntUpper: result.conf_int_upper,
         rSquared: result.r_squared,
         adjRSquared: result.adj_r_squared,
         mse: result.mse,
@@ -910,10 +954,11 @@ export const Stats = {
      * @param {Object} result - Regression result object
      * @param {string} modelType - Model type ("OLS", "Ridge", "Lasso", "ElasticNet", "WLS", "LOESS")
      * @param {string} name - Optional model name
-     * @returns {string} Serialized JSON string
+     * @returns {Promise<string>} Serialized JSON string
      */
-    serializeModel: (result, modelType, name = null) => {
-        if (!wasmReady || typeof serialize_model !== 'function') {
+    serializeModel: async (result, modelType, name = null) => {
+        await initWasm();
+        if (typeof serialize_model !== 'function') {
             throw new Error('WASM serialize_model not available');
         }
         const resultJson = JSON.stringify(result);
@@ -923,10 +968,11 @@ export const Stats = {
     /**
      * Deserialize a model (extract model data from wrapper)
      * @param {string} serializedJson - Serialized model JSON string
-     * @returns {Object} Model data object
+     * @returns {Promise<Object>} Model data object
      */
-    deserializeModel: (serializedJson) => {
-        if (!wasmReady || typeof deserialize_model !== 'function') {
+    deserializeModel: async (serializedJson) => {
+        await initWasm();
+        if (typeof deserialize_model !== 'function') {
             throw new Error('WASM deserialize_model not available');
         }
         const modelJson = deserialize_model(serializedJson);
@@ -936,13 +982,89 @@ export const Stats = {
     /**
      * Get metadata from serialized model
      * @param {string} serializedJson - Serialized model JSON string
-     * @returns {Object} Metadata object
+     * @returns {Promise<Object>} Metadata object
      */
-    getModelMetadata: (serializedJson) => {
-        if (!wasmReady || typeof get_model_metadata !== 'function') {
+    getModelMetadata: async (serializedJson) => {
+        await initWasm();
+        if (typeof get_model_metadata !== 'function') {
             throw new Error('WASM get_model_metadata not available');
         }
         const metadataJson = get_model_metadata(serializedJson);
         return JSON.parse(metadataJson);
+    },
+
+    // ========================================================================
+    // Prediction Intervals
+    // ========================================================================
+
+    /**
+     * Compute OLS prediction intervals
+     * @param {number[]} y - Response variable
+     * @param {number[][]} xVars - Predictor variables (training data)
+     * @param {number[][]} newX - New predictor values
+     * @param {number} alpha - Significance level (e.g., 0.05 for 95% PI)
+     * @returns {string} JSON string with predicted, lower_bound, upper_bound, se_pred, leverage
+     */
+    olsPredictionIntervals: (y, xVars, newX, alpha = 0.05) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const newXJson = JSON.stringify(newX);
+        return ols_prediction_intervals(yJson, xJson, newXJson, alpha);
+    },
+
+    /**
+     * Compute approximate Ridge prediction intervals
+     * @param {number[]} y - Response variable
+     * @param {number[][]} xVars - Predictor variables (training data)
+     * @param {number[][]} newX - New predictor values
+     * @param {number} alpha - Significance level
+     * @param {number} lambda - Regularization strength
+     * @param {boolean} standardize - Whether to standardize predictors
+     * @returns {string} JSON string with prediction interval results
+     */
+    ridgePredictionIntervals: (y, xVars, newX, alpha = 0.05, lambda = 1.0, standardize = true) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const newXJson = JSON.stringify(newX);
+        return ridge_prediction_intervals(yJson, xJson, newXJson, alpha, lambda, standardize);
+    },
+
+    /**
+     * Compute approximate Lasso prediction intervals
+     * @param {number[]} y - Response variable
+     * @param {number[][]} xVars - Predictor variables (training data)
+     * @param {number[][]} newX - New predictor values
+     * @param {number} alpha - Significance level
+     * @param {number} lambda - Regularization strength
+     * @param {boolean} standardize - Whether to standardize predictors
+     * @param {number} maxIter - Maximum iterations
+     * @param {number} tol - Convergence tolerance
+     * @returns {string} JSON string with prediction interval results
+     */
+    lassoPredictionIntervals: (y, xVars, newX, alpha = 0.05, lambda = 1.0, standardize = true, maxIter = 100000, tol = 1e-7) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const newXJson = JSON.stringify(newX);
+        return lasso_prediction_intervals(yJson, xJson, newXJson, alpha, lambda, standardize, maxIter, tol);
+    },
+
+    /**
+     * Compute approximate Elastic Net prediction intervals
+     * @param {number[]} y - Response variable
+     * @param {number[][]} xVars - Predictor variables (training data)
+     * @param {number[][]} newX - New predictor values
+     * @param {number} alpha - Significance level
+     * @param {number} lambda - Regularization strength
+     * @param {number} enetAlpha - Elastic net mixing parameter (0=Ridge, 1=Lasso)
+     * @param {boolean} standardize - Whether to standardize predictors
+     * @param {number} maxIter - Maximum iterations
+     * @param {number} tol - Convergence tolerance
+     * @returns {string} JSON string with prediction interval results
+     */
+    elasticNetPredictionIntervals: (y, xVars, newX, alpha = 0.05, lambda = 1.0, enetAlpha = 0.5, standardize = true, maxIter = 100000, tol = 1e-7) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const newXJson = JSON.stringify(newX);
+        return elastic_net_prediction_intervals(yJson, xJson, newXJson, alpha, lambda, enetAlpha, standardize, maxIter, tol);
     }
 };

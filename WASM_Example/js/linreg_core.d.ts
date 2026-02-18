@@ -197,6 +197,46 @@ export function dffits_test(y_json: string, x_vars_json: string): string;
 export function durbin_watson_test(y_json: string, x_vars_json: string): string;
 
 /**
+ * Fits an elastic net regularization path via WASM (Optimized).
+ *
+ * Computes the coefficient path for a sequence of lambda values.
+ * Returns a lightweight summary to avoid excessive JSON serialization overhead.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `n_lambda` - Number of lambda values (default: 100)
+ * * `lambda_min_ratio` - Ratio for smallest lambda
+ * * `alpha` - Mixing parameter (0 = Ridge, 1 = Lasso)
+ * * `standardize` - Whether to standardize predictors
+ * * `max_iter` - Maximum iterations per lambda
+ * * `tol` - Convergence tolerance
+ *
+ * # Returns
+ *
+ * JSON string containing `PathResult` (lambdas, coefficients, stats).
+ */
+export function elastic_net_path_wasm(y_json: string, x_vars_json: string, n_lambda: number, lambda_min_ratio: number, alpha: number, standardize: boolean, max_iter: number, tol: number): string;
+
+/**
+ * Computes approximate Elastic Net regression prediction intervals via WASM.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays (training data)
+ * * `new_x_json` - JSON array of predictor arrays (new observations)
+ * * `alpha` - Significance level (e.g., 0.05 for 95% PI)
+ * * `lambda` - Regularization strength
+ * * `enet_alpha` - Elastic net mixing parameter (0 = Ridge, 1 = Lasso)
+ * * `standardize` - Whether to standardize predictors
+ * * `max_iter` - Maximum coordinate descent iterations
+ * * `tol` - Convergence tolerance
+ */
+export function elastic_net_prediction_intervals(y_json: string, x_vars_json: string, new_x_json: string, alpha: number, lambda: number, enet_alpha: number, standardize: boolean, max_iter: number, tol: number): string;
+
+/**
  * Performs Elastic Net regression via WASM.
  *
  * Elastic Net combines L1 (Lasso) and L2 (Ridge) penalties.
@@ -471,6 +511,22 @@ export function kfold_cv_ols(y_json: string, x_vars_json: string, variable_names
 export function kfold_cv_ridge(y_json: string, x_vars_json: string, lambda: number, standardize: boolean, n_folds: number, shuffle_json: string, seed_json: string): string;
 
 /**
+ * Computes approximate Lasso regression prediction intervals via WASM.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays (training data)
+ * * `new_x_json` - JSON array of predictor arrays (new observations)
+ * * `alpha` - Significance level (e.g., 0.05 for 95% PI)
+ * * `lambda` - Regularization strength
+ * * `standardize` - Whether to standardize predictors
+ * * `max_iter` - Maximum coordinate descent iterations
+ * * `tol` - Convergence tolerance
+ */
+export function lasso_prediction_intervals(y_json: string, x_vars_json: string, new_x_json: string, alpha: number, lambda: number, standardize: boolean, max_iter: number, tol: number): string;
+
+/**
  * Performs Lasso regression via WASM.
  *
  * Lasso regression adds an L1 penalty to the coefficients, which performs
@@ -593,6 +649,25 @@ export function loess_predict(new_x_json: string, original_x_json: string, origi
  * Returns a JSON error object if parsing fails or domain check fails.
  */
 export function make_lambda_path(y_json: string, x_vars_json: string, n_lambda: number, lambda_min_ratio: number): string;
+
+/**
+ * Computes OLS prediction intervals via WASM.
+ *
+ * Fits an OLS model to the training data and computes prediction intervals
+ * for the new observations.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays (training data)
+ * * `new_x_json` - JSON array of predictor arrays (new observations)
+ * * `alpha` - Significance level (e.g., 0.05 for 95% PI)
+ *
+ * # Returns
+ *
+ * JSON string containing predicted values, lower/upper bounds, SE, leverage.
+ */
+export function ols_prediction_intervals(y_json: string, x_vars_json: string, new_x_json: string, alpha: number): string;
 
 /**
  * Performs OLS regression via WASM.
@@ -739,6 +814,23 @@ export function rainbow_test(y_json: string, x_vars_json: string, fraction: numb
  * Returns a JSON error object if parsing fails or domain check fails.
  */
 export function reset_test(y_json: string, x_vars_json: string, powers_json: string, type_: string): string;
+
+/**
+ * Computes approximate Ridge regression prediction intervals via WASM.
+ *
+ * Fits a Ridge model and computes conservative prediction intervals using
+ * leverage from unpenalized X'X and MSE from the ridge fit.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays (training data)
+ * * `new_x_json` - JSON array of predictor arrays (new observations)
+ * * `alpha` - Significance level (e.g., 0.05 for 95% PI)
+ * * `lambda` - Regularization strength
+ * * `standardize` - Whether to standardize predictors
+ */
+export function ridge_prediction_intervals(y_json: string, x_vars_json: string, new_x_json: string, alpha: number, lambda: number, standardize: boolean): string;
 
 /**
  * Performs Ridge regression via WASM.
@@ -1080,6 +1172,8 @@ export interface InitOutput {
     readonly dfbetas_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly dffits_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly durbin_watson_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly elastic_net_path_wasm: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
+    readonly elastic_net_prediction_intervals: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => [number, number];
     readonly elastic_net_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
     readonly get_model_metadata: (a: number, b: number) => [number, number];
     readonly get_version: () => [number, number];
@@ -1089,16 +1183,19 @@ export interface InitOutput {
     readonly kfold_cv_lasso: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
     readonly kfold_cv_ols: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
     readonly kfold_cv_ridge: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
+    readonly lasso_prediction_intervals: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
     readonly lasso_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
     readonly loess_fit: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
     readonly loess_predict: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
     readonly make_lambda_path: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+    readonly ols_prediction_intervals: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly ols_regression: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly parse_csv: (a: number, b: number) => [number, number];
     readonly python_white_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly r_white_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly rainbow_test: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly reset_test: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
+    readonly ridge_prediction_intervals: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
     readonly ridge_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
     readonly serialize_model: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly shapiro_wilk_test: (a: number, b: number, c: number, d: number) => [number, number];
@@ -1119,9 +1216,9 @@ export interface InitOutput {
     readonly get_t_cdf: (a: number, b: number) => number;
     readonly get_t_critical: (a: number, b: number) => number;
     readonly get_normal_inverse: (a: number) => number;
-    readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+    readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __wbindgen_start: () => void;
 }

@@ -1,0 +1,609 @@
+name: Nightly Published Package Tests
+
+on:
+  schedule:
+    - cron: '0 5 * * *'  # 5 AM UTC daily
+  workflow_dispatch:
+    inputs:
+      rust_version:
+        description: 'Rust crate version to test (leave empty for latest)'
+        required: false
+        type: string
+      python_version:
+        description: 'Python package version to test (leave empty for latest)'
+        required: false
+        type: string
+      npm_version:
+        description: 'npm package version to test (leave empty for latest)'
+        required: false
+        type: string
+
+jobs:
+  # ─── Job 0: Version Consistency Check ─────────────────────────
+  version-check:
+    name: Version Consistency
+    runs-on: ubuntu-latest
+    outputs:
+      crates_version: ${{ steps.resolve.outputs.crates }}
+      pypi_version: ${{ steps.resolve.outputs.pypi }}
+      npm_version: ${{ steps.resolve.outputs.npm }}
+      all_match: ${{ steps.resolve.outputs.all_match }}
+    steps:
+      - name: Query registry versions
+        id: registries
+        run: |
+          CRATES=$(curl -sH "User-Agent: linreg-core-nightly-ci" \
+            https://crates.io/api/v1/crates/linreg-core \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['crate']['max_version'])")
+          echo "crates=$CRATES" >> $GITHUB_OUTPUT
+
+          PYPI=$(curl -s https://pypi.org/pypi/linreg-core/json \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['info']['version'])")
+          echo "pypi=$PYPI" >> $GITHUB_OUTPUT
+
+          NPM=$(npm view linreg-core version 2>/dev/null || echo "NOT_FOUND")
+          echo "npm=$NPM" >> $GITHUB_OUTPUT
+
+      - name: Resolve versions to test
+        id: resolve
+        run: |
+          # Use workflow_dispatch inputs if provided, otherwise use latest from registries
+          CRATES="${{ inputs.rust_version || steps.registries.outputs.crates }}"
+          PYPI="${{ inputs.python_version || steps.registries.outputs.pypi }}"
+          NPM="${{ inputs.npm_version || steps.registries.outputs.npm }}"
+
+          echo "crates=$CRATES" >> $GITHUB_OUTPUT
+          echo "pypi=$PYPI" >> $GITHUB_OUTPUT
+          echo "npm=$NPM" >> $GITHUB_OUTPUT
+
+          echo "## Registry Versions" >> $GITHUB_STEP_SUMMARY
+          echo "| Registry | Version |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| crates.io | $CRATES |" >> $GITHUB_STEP_SUMMARY
+          echo "| PyPI | $PYPI |" >> $GITHUB_STEP_SUMMARY
+          echo "| npm | $NPM |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$CRATES" = "$PYPI" ] && [ "$PYPI" = "$NPM" ]; then
+            echo "all_match=true" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All versions match: **$CRATES**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "all_match=false" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "::warning::Version mismatch across registries"
+            echo "**Warning: Version mismatch detected**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ─── Job 1: Rust Crate from crates.io ────────────────────────
+  rust-crate:
+    name: Rust Crate (crates.io)
+    runs-on: ubuntu-latest
+    needs: version-check
+    steps:
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Create test project
+        run: |
+          mkdir -p /tmp/nightly-rust-test/src
+          cat > /tmp/nightly-rust-test/Cargo.toml << 'TOML'
+          [package]
+          name = "nightly-test"
+          version = "0.1.0"
+          edition = "2021"
+
+          [dependencies]
+          linreg-core = { version = "${{ needs.version-check.outputs.crates_version }}", default-features = false }
+          TOML
+
+      - name: Write test program
+        run: |
+          cat > /tmp/nightly-rust-test/src/main.rs << 'RUST'
+          use linreg_core::core::ols_regression;
+          use linreg_core::linalg::Matrix;
+          use linreg_core::regularized::{
+              ridge_fit, RidgeFitOptions,
+              lasso_fit, LassoFitOptions,
+              elastic_net_fit, ElasticNetOptions,
+          };
+          use linreg_core::distributions::{student_t_cdf, normal_cdf, chi_square_cdf};
+
+          fn assert_close(actual: f64, expected: f64, tol: f64, label: &str) {
+              let diff = (actual - expected).abs();
+              assert!(
+                  diff <= tol,
+                  "{}: expected {}, got {}, diff {:.2e} > tol {:.2e}",
+                  label, expected, actual, diff, tol
+              );
+              println!("  PASS {}: {:.10} (expected {:.10}, diff {:.2e})", label, actual, expected, diff);
+          }
+
+          fn main() {
+              println!("=== Nightly Crate Test: linreg-core from crates.io ===\n");
+
+              // ── OLS Golden Values (simple) ──
+              println!("--- OLS (simple linear) ---");
+              let y = vec![2.5, 3.7, 4.2, 5.1, 6.3];
+              let x = vec![vec![1.0, 2.0, 3.0, 4.0, 5.0]];
+              let names = vec!["Intercept".to_string(), "X1".to_string()];
+              let r = ols_regression(&y, &x, &names).expect("OLS failed");
+              assert_close(r.coefficients[0], 1.55, 1e-10, "intercept");
+              assert_close(r.coefficients[1], 0.93, 1e-10, "slope");
+              assert_close(r.r_squared, 0.9890909090909091, 1e-10, "R-squared");
+              println!();
+
+              // ── OLS Golden Values (housing) ──
+              println!("--- OLS (housing dataset) ---");
+              let y2 = vec![245.5, 312.8, 198.4, 425.6, 278.9, 356.2, 189.5, 512.3, 234.7, 298.1];
+              let x2 = vec![
+                  vec![1200.0, 1800.0, 950.0, 2400.0, 1450.0, 2000.0, 1100.0, 2800.0, 1350.0, 1650.0],
+                  vec![3.0, 4.0, 2.0, 4.0, 3.0, 4.0, 2.0, 5.0, 3.0, 3.0],
+              ];
+              let names2 = vec!["Intercept".into(), "SqFt".into(), "Bed".into()];
+              let r2 = ols_regression(&y2, &x2, &names2).expect("OLS housing failed");
+              assert_close(r2.coefficients[0], 15.6480854, 1e-4, "housing intercept");
+              assert_close(r2.coefficients[1], 0.1638012, 1e-4, "housing SqFt");
+              assert_close(r2.coefficients[2], 4.8496809, 1e-4, "housing Bed");
+              assert!(r2.r_squared > 0.95, "housing R² = {} (expected > 0.95)", r2.r_squared);
+              println!();
+
+              // ── Ridge Regression ──
+              println!("--- Ridge Regression ---");
+              let x_mat = Matrix::new(10, 3, {
+                  let mut data = Vec::new();
+                  for i in 0..10 {
+                      data.push(1.0);
+                      data.push(x2[0][i]);
+                      data.push(x2[1][i]);
+                  }
+                  data
+              });
+              let ridge = ridge_fit(&x_mat, &y2, &RidgeFitOptions {
+                  lambda: 1.0,
+                  standardize: true,
+                  intercept: true,
+                  ..Default::default()
+              }).expect("Ridge failed");
+              assert!(ridge.r_squared > 0.90, "Ridge R² = {} (expected > 0.90)", ridge.r_squared);
+              println!("  PASS Ridge R²: {}", ridge.r_squared);
+              println!();
+
+              // ── Lasso Regression ──
+              println!("--- Lasso Regression ---");
+              let lasso = lasso_fit(&x_mat, &y2, &LassoFitOptions {
+                  lambda: 0.1,
+                  standardize: true,
+                  intercept: true,
+                  ..Default::default()
+              }).expect("Lasso failed");
+              assert!(lasso.converged, "Lasso did not converge");
+              assert!(lasso.r_squared > 0.85, "Lasso R² = {} (expected > 0.85)", lasso.r_squared);
+              println!("  PASS Lasso R²: {}, converged: {}, non-zero: {}", lasso.r_squared, lasso.converged, lasso.n_nonzero);
+              println!();
+
+              // ── Elastic Net ──
+              println!("--- Elastic Net ---");
+              let enet = elastic_net_fit(&x_mat, &y2, &ElasticNetOptions {
+                  lambda: 0.1,
+                  alpha: 0.5,
+                  standardize: true,
+                  intercept: true,
+                  ..Default::default()
+              }).expect("Elastic Net failed");
+              assert!(enet.converged, "Elastic Net did not converge");
+              assert!(enet.r_squared > 0.85, "Elastic Net R² = {} (expected > 0.85)", enet.r_squared);
+              println!("  PASS Elastic Net R²: {}, converged: {}", enet.r_squared, enet.converged);
+              println!();
+
+              // ── Statistical Distributions ──
+              println!("--- Statistical Distributions ---");
+              assert_close(student_t_cdf(1.96, 20.0), 0.9681, 1e-3, "t CDF(1.96, df=20)");
+              assert_close(normal_cdf(1.96), 0.97500, 1e-4, "Normal CDF(1.96)");
+              assert_close(normal_cdf(0.0), 0.5, 1e-10, "Normal CDF(0.0)");
+              assert_close(chi_square_cdf(5.991, 2.0), 0.9500, 1e-3, "Chi² CDF(5.991, df=2)");
+              println!();
+
+              println!("=== All nightly crate tests PASSED ===");
+          }
+          RUST
+
+      - name: Build and run
+        run: cd /tmp/nightly-rust-test && cargo run --release
+
+  # ─── Job 2: Python Package from PyPI ──────────────────────────
+  python-pypi:
+    name: Python (PyPI) - ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    needs: version-check
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install from PyPI
+        run: |
+          pip install linreg-core==${{ needs.version-check.outputs.pypi_version }}
+          pip install pytest numpy
+
+      - name: Verify import and version
+        run: |
+          python3 -c "
+          import linreg_core
+          v = linreg_core.get_version()
+          print(f'Installed version: {v}')
+          expected = '${{ needs.version-check.outputs.pypi_version }}'
+          assert v == expected, f'Version mismatch: installed {v}, expected {expected}'
+          print('Version check PASSED')
+          "
+
+      - name: Run pytest suite against PyPI package
+        run: pytest tests/python/ -v --tb=short
+
+      - name: Golden value cross-check
+        run: |
+          python3 << 'PYTHON'
+          import linreg_core
+
+          # Simple linear golden values
+          y = [2.5, 3.7, 4.2, 5.1, 6.3]
+          x = [[1.0, 2.0, 3.0, 4.0, 5.0]]
+          r = linreg_core.ols_regression(y, x, ["Intercept", "X1"])
+          assert abs(r.r_squared - 0.9890909090909091) < 1e-10, f"R² drift: {r.r_squared}"
+          assert abs(r.coefficients[0] - 1.55) < 1e-10, f"Intercept drift: {r.coefficients[0]}"
+          assert abs(r.coefficients[1] - 0.93) < 1e-10, f"Slope drift: {r.coefficients[1]}"
+
+          # Housing golden values
+          y2 = [245.5, 312.8, 198.4, 425.6, 278.9, 356.2, 189.5, 512.3, 234.7, 298.1]
+          x2 = [
+              [1200.0, 1800.0, 950.0, 2400.0, 1450.0, 2000.0, 1100.0, 2800.0, 1350.0, 1650.0],
+              [3.0, 4.0, 2.0, 4.0, 3.0, 4.0, 2.0, 5.0, 3.0, 3.0]
+          ]
+          r2 = linreg_core.ols_regression(y2, x2, ["Intercept", "SqFt", "Bed"])
+          assert abs(r2.coefficients[0] - 15.6480854) < 1e-4, f"Housing intercept drift: {r2.coefficients[0]}"
+          assert abs(r2.coefficients[1] - 0.1638012) < 1e-4, f"Housing SqFt drift: {r2.coefficients[1]}"
+          assert abs(r2.coefficients[2] - 4.8496809) < 1e-4, f"Housing Bed drift: {r2.coefficients[2]}"
+
+          print("All Python golden value checks PASSED")
+          PYTHON
+
+  # ─── Job 3: npm/WASM Package from npm ────────────────────────
+  npm-wasm:
+    name: npm/WASM (npm registry)
+    runs-on: ubuntu-latest
+    needs: version-check
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install from npm
+        run: |
+          mkdir -p /tmp/nightly-wasm-test
+          cd /tmp/nightly-wasm-test
+          npm init -y
+          npm install linreg-core@${{ needs.version-check.outputs.npm_version }}
+
+      - name: Write WASM test script
+        run: |
+          cat > /tmp/nightly-wasm-test/test.mjs << 'NODEJS'
+          import { readFileSync } from 'fs';
+          import { join, dirname } from 'path';
+          import { fileURLToPath } from 'url';
+
+          const __dirname = dirname(fileURLToPath(import.meta.url));
+          const pkgDir = join(__dirname, 'node_modules', 'linreg-core');
+
+          // Load WASM via initSync to bypass --target web fetch() requirement
+          const wasmBytes = readFileSync(join(pkgDir, 'linreg_core_bg.wasm'));
+          const mod = await import(join(pkgDir, 'linreg_core.js'));
+          mod.initSync({ module: wasmBytes });
+
+          function assertClose(actual, expected, tol, label) {
+            const diff = Math.abs(actual - expected);
+            if (diff > tol) {
+              throw new Error(`${label}: expected ${expected}, got ${actual}, diff ${diff.toExponential(2)} > tol ${tol}`);
+            }
+            console.log(`  PASS ${label}: ${actual} (expected ${expected})`);
+          }
+
+          console.log('=== Nightly WASM Test: linreg-core from npm ===\n');
+
+          // ── Smoke Test ──
+          console.log('--- Smoke Test ---');
+          console.log(`  test(): ${mod.test()}`);
+          console.log(`  version: ${mod.get_version()}`);
+          console.log();
+
+          // ── OLS Golden Values (simple) ──
+          console.log('--- OLS (simple linear) ---');
+          const r = JSON.parse(mod.ols_regression(
+            JSON.stringify([2.5, 3.7, 4.2, 5.1, 6.3]),
+            JSON.stringify([[1.0, 2.0, 3.0, 4.0, 5.0]]),
+            JSON.stringify(["Intercept", "X1"])
+          ));
+          assertClose(r.coefficients[0], 1.55, 1e-10, 'intercept');
+          assertClose(r.coefficients[1], 0.93, 1e-10, 'slope');
+          assertClose(r.r_squared, 0.9890909090909091, 1e-10, 'R-squared');
+          console.log();
+
+          // ── OLS Golden Values (housing) ──
+          console.log('--- OLS (housing) ---');
+          const housingY = JSON.stringify([245.5, 312.8, 198.4, 425.6, 278.9, 356.2, 189.5, 512.3, 234.7, 298.1]);
+          const housingX = JSON.stringify([
+            [1200.0, 1800.0, 950.0, 2400.0, 1450.0, 2000.0, 1100.0, 2800.0, 1350.0, 1650.0],
+            [3.0, 4.0, 2.0, 4.0, 3.0, 4.0, 2.0, 5.0, 3.0, 3.0]
+          ]);
+          const housingNames = JSON.stringify(["Intercept", "SqFt", "Bed"]);
+          const r2 = JSON.parse(mod.ols_regression(housingY, housingX, housingNames));
+          assertClose(r2.coefficients[0], 15.6480854, 1e-4, 'housing intercept');
+          assertClose(r2.coefficients[1], 0.1638012, 1e-4, 'housing SqFt');
+          assertClose(r2.coefficients[2], 4.8496809, 1e-4, 'housing Bed');
+          console.log();
+
+          // ── Ridge Regression ──
+          console.log('--- Ridge Regression ---');
+          const ridge = JSON.parse(mod.ridge_regression(housingY, housingX, housingNames, 1.0, true));
+          if (ridge.r_squared <= 0.90) throw new Error(`Ridge R² too low: ${ridge.r_squared}`);
+          console.log(`  PASS Ridge R²: ${ridge.r_squared}`);
+          console.log();
+
+          // ── Lasso Regression ──
+          console.log('--- Lasso Regression ---');
+          const lasso = JSON.parse(mod.lasso_regression(housingY, housingX, housingNames, 0.1, true, 100000, 1e-7));
+          if (!lasso.converged) throw new Error('Lasso did not converge');
+          if (lasso.r_squared <= 0.85) throw new Error(`Lasso R² too low: ${lasso.r_squared}`);
+          console.log(`  PASS Lasso R²: ${lasso.r_squared}, converged: ${lasso.converged}`);
+          console.log();
+
+          // ── Elastic Net ──
+          console.log('--- Elastic Net ---');
+          const enet = JSON.parse(mod.elastic_net_regression(housingY, housingX, housingNames, 0.1, 0.5, true, 100000, 1e-7));
+          if (!enet.converged) throw new Error('Elastic Net did not converge');
+          if (enet.r_squared <= 0.85) throw new Error(`Elastic Net R² too low: ${enet.r_squared}`);
+          console.log(`  PASS Elastic Net R²: ${enet.r_squared}, converged: ${enet.converged}`);
+          console.log();
+
+          // ── Diagnostic Tests ──
+          console.log('--- Diagnostic Tests ---');
+          const bp = JSON.parse(mod.breusch_pagan_test(housingY, housingX));
+          console.log(`  Breusch-Pagan p-value: ${bp.p_value}`);
+          if (bp.p_value < 0 || bp.p_value > 1) throw new Error(`BP p-value out of range: ${bp.p_value}`);
+
+          const dw = JSON.parse(mod.durbin_watson_test(housingY, housingX));
+          console.log(`  Durbin-Watson statistic: ${dw.statistic}`);
+          if (dw.statistic < 0 || dw.statistic > 4) throw new Error(`DW out of range: ${dw.statistic}`);
+
+          const jb = JSON.parse(mod.jarque_bera_test(housingY, housingX));
+          console.log(`  Jarque-Bera p-value: ${jb.p_value}`);
+
+          const sw = JSON.parse(mod.shapiro_wilk_test(housingY, housingX));
+          console.log(`  Shapiro-Wilk p-value: ${sw.p_value}`);
+
+          const ad = JSON.parse(mod.anderson_darling_test(housingY, housingX));
+          console.log(`  Anderson-Darling p-value: ${ad.p_value}`);
+
+          const cd = JSON.parse(mod.cooks_distance_test(housingY, housingX));
+          console.log(`  Cook's Distance: ${cd.distances.length} observations`);
+          if (cd.distances.length !== 10) throw new Error(`Expected 10 Cook's distances, got ${cd.distances.length}`);
+          console.log();
+
+          // ── Statistical Utilities ──
+          console.log('--- Statistical Utilities ---');
+          assertClose(mod.get_t_cdf(1.96, 20), 0.9681, 1e-3, 't CDF(1.96, df=20)');
+          assertClose(mod.get_t_critical(0.05, 20), 2.086, 1e-2, 't critical(0.05, df=20)');
+          assertClose(mod.get_normal_inverse(0.975), 1.96, 1e-2, 'normal inverse(0.975)');
+          console.log();
+
+          console.log('=== All nightly WASM tests PASSED ===');
+          NODEJS
+
+      - name: Run WASM tests
+        run: cd /tmp/nightly-wasm-test && node test.mjs
+
+  # ─── Job 4: Cross-Platform Consistency ────────────────────────
+  cross-platform:
+    name: Cross-Platform Consistency
+    runs-on: ubuntu-latest
+    needs: [version-check, rust-crate, python-pypi, npm-wasm]
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Python package
+        run: pip install linreg-core==${{ needs.version-check.outputs.pypi_version }}
+
+      - name: Install npm package
+        run: |
+          mkdir -p /tmp/xplat-wasm
+          cd /tmp/xplat-wasm
+          npm init -y
+          npm install linreg-core@${{ needs.version-check.outputs.npm_version }}
+
+      - name: Create Rust project
+        run: |
+          mkdir -p /tmp/xplat-rust/src
+          cat > /tmp/xplat-rust/Cargo.toml << 'TOML'
+          [package]
+          name = "xplat-rust"
+          version = "0.1.0"
+          edition = "2021"
+          [dependencies]
+          linreg-core = { version = "${{ needs.version-check.outputs.crates_version }}", default-features = false }
+          serde_json = "1.0"
+          TOML
+
+          cat > /tmp/xplat-rust/src/main.rs << 'RUST'
+          use linreg_core::core::ols_regression;
+
+          fn main() {
+              let y = vec![2.5, 3.7, 4.2, 5.1, 6.3];
+              let x = vec![vec![1.0, 2.0, 3.0, 4.0, 5.0]];
+              let names = vec!["Intercept".to_string(), "X1".to_string()];
+              let r = ols_regression(&y, &x, &names).expect("OLS failed");
+
+              let output = serde_json::json!({
+                  "r_squared": r.r_squared,
+                  "intercept": r.coefficients[0],
+                  "slope": r.coefficients[1],
+                  "mse": r.mse,
+                  "f_statistic": r.f_statistic,
+              });
+              println!("{}", serde_json::to_string(&output).unwrap());
+          }
+          RUST
+
+      - name: Capture Rust output
+        run: cd /tmp/xplat-rust && cargo run --release > /tmp/xplat-rust.json
+
+      - name: Capture Python output
+        run: |
+          python3 -c "
+          import json, linreg_core
+          r = linreg_core.ols_regression(
+              [2.5, 3.7, 4.2, 5.1, 6.3],
+              [[1.0, 2.0, 3.0, 4.0, 5.0]],
+              ['Intercept', 'X1']
+          )
+          print(json.dumps({
+              'r_squared': r.r_squared,
+              'intercept': r.coefficients[0],
+              'slope': r.coefficients[1],
+              'mse': r.mse,
+              'f_statistic': r.f_statistic,
+          }))
+          " > /tmp/xplat-python.json
+
+      - name: Capture WASM output
+        run: |
+          cat > /tmp/xplat-wasm/compare.mjs << 'JS'
+          import { readFileSync } from 'fs';
+          import { join, dirname } from 'path';
+          import { fileURLToPath } from 'url';
+
+          const __dirname = dirname(fileURLToPath(import.meta.url));
+          const pkgDir = join(__dirname, 'node_modules', 'linreg-core');
+          const wasmBytes = readFileSync(join(pkgDir, 'linreg_core_bg.wasm'));
+          const mod = await import(join(pkgDir, 'linreg_core.js'));
+          mod.initSync({ module: wasmBytes });
+
+          const r = JSON.parse(mod.ols_regression(
+            JSON.stringify([2.5, 3.7, 4.2, 5.1, 6.3]),
+            JSON.stringify([[1.0, 2.0, 3.0, 4.0, 5.0]]),
+            JSON.stringify(["Intercept", "X1"])
+          ));
+          console.log(JSON.stringify({
+            r_squared: r.r_squared,
+            intercept: r.coefficients[0],
+            slope: r.coefficients[1],
+            mse: r.mse,
+            f_statistic: r.f_statistic,
+          }));
+          JS
+          cd /tmp/xplat-wasm && node compare.mjs > /tmp/xplat-wasm.json
+
+      - name: Compare all platforms
+        run: |
+          python3 << 'PYTHON'
+          import json, sys
+
+          rust = json.load(open('/tmp/xplat-rust.json'))
+          python = json.load(open('/tmp/xplat-python.json'))
+          wasm = json.load(open('/tmp/xplat-wasm.json'))
+
+          print("=== Cross-Platform Comparison ===")
+          print(f"{'Metric':<15} {'Rust':>22} {'Python':>22} {'WASM':>22}")
+          print("-" * 83)
+
+          all_pass = True
+          tol = 1e-8
+
+          for key in ['r_squared', 'intercept', 'slope', 'mse', 'f_statistic']:
+              rv, pv, wv = rust[key], python[key], wasm[key]
+              print(f"{key:<15} {rv:>22.14f} {pv:>22.14f} {wv:>22.14f}")
+
+              for name_a, val_a, name_b, val_b in [
+                  ("Rust", rv, "Python", pv),
+                  ("Rust", rv, "WASM", wv),
+                  ("Python", pv, "WASM", wv),
+              ]:
+                  diff = abs(val_a - val_b)
+                  if diff > tol:
+                      print(f"  DRIFT: {name_a} vs {name_b} differ by {diff:.2e} on {key}")
+                      all_pass = False
+
+          print()
+          if all_pass:
+              print("All platforms agree within tolerance (1e-8).")
+          else:
+              print("DRIFT DETECTED between platforms!")
+              sys.exit(1)
+          PYTHON
+
+  # ─── Job 5: Notification on Failure ───────────────────────────
+  notify:
+    name: Failure Notification
+    runs-on: ubuntu-latest
+    needs: [version-check, rust-crate, python-pypi, npm-wasm, cross-platform]
+    if: failure()
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure nightly-failure label exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create "nightly-failure" --color "d93f0b" --description "Nightly published package test failure" 2>/dev/null || true
+
+      - name: Create or update failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BODY=$(cat << 'HEREDOC'
+          ## Nightly Published Package Test Failure
+
+          **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          ### Job Results
+          | Job | Status |
+          |-----|--------|
+          | Version Check | ${{ needs.version-check.result }} |
+          | Rust Crate (crates.io) | ${{ needs.rust-crate.result }} |
+          | Python (PyPI) | ${{ needs.python-pypi.result }} |
+          | npm/WASM (npm) | ${{ needs.npm-wasm.result }} |
+          | Cross-Platform | ${{ needs.cross-platform.result }} |
+
+          ### Versions Tested
+          - crates.io: `${{ needs.version-check.outputs.crates_version }}`
+          - PyPI: `${{ needs.version-check.outputs.pypi_version }}`
+          - npm: `${{ needs.version-check.outputs.npm_version }}`
+          - All match: ${{ needs.version-check.outputs.all_match }}
+          HEREDOC
+          )
+
+          # Check for existing open nightly failure issue
+          EXISTING=$(gh issue list --state open --label "nightly-failure" --json number --jq '.[0].number' 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+            echo "Updated existing issue #$EXISTING"
+          else
+            gh issue create \
+              --title "Nightly CI Failure: $(date -u +%Y-%m-%d)" \
+              --body "$BODY" \
+              --label "nightly-failure"
+            echo "Created new failure issue"
+          fi

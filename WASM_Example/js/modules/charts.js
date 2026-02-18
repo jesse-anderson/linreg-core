@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { STATE, escapeHtml, hexToRgba, getChartColors } from './utils.js';
-import { Stats } from './core.js';
+import { Stats, WasmRegression } from './core.js';
 
 // ============================================================================
 // CHART MANAGEMENT
@@ -18,6 +18,13 @@ export function updateCharts(results) {
     updateResidualsChart(results);
     updateQQChart(results);
     updateLeverageChart(results);
+    updateCoefficientChart(results);
+
+    // Update path chart if it's currently being shown
+    const pathContainer = document.getElementById('pathChartContainer');
+    if (pathContainer && pathContainer.style.display !== 'none' && STATE.pathResults) {
+        updatePathChart(STATE.pathResults);
+    }
 }
 
 /**
@@ -35,13 +42,23 @@ export function updateMainChart(results) {
         STATE.charts.main.destroy();
     }
 
-    const yData = STATE.rawData.map(row => row[STATE.yVariable]);
+    const hasRawData = STATE.rawData && STATE.rawData.length > 0;
+    let yData;
 
-    if (results.k === 1) {
+    if (hasRawData && STATE.yVariable && STATE.rawData[0][STATE.yVariable] !== undefined) {
+        yData = STATE.rawData.map(row => row[STATE.yVariable]);
+    } else if (results.predictions && results.residuals) {
+        // Reconstruct actuals
+        yData = results.predictions.map((p, i) => p + results.residuals[i]);
+    } else {
+        yData = [];
+    }
+
+    if (results.k === 1 && hasRawData) {
         // Simple regression: scatter with regression line and confidence band
         updateSimpleRegressionChart(ctx, results, yData, colors);
     } else {
-        // Multiple regression: actual vs predicted
+        // Multiple regression (or missing raw data): actual vs predicted
         updateMultipleRegressionChart(ctx, results, yData, colors);
     }
 }
@@ -75,9 +92,9 @@ function updateSimpleRegressionChart(ctx, results, yData, colors) {
 
     // Build chart title with method and CI information
     const methodLabel = getMethodLabel(results);
-    const ciLabel = results.confidenceIntervals ? '95% Confidence Band (Mean Response)' :
+    const ciLabel = results.confidenceIntervals ? '95% CI & PI Bands' :
                     results.method === 'ridge' || results.method === 'lasso' ?
-                    'CI not available for regularized regression' : 'No Confidence Interval';
+                    'CI/PI not available for regularized regression' : 'No Confidence Interval';
 
     const titleEl = document.getElementById('mainChartTitle');
     if (titleEl) {
@@ -85,6 +102,48 @@ function updateSimpleRegressionChart(ctx, results, yData, colors) {
     }
 
     let datasets = [];
+
+    // Add 95% prediction interval band via WASM (wider than CI, lighter fill)
+    if ((results.method === 'ols' || results.method === 'wls') && results.stdError && results.df) {
+        try {
+            const piBand = computePredictionBandWasm(xData, yData, xMin, xMax);
+            if (piBand) {
+                const piColor = '#f59e0b'; // amber/orange for PI
+                datasets.push(
+                    {
+                        label: '95% PI upper',
+                        data: piBand.upper,
+                        type: 'line',
+                        borderColor: piColor,
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        backgroundColor: 'transparent',
+                        fill: false,
+                        pointRadius: 0,
+                        tension: 0.3,
+                        order: 5,
+                        z: 0
+                    },
+                    {
+                        label: '95% PI (individual obs)',
+                        data: piBand.lower,
+                        type: 'line',
+                        borderColor: piColor,
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        backgroundColor: hexToRgba(piColor, 0.08),
+                        fill: '-1',
+                        pointRadius: 0,
+                        tension: 0.3,
+                        order: 6,
+                        z: 0
+                    }
+                );
+            }
+        } catch (e) {
+            console.warn('Failed to compute prediction intervals via WASM:', e);
+        }
+    }
 
     // Add 95% confidence band for OLS or WLS
     if ((results.method === 'ols' || results.method === 'wls') && results.stdError && results.df) {
@@ -542,6 +601,108 @@ export function updateQQChart(results) {
 }
 
 /**
+ * Update coefficient chart (with Confidence Intervals)
+ * @param {Object} results - Regression results
+ */
+export function updateCoefficientChart(results) {
+    const canvas = document.getElementById('coefficientChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const colors = getChartColors();
+
+    if (STATE.charts.coefficients && typeof STATE.charts.coefficients.destroy === 'function') {
+        STATE.charts.coefficients.destroy();
+    }
+
+    // Skip for LOESS (no fixed coefficients)
+    if (results.method === 'loess') {
+        ctx.font = '14px "Space Grotesk", sans-serif';
+        ctx.fillStyle = colors.textMuted || '#999';
+        ctx.textAlign = 'center';
+        ctx.fillText('Coefficient plot not available for LOESS', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
+    // Prepare data
+    const labels = results.variableNames;
+    const coeffs = results.coefficients;
+    
+    // Check if we have CI data
+    const hasCI = results.confIntLower && results.confIntLower.length === coeffs.length;
+    const lower = hasCI ? results.confIntLower : coeffs.map(c => c);
+    const upper = hasCI ? results.confIntUpper : coeffs.map(c => c);
+
+    // Floating bars for CI (low, high)
+    // Using simple array for bar chart data [min, max]
+    const ciData = labels.map((_, i) => [lower[i], upper[i]]);
+    
+    // Coefficient points
+    const coefData = labels.map((_, i) => coeffs[i]);
+
+    STATE.charts.coefficients = new Chart(ctx, {
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    type: 'line',
+                    label: 'Coefficient Estimate',
+                    data: coefData,
+                    backgroundColor: colors.primary,
+                    borderColor: colors.primary,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    showLine: false, // Scatter-like appearance
+                    order: 1
+                },
+                {
+                    type: 'bar',
+                    label: hasCI ? '95% Confidence Interval' : 'Value',
+                    data: ciData,
+                    backgroundColor: hexToRgba(colors.secondary, 0.2),
+                    borderColor: colors.secondary,
+                    borderWidth: 1,
+                    borderSkipped: false,
+                    barPercentage: 0.2, // Thin bars look like error bars
+                    order: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: true, labels: { color: colors.text } },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            if (context.dataset.type === 'bar' && hasCI) {
+                                return `95% CI: [${context.raw[0].toFixed(4)}, ${context.raw[1].toFixed(4)}]`;
+                            }
+                            if (typeof context.raw === 'number') {
+                                return `Coef: ${context.raw.toFixed(4)}`;
+                            }
+                            return `Value: ${context.raw}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    grid: { color: colors.grid },
+                    ticks: { color: colors.text },
+                    title: { display: true, text: 'Value', color: colors.textMuted }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: colors.text }
+                }
+            }
+        }
+    });
+}
+
+/**
  * Update leverage chart (Residuals vs Leverage)
  * @param {Object} results - Regression results
  */
@@ -734,6 +895,96 @@ export function getChartOptions(xLabel, yLabel) {
 // ============================================================================
 
 /**
+ * Update regularization path chart
+ * @param {Object} pathResults - Results from tracePath
+ */
+export function updatePathChart(pathResults) {
+    const canvas = document.getElementById('pathChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const colors = getChartColors();
+
+    if (STATE.charts.path && typeof STATE.charts.path.destroy === 'function') {
+        STATE.charts.path.destroy();
+    }
+
+    const { lambdas, coefficients, r_squared, aic, bic } = pathResults;
+    const varNames = STATE.xVariables;
+    
+    // X-axis is log(lambda). Handle infinity (the first lambda).
+    const logLambdas = lambdas.map(l => (l === Infinity || l === null) ? null : Math.log10(l));
+    
+    // Filter out the null logLambdas for the chart data
+    const validIndices = logLambdas.map((l, i) => l !== null ? i : -1).filter(i => i !== -1);
+    const chartX = validIndices.map(i => logLambdas[i]);
+    
+    // Create one dataset per predictor
+    const datasets = varNames.map((name, coefIdx) => {
+        // coefficients is [lambda_idx][coef_idx]
+        // Note: coef_idx 0 is intercept, slopes start at 1
+        const data = validIndices.map(lambdaIdx => coefficients[lambdaIdx][coefIdx + 1]);
+        
+        return {
+            label: name,
+            data: data,
+            fill: false,
+            borderColor: getPredictorColor(coefIdx),
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.1
+        };
+    });
+
+    STATE.charts.path = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartX,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: { color: colors.text, boxWidth: 12, font: { size: 10 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        title: (items) => {
+                            const idx = validIndices[items[0].dataIndex];
+                            return `Step ${idx + 1}: \u03BB = ${lambdas[idx].toExponential(4)}`;
+                        },
+                        afterBody: (items) => {
+                            const idx = validIndices[items[0].dataIndex];
+                            return `R\u00B2: ${r_squared[idx].toFixed(4)}\nAIC: ${aic[idx].toFixed(2)}\nBIC: ${bic[idx].toFixed(2)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'linear',
+                    title: { display: true, text: 'Log10(\u03BB)', color: colors.textMuted },
+                    ticks: { color: colors.textMuted },
+                    grid: { color: colors.border },
+                    reverse: true // Path usually shown from large lambda to small
+                },
+                y: {
+                    title: { display: true, text: 'Coefficients', color: colors.textMuted },
+                    ticks: { color: colors.textMuted },
+                    grid: { color: colors.border }
+                }
+            }
+        }
+    });
+}
+
+/**
  * Export all charts as a single PNG image
  */
 export function exportChartsAsPNG() {
@@ -747,18 +998,23 @@ export function exportChartsAsPNG() {
     const residualsCanvas = document.getElementById('residualsChart');
     const qqCanvas = document.getElementById('qqChart');
     const leverageCanvas = document.getElementById('leverageChart');
+    const coefficientCanvas = document.getElementById('coefficientChart');
+    const pathCanvas = document.getElementById('pathChart');
+    const hasPath = STATE.pathResults && pathCanvas && document.getElementById('pathChartContainer').style.display !== 'none';
 
-    const width = Math.max(mainCanvas.width, residualsCanvas.width, qqCanvas.width, leverageCanvas.width);
-    const height = mainCanvas.height + residualsCanvas.height + qqCanvas.height + leverageCanvas.height + 120;
+    let totalHeight = mainCanvas.height + residualsCanvas.height + qqCanvas.height + leverageCanvas.height + coefficientCanvas.height + 150;
+    if (hasPath) totalHeight += pathCanvas.height + 50;
 
+    const width = Math.max(mainCanvas.width, residualsCanvas.width, qqCanvas.width, leverageCanvas.width, coefficientCanvas.width, hasPath ? pathCanvas.width : 0);
+    
     canvas.width = width;
-    canvas.height = height;
+    canvas.height = totalHeight;
     const ctx = canvas.getContext('2d');
 
     // Background
     const bgColor = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#ffffff';
     ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, width, totalHeight);
 
     // Title
     const textColor = getComputedStyle(document.body).getPropertyValue('--text-primary').trim() || '#000000';
@@ -775,6 +1031,13 @@ export function exportChartsAsPNG() {
     ctx.drawImage(qqCanvas, 0, yOffset);
     yOffset += qqCanvas.height + 10;
     ctx.drawImage(leverageCanvas, 0, yOffset);
+    yOffset += leverageCanvas.height + 10;
+    ctx.drawImage(coefficientCanvas, 0, yOffset);
+    
+    if (hasPath) {
+        yOffset += coefficientCanvas.height + 10;
+        ctx.drawImage(pathCanvas, 0, yOffset);
+    }
 
     // Export
     const link = document.createElement('a');
@@ -785,9 +1048,82 @@ export function exportChartsAsPNG() {
     showToast('Charts exported as PNG', 'success');
 }
 
+/**
+ * Update the Correlation Heatmap (Exploratory Data Analysis)
+ */
+export function updateCorrelationHeatmap() {
+    const container = document.getElementById('correlationHeatmapContainer');
+    if (!container || !STATE.numericColumns || STATE.numericColumns.length === 0) return;
+
+    const cols = STATE.numericColumns;
+    const n = cols.length;
+    
+    // Build table header
+    let html = '<table class="correlation-table" style="border-collapse: separate; border-spacing: 2px; width: 100%; min-width: 600px; font-family: inherit;">';
+    html += '<thead><tr><th style="padding: 10px; background: transparent;"></th>';
+    cols.forEach(col => {
+        html += `<th style="padding: 10px; font-size: 0.75rem; color: var(--text-muted); text-align: center; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(col)}">${escapeHtml(col)}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    // Compute and build rows
+    for (let i = 0; i < n; i++) {
+        const rowCol = cols[i];
+        html += `<tr><th style="padding: 10px; font-size: 0.75rem; color: var(--text-muted); text-align: right; white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(rowCol)}">${escapeHtml(rowCol)}</th>`;
+        
+        for (let j = 0; j < n; j++) {
+            const colCol = cols[j];
+            let corr = 1.0;
+            
+            if (i === j) {
+                corr = 1.0;
+            } else {
+                const xData = STATE.rawData.map(r => r[rowCol]);
+                const yData = STATE.rawData.map(r => r[colCol]);
+                corr = Stats.correlation(xData, yData);
+            }
+
+            // Determine color based on correlation
+            // Positive: Blue/Green, Negative: Red/Orange
+            let bgColor;
+            let textColor = '#fff';
+            const alpha = Math.abs(corr);
+            
+            if (corr > 0) {
+                // Blue theme for positive
+                bgColor = `rgba(59, 130, 246, ${alpha})`;
+                if (alpha < 0.4) textColor = 'var(--text-primary)';
+            } else {
+                // Red theme for negative
+                bgColor = `rgba(239, 68, 68, ${alpha})`;
+                if (alpha < 0.4) textColor = 'var(--text-primary)';
+            }
+
+            html += `<td style="background-color: ${bgColor}; color: ${textColor}; padding: 12px 8px; text-align: center; font-size: 0.8125rem; font-weight: 600; border-radius: 4px; transition: transform 0.1s;" title="${escapeHtml(rowCol)} vs ${escapeHtml(colCol)}: ${corr.toFixed(4)}">
+                ${corr.toFixed(2)}
+            </td>`;
+        }
+        html += '</tr>';
+    }
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
+
+/**
+ * Get a color for a predictor line
+ */
+function getPredictorColor(index) {
+    const palette = [
+        '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', 
+        '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#84cc16'
+    ];
+    return palette[index % palette.length];
+}
 
 /**
  * Get method label for display
@@ -795,9 +1131,9 @@ export function exportChartsAsPNG() {
 function getMethodLabel(results) {
     if (results.method === 'ols') return 'OLS';
     if (results.method === 'wls') return 'WLS';
-    if (results.method === 'ridge') return `Ridge (λ=${results.lambda?.toFixed(2) || 'N/A'})`;
-    if (results.method === 'lasso') return `Lasso (λ=${results.lambda?.toFixed(2) || 'N/A'})`;
-    if (results.method === 'elastic_net') return `Elastic Net (λ=${results.lambda?.toFixed(2) || 'N/A'}, α=${results.alpha?.toFixed(2) || 'N/A'})`;
+    if (results.method === 'ridge') return `Ridge (\u03BB=${results.lambda?.toFixed(2) || 'N/A'})`;
+    if (results.method === 'lasso') return `Lasso (\u03BB=${results.lambda?.toFixed(2) || 'N/A'})`;
+    if (results.method === 'elastic_net') return `Elastic Net (\u03BB=${results.lambda?.toFixed(2) || 'N/A'}, \u03B1=${results.alpha?.toFixed(2) || 'N/A'})`;
     if (results.method === 'loess') return `LOESS (span=${results.span?.toFixed(2) || 'N/A'}, degree=${results.degree || 1})`;
     return 'Regression';
 }
@@ -813,6 +1149,33 @@ function getMethodColor(method, colors) {
     if (method === 'elastic_net') return '#8b5cf6';
     if (method === 'loess') return '#ec4899';
     return '#06b6d4';
+}
+
+/**
+ * Compute prediction interval band via WASM (Rust) for simple regression.
+ * Generates a grid of x-values and calls the Rust PI function for accurate results.
+ * @returns {{ upper: Array, lower: Array }} or null on failure
+ */
+function computePredictionBandWasm(xData, yData, xMin, xMax) {
+    if (!WasmRegression.isReady()) return null;
+
+    const bandPoints = 50;
+    const step = (xMax - xMin) / bandPoints;
+    const gridX = Array.from({ length: bandPoints + 1 }, (_, i) => xMin + step * i);
+
+    const pi = JSON.parse(
+        WasmRegression.olsPredictionIntervals(yData, [xData], [gridX], 0.05)
+    );
+
+    if (pi.error) {
+        console.warn('WASM PI error:', pi.error);
+        return null;
+    }
+
+    return {
+        upper: gridX.map((x, i) => ({ x, y: pi.upper_bound[i] })),
+        lower: gridX.map((x, i) => ({ x, y: pi.lower_bound[i] }))
+    };
 }
 
 /**

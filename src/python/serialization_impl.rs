@@ -39,14 +39,14 @@ fn save_model(
     let type_obj = result.get_type();
     let type_name: String = type_obj.name()?.to_string();
 
-    // Try to get __dict__ from the result object
-    let dict_attr = result.getattr("__dict__")
+    // Use to_dict() method which all result types implement
+    let dict_obj = result.call_method0("to_dict")
         .map_err(|_| pyo3::PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-            "Result object must have a __dict__ attribute"
+            "Result object must implement to_dict()"
         ))?;
-    let result_dict = dict_attr.downcast::<PyDict>()
+    let result_dict = dict_obj.downcast::<PyDict>()
         .map_err(|_| pyo3::PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-            "Expected __dict__ to be a dict"
+            "to_dict() must return a dict"
         ))?;
 
     // Determine model type
@@ -56,7 +56,7 @@ fn save_model(
         "LassoResult" => ModelType::Lasso,
         "ElasticNetResult" => ModelType::ElasticNet,
         "LoessResult" => ModelType::LOESS,
-        "WlsResult" => ModelType::WLS,
+        "WlsResult" | "WLSResult" => ModelType::WLS,
         _ => {
             return Err(pyo3::PyErr::new::<pyo3::exceptions::PyTypeError, _>(
                 format!("Unknown result type: {}", type_name)

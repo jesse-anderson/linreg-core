@@ -254,6 +254,115 @@ pub fn elastic_net_regression(
     }
 }
 
+/// Lightweight result for regularization path (excludes residuals/fitted values).
+#[derive(serde::Serialize)]
+struct PathResult {
+    lambdas: Vec<f64>,
+    coefficients: Vec<Vec<f64>>,
+    r_squared: Vec<f64>,
+    aic: Vec<f64>,
+    bic: Vec<f64>,
+    n_nonzero: Vec<usize>,
+}
+
+/// Fits an elastic net regularization path via WASM (Optimized).
+///
+/// Computes the coefficient path for a sequence of lambda values.
+/// Returns a lightweight summary to avoid excessive JSON serialization overhead.
+///
+/// # Arguments
+///
+/// * `y_json` - JSON array of response variable values
+/// * `x_vars_json` - JSON array of predictor arrays
+/// * `n_lambda` - Number of lambda values (default: 100)
+/// * `lambda_min_ratio` - Ratio for smallest lambda
+/// * `alpha` - Mixing parameter (0 = Ridge, 1 = Lasso)
+/// * `standardize` - Whether to standardize predictors
+/// * `max_iter` - Maximum iterations per lambda
+/// * `tol` - Convergence tolerance
+///
+/// # Returns
+///
+/// JSON string containing `PathResult` (lambdas, coefficients, stats).
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn elastic_net_path_wasm(
+    y_json: &str,
+    x_vars_json: &str,
+    n_lambda: usize,
+    lambda_min_ratio: f64,
+    alpha: f64,
+    standardize: bool,
+    max_iter: usize,
+    tol: f64,
+) -> String {
+    if let Err(e) = check_domain() {
+        return error_to_json(&e);
+    }
+
+    // Parse JSON input
+    let y: Vec<f64> = match serde_json::from_str(y_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse y: {}", e)),
+    };
+
+    let x_vars: Vec<Vec<f64>> = match serde_json::from_str(x_vars_json) {
+        Ok(v) => v,
+        Err(e) => return error_json(&format!("Failed to parse x_vars: {}", e)),
+    };
+
+    // Build design matrix with intercept column
+    let (x, n, p) = build_design_matrix(&y, &x_vars);
+
+    if n <= p + 1 {
+        return error_json(&format!(
+            "Insufficient data: need at least {} observations for {} predictors",
+            p + 2,
+            p
+        ));
+    }
+
+    // Configure options
+    let path_options = regularized::path::LambdaPathOptions {
+        nlambda: n_lambda.max(1),
+        lambda_min_ratio: if lambda_min_ratio > 0.0 {
+            Some(lambda_min_ratio)
+        } else {
+            None
+        },
+        alpha,
+        ..Default::default()
+    };
+
+    let fit_options = regularized::elastic_net::ElasticNetOptions {
+        lambda: 0.0, // Ignored by path fitting
+        alpha,
+        intercept: true,
+        standardize,
+        max_iter,
+        tol,
+        ..Default::default()
+    };
+
+    match regularized::elastic_net::elastic_net_path(&x, &y, &path_options, &fit_options) {
+        Ok(fits) => {
+            // Convert to lightweight structure
+            let result = PathResult {
+                lambdas: fits.iter().map(|f| f.lambda).collect(),
+                coefficients: fits.iter().map(|f| f.coefficients.clone()).collect(),
+                r_squared: fits.iter().map(|f| f.r_squared).collect(),
+                aic: fits.iter().map(|f| f.aic).collect(),
+                bic: fits.iter().map(|f| f.bic).collect(),
+                n_nonzero: fits.iter().map(|f| f.n_nonzero).collect(),
+            };
+            
+            serde_json::to_string(&result)
+                .unwrap_or_else(|_| error_json("Failed to serialize elastic net path result"))
+        },
+        Err(e) => error_json(&e.to_string()),
+    }
+}
+
 /// Generates a lambda path for regularized regression via WASM.
 ///
 /// Creates a logarithmically-spaced sequence of lambda values from lambda_max

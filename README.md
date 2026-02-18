@@ -13,7 +13,7 @@
 A lightweight, self-contained linear regression library written in Rust. Compiles to WebAssembly for browser use, Python bindings via PyO3, or runs as a native Rust crate.
 
 **Key design principle:** All linear algebra and statistical distribution functions are implemented from scratch — no external math libraries required. This keeps binary sizes small and makes the crate highly portable.
-
+**[Live Demo Link](https://jesse-anderson.net/linreg-core/)**
 ---
 
 ## Table of Contents

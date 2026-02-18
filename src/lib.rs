@@ -4,7 +4,8 @@
 //!
 //! **No external math dependencies.** All linear algebra (matrices, QR decomposition)
 //! and statistical functions (distributions, hypothesis tests) are implemented from
-//! scratch. Compiles to WebAssembly for browser use or runs as a native Rust crate.
+//! scratch. Compiles to WebAssembly for browser use, exposes Python bindings via PyO3,
+//! or runs as a native Rust crate.
 //!
 //! **[Live Demo →](https://jesse-anderson.net/linreg-core/)**
 //!
@@ -12,8 +13,14 @@
 //!
 //! - **OLS Regression** — Ordinary Least Squares with numerically stable QR decomposition
 //! - **Regularized Regression** — Ridge, Lasso, and Elastic Net via coordinate descent
-//! - **Diagnostic Tests** — 8+ statistical tests for validating regression assumptions
+//! - **WLS Regression** — Weighted Least Squares for heteroscedastic data
+//! - **LOESS** — Non-parametric locally weighted smoothing
+//! - **K-Fold Cross Validation** — Model evaluation for all regression types
+//! - **Prediction Intervals** — Point and interval predictions for all model types
+//! - **Diagnostic Tests** — 14 statistical tests for validating regression assumptions
+//! - **Model Serialization** — Save/load trained models to JSON
 //! - **WASM Support** — Same API works in browsers via WebAssembly
+//! - **Python Bindings** — PyO3 bindings available via `pip install linreg-core`
 //!
 //! ## Quick Start
 //!
@@ -37,6 +44,7 @@
 //! let result = ols_regression(&y, &[x1, x2], &names)?;
 //! println!("R²: {}", result.r_squared);
 //! println!("F-statistic: {}", result.f_statistic);
+//! println!("AIC: {}", result.aic);
 //! # Ok::<(), linreg_core::Error>(())
 //! ```
 //!
@@ -64,27 +72,66 @@
 //! ## Regularized Regression
 //!
 //! ```no_run
-//! use linreg_core::regularized::{ridge, lasso};
+//! use linreg_core::regularized::{ridge_fit, RidgeFitOptions, lasso_fit, LassoFitOptions};
 //! use linreg_core::linalg::Matrix;
 //!
 //! let x = Matrix::new(100, 3, vec![0.0; 300]);
 //! let y = vec![0.0; 100];
 //!
-//! // Ridge regression (L2 penalty - shrinks coefficients, handles multicollinearity)
-//! let ridge_result = ridge::ridge_fit(&x, &y, &ridge::RidgeFitOptions {
+//! // Ridge regression (L2 penalty — shrinks coefficients, handles multicollinearity)
+//! let ridge_result = ridge_fit(&x, &y, &RidgeFitOptions {
 //!     lambda: 1.0,
 //!     intercept: true,
 //!     standardize: true,
-//!     ..Default::default()
 //! })?;
 //!
-//! // Lasso regression (L1 penalty - does variable selection by zeroing coefficients)
-//! let lasso_result = lasso::lasso_fit(&x, &y, &lasso::LassoFitOptions {
+//! // Lasso regression (L1 penalty — automatic variable selection by zeroing coefficients)
+//! let lasso_result = lasso_fit(&x, &y, &LassoFitOptions {
 //!     lambda: 0.1,
 //!     intercept: true,
 //!     standardize: true,
 //!     ..Default::default()
 //! })?;
+//! # Ok::<(), linreg_core::Error>(())
+//! ```
+//!
+//! ## WLS and LOESS
+//!
+//! ```no_run
+//! use linreg_core::weighted_regression::wls_regression;
+//! use linreg_core::loess::{loess_fit, LoessOptions};
+//!
+//! // Weighted Least Squares — down-weight high-variance observations
+//! let weights = vec![1.0, 2.0, 1.0, 2.0, 1.0];
+//! let wls = wls_regression(
+//!     &[2.5, 3.7, 4.2, 5.1, 6.3],
+//!     &[vec![1.0, 2.0, 3.0, 4.0, 5.0]],
+//!     &weights,
+//! )?;
+//!
+//! // LOESS — non-parametric smoothing (single predictor)
+//! let x = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+//! let y = vec![1.0, 2.1, 3.9, 8.2, 16.5, 32.1];
+//! let loess = loess_fit(&y, &[x], &LoessOptions::default())?;
+//! # Ok::<(), linreg_core::Error>(())
+//! ```
+//!
+//! ## K-Fold Cross Validation
+//!
+//! ```no_run
+//! use linreg_core::cross_validation::{kfold_cv_ols, KFoldOptions};
+//!
+//! let y = vec![2.5, 3.7, 4.2, 5.1, 6.3, 7.0, 7.5, 8.1];
+//! let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+//! let names = vec!["Intercept".to_string(), "X1".to_string()];
+//!
+//! let cv = kfold_cv_ols(&y, &[x1], &names, &KFoldOptions {
+//!     n_folds: 5,
+//!     shuffle: true,
+//!     seed: Some(42),
+//! })?;
+//! println!("CV RMSE: {:.4} ± {:.4}", cv.mean_rmse, cv.std_rmse);
+//! println!("CV R²:   {:.4} ± {:.4}", cv.mean_r_squared, cv.std_r_squared);
 //! # Ok::<(), linreg_core::Error>(())
 //! ```
 //!
@@ -96,13 +143,18 @@
 //! |------|-----------|----------|
 //! | [`diagnostics::rainbow_test`] | Linearity | Checking if relationships are linear |
 //! | [`diagnostics::harvey_collier_test`] | Functional form | Suspecting model misspecification |
+//! | [`diagnostics::reset_test`] | Specification error | Detecting omitted variables or wrong functional form |
 //! | [`diagnostics::breusch_pagan_test`] | Heteroscedasticity | Variance changes with predictors |
 //! | [`diagnostics::white_test`] | Heteroscedasticity | More general than Breusch-Pagan |
 //! | [`diagnostics::shapiro_wilk_test`] | Normality | Small to moderate samples (n ≤ 5000) |
 //! | [`diagnostics::jarque_bera_test`] | Normality | Large samples, skewness/kurtosis |
 //! | [`diagnostics::anderson_darling_test`] | Normality | Tail-sensitive, any sample size |
 //! | [`diagnostics::durbin_watson_test`] | Autocorrelation | Time series or ordered data |
+//! | [`diagnostics::breusch_godfrey_test`] | Higher-order autocorrelation | Detecting serial correlation at multiple lags |
 //! | [`diagnostics::cooks_distance_test`] | Influential points | Identifying high-impact observations |
+//! | [`diagnostics::dfbetas_test`] | Coefficient influence | Which observations drive each coefficient |
+//! | [`diagnostics::dffits_test`] | Fitted value influence | Influence of each observation on its own prediction |
+//! | [`diagnostics::vif_test`] | Multicollinearity | Detecting highly correlated predictors |
 //!
 //! ```rust
 //! use linreg_core::diagnostics::{rainbow_test, breusch_pagan_test, RainbowMethod};
@@ -129,6 +181,7 @@
 //! | Flag | Default | Description |
 //! |------|---------|-------------|
 //! | `wasm` | Yes | Enables WASM bindings and browser support |
+//! | `python` | No | Enables Python bindings via PyO3 (built with maturin) |
 //! | `validation` | No | Includes test data for validation tests |
 //!
 //! For native-only builds (smaller binary, no WASM deps):
@@ -140,17 +193,22 @@
 //! ## Why This Library?
 //!
 //! - **Zero dependencies** — No `nalgebra`, no `statrs`, no `ndarray`. Pure Rust.
-//! - **Validated** — Outputs match R's `lm()` and Python's `statsmodels`
+//! - **Validated** — Outputs match R's `lm()`, `glmnet`, and Python's `statsmodels`
 //! - **WASM-ready** — Same code runs natively and in browsers
-//! - **Small** — Core is ~2000 lines, compiles quickly
+//! - **Python-ready** — PyO3 bindings expose the full API to Python
 //! - **Permissive license** — MIT OR Apache-2.0
 //!
 //! ## Module Structure
 //!
-//! - [`core`] — OLS regression, coefficients, residuals, VIF
+//! - [`core`] — OLS regression, coefficients, residuals, VIF, AIC/BIC
 //! - [`regularized`] — Ridge, Lasso, Elastic Net, regularization paths
-//! - [`cross_validation`] — K-Fold Cross Validation for model evaluation
-//! - [`diagnostics`] — All diagnostic tests (linearity, heteroscedasticity, normality, autocorrelation)
+//! - [`weighted_regression`] — Weighted Least Squares (WLS)
+//! - [`loess`] — Locally weighted scatterplot smoothing
+//! - [`cross_validation`] — K-Fold Cross Validation for all regression types
+//! - [`prediction_intervals`] — Prediction and confidence intervals for all model types
+//! - [`diagnostics`] — 14 statistical tests (linearity, heteroscedasticity, normality, autocorrelation, influence)
+//! - [`serialization`] — Model save/load to JSON (native Rust)
+//! - [`stats`] — Descriptive statistics utilities
 //! - [`distributions`] — Statistical distributions (t, F, χ², normal, beta, gamma)
 //! - [`linalg`] — Matrix operations, QR decomposition, linear system solver
 //! - [`error`] — Error types and Result alias
@@ -177,6 +235,7 @@ pub mod distributions;
 pub mod error;
 pub mod linalg;
 pub mod loess;
+pub mod prediction_intervals;
 pub mod regularized;
 pub mod serialization;
 pub mod stats;
@@ -201,6 +260,10 @@ pub mod wasm;
 
 // Re-export public API (always available)
 pub use core::{aic, aic_python, bic, bic_python, log_likelihood, RegressionOutput, VifResult};
+pub use prediction_intervals::{
+    compute_from_fit, elastic_net_prediction_intervals, lasso_prediction_intervals,
+    prediction_intervals, ridge_prediction_intervals, PredictionIntervalOutput,
+};
 pub use diagnostics::{
     BGTestType, BreuschGodfreyResult, CooksDistanceResult, DiagnosticTestResult,
     RainbowMethod, RainbowSingleResult, RainbowTestOutput, ResetType,

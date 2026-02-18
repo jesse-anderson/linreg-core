@@ -44,6 +44,7 @@ include!("stats_impl.rs");
 include!("csv_impl.rs");
 include!("wls_impl.rs");
 include!("serialization_impl.rs");
+include!("prediction_intervals_impl.rs");
 
 // ============================================================================
 // Python Module Definition
@@ -75,6 +76,7 @@ fn linreg_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyWhiteTestResult>()?;
     m.add_class::<PyCSVResult>()?;
     m.add_class::<PyWlsResult>()?;
+    m.add_class::<PyPredictionIntervalResult>()?;
 
     // OLS Regression
     m.add_function(wrap_pyfunction!(ols_regression, m)?)?;
@@ -130,6 +132,12 @@ fn linreg_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Model Serialization
     m.add_function(wrap_pyfunction!(save_model, m)?)?;
     m.add_function(wrap_pyfunction!(load_model, m)?)?;
+
+    // Prediction Intervals
+    m.add_function(wrap_pyfunction!(ols_prediction_intervals, m)?)?;
+    m.add_function(wrap_pyfunction!(ridge_prediction_intervals, m)?)?;
+    m.add_function(wrap_pyfunction!(lasso_prediction_intervals, m)?)?;
+    m.add_function(wrap_pyfunction!(elastic_net_prediction_intervals, m)?)?;
 
     Ok(())
 }

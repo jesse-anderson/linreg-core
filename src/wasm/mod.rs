@@ -24,6 +24,7 @@ pub mod csv;
 pub mod diagnostics;
 pub mod domain;
 pub mod loess;
+pub mod prediction_intervals;
 pub mod regression;
 pub mod regularized;
 pub mod serialization;
@@ -35,8 +36,16 @@ pub use cross_validation::{kfold_cv_elastic_net, kfold_cv_lasso, kfold_cv_ols, k
 pub use csv::parse_csv;
 pub use domain::check_domain;
 pub use loess::{loess_fit, loess_predict};
+pub use prediction_intervals::{
+    ols_prediction_intervals, ridge_prediction_intervals as wasm_ridge_pi,
+    lasso_prediction_intervals as wasm_lasso_pi,
+    elastic_net_prediction_intervals as wasm_enet_pi,
+};
 pub use regression::{ols_regression, wls_regression};
-pub use regularized::{elastic_net_regression, lasso_regression, make_lambda_path, ridge_regression};
+pub use regularized::{
+    elastic_net_path_wasm, elastic_net_regression, lasso_regression, make_lambda_path,
+    ridge_regression,
+};
 pub use serialization::{deserialize_model, get_model_metadata, serialize_model};
 pub use stats::{
     get_normal_inverse, get_t_cdf, get_t_critical, stats_correlation, stats_mean, stats_median,

@@ -443,6 +443,8 @@ The same `save()` and `load()` methods work for all model types: `RegressionOutp
 
 ## WebAssembly Usage
 
+**[Live Demo →](https://jesse-anderson.net/linreg-core/)**
+
 Build with wasm-pack:
 
 ```bash

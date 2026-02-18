@@ -13,6 +13,17 @@ use crate::error::{error_json, error_to_json};
 use crate::serialization::types::{ModelMetadata, ModelType, SerializedModel};
 use crate::serialization::FORMAT_VERSION;
 
+/// Generate an ISO 8601 timestamp using JavaScript Date.
+///
+/// This is a WASM-specific version that uses the browser's Date object
+/// instead of SystemTime, which isn't available in WASM.
+fn iso_timestamp_wasm() -> String {
+    // Get current date/time in ISO format from JavaScript
+    let date = js_sys::Date::new_0();
+    // Convert JsString to Rust String and format to ISO 8601
+    date.to_iso_string().into()
+}
+
 /// Serialize a model by wrapping its JSON data with metadata.
 ///
 /// This function takes a model's JSON representation (as returned by regression
@@ -72,11 +83,14 @@ pub fn serialize_model(model_json: &str, model_type: &str, name: Option<String>)
         }
     };
 
-    // Create metadata
-    let mut metadata = ModelMetadata::new(model_type_enum, env!("CARGO_PKG_VERSION").to_string());
-    if let Some(n) = name {
-        metadata = metadata.with_name(n);
-    }
+    // Create metadata with WASM-compatible timestamp
+    let metadata = ModelMetadata {
+        format_version: FORMAT_VERSION.to_string(),
+        library_version: env!("CARGO_PKG_VERSION").to_string(),
+        model_type: model_type_enum,
+        created_at: iso_timestamp_wasm(),
+        name,
+    };
 
     // Create and serialize the model
     let serialized = SerializedModel::new(metadata, model_data);

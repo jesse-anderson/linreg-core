@@ -2206,3 +2206,100 @@ impl PyWlsResult {
         )
     }
 }
+
+// ============================================================================
+// PredictionIntervalResult - Prediction interval output
+// ============================================================================
+
+/// Result class for prediction interval computation.
+#[cfg(feature = "python")]
+#[pyclass(name = "PredictionIntervalResult")]
+pub struct PyPredictionIntervalResult {
+    /// Point predictions (fitted values) for new observations
+    #[pyo3(get, set)]
+    pub predicted: Vec<f64>,
+
+    /// Lower bounds of prediction intervals
+    #[pyo3(get, set)]
+    pub lower_bound: Vec<f64>,
+
+    /// Upper bounds of prediction intervals
+    #[pyo3(get, set)]
+    pub upper_bound: Vec<f64>,
+
+    /// Standard errors for predictions
+    #[pyo3(get, set)]
+    pub se_pred: Vec<f64>,
+
+    /// Leverage values for the new observations
+    #[pyo3(get, set)]
+    pub leverage: Vec<f64>,
+
+    /// Significance level used
+    #[pyo3(get, set)]
+    pub alpha: f64,
+
+    /// Residual degrees of freedom from the fitted model
+    #[pyo3(get, set)]
+    pub df_residuals: f64,
+}
+
+#[cfg(feature = "python")]
+#[pymethods]
+impl PyPredictionIntervalResult {
+    #[new]
+    fn new(
+        predicted: Vec<f64>,
+        lower_bound: Vec<f64>,
+        upper_bound: Vec<f64>,
+        se_pred: Vec<f64>,
+        leverage: Vec<f64>,
+        alpha: f64,
+        df_residuals: f64,
+    ) -> Self {
+        Self {
+            predicted,
+            lower_bound,
+            upper_bound,
+            se_pred,
+            leverage,
+            alpha,
+            df_residuals,
+        }
+    }
+
+    fn summary(&self) -> String {
+        format!(
+            "Prediction Intervals\n\
+             ====================\n\
+             Alpha: {:.4}\n\
+             Df residuals: {:.1}\n\
+             Number of predictions: {}",
+            self.alpha, self.df_residuals, self.predicted.len()
+        )
+    }
+
+    fn to_dict(&self, py: Python) -> PyResult<PyObject> {
+        use pyo3::types::PyDict;
+        let dict = PyDict::new_bound(py);
+        dict.set_item("predicted", &self.predicted)?;
+        dict.set_item("lower_bound", &self.lower_bound)?;
+        dict.set_item("upper_bound", &self.upper_bound)?;
+        dict.set_item("se_pred", &self.se_pred)?;
+        dict.set_item("leverage", &self.leverage)?;
+        dict.set_item("alpha", self.alpha)?;
+        dict.set_item("df_residuals", self.df_residuals)?;
+        Ok(dict.into())
+    }
+
+    fn __str__(&self) -> String {
+        self.summary()
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "PredictionIntervalResult(n={}, alpha={:.4})",
+            self.predicted.len(), self.alpha
+        )
+    }
+}

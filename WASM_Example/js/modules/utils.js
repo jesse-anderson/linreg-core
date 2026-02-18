@@ -285,9 +285,12 @@ export const STATE = {
         residuals: null,
         qq: null,
         leverage: null,
+        coefficients: null,
+        path: null,
         cv: null
     },
     cvResults: null,
+    pathResults: null,
     pendingWorkbook: null,  // For sheet selector modal
     pendingFileName: null,  // For tracking file name during import
     residualsData: null,    // Residuals table data for sorting/filtering

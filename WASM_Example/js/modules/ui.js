@@ -196,6 +196,9 @@ export function updateResultsDisplay(results) {
 
     // Update charts
     updateCharts(results);
+
+    // Initialize interactive predictor
+    initPredictionTool(results);
 }
 
 /**
@@ -491,7 +494,15 @@ function updateResidualsTable(results) {
     if (!tbody) return;
 
     const { residuals, predictions, standardizedResiduals, leverage } = results;
-    const yData = STATE.rawData.map(row => row[STATE.yVariable]);
+    
+    // Determine Y data (Actuals)
+    let yData;
+    if (STATE.rawData && STATE.rawData.length > 0 && STATE.yVariable && STATE.rawData[0][STATE.yVariable] !== undefined) {
+        yData = STATE.rawData.map(row => row[STATE.yVariable]);
+    } else {
+        // Reconstruct actuals from model (Actual = Fitted + Residual)
+        yData = predictions.map((pred, i) => pred + residuals[i]);
+    }
 
     // Store residuals data for sorting and detail panel
     STATE.residualsData = yData.map((actual, i) => ({
@@ -977,6 +988,10 @@ export async function runRegression() {
         updateResultsDisplay(results);
         showToast(`Regression complete (${formatMethodName(results.method)})`, 'success');
 
+        // Hide path chart when running a single regression
+        const pathChartContainer = document.getElementById('pathChartContainer');
+        if (pathChartContainer) pathChartContainer.style.display = 'none';
+
         // Run cross-validation if enabled (checkbox is disabled for unsupported methods)
         const cvEnabled = document.getElementById('cvEnableCheck')?.checked;
         if (cvEnabled) {
@@ -999,8 +1014,92 @@ export async function runRegression() {
             resetCVDisplay();
         }
 
+        // Auto-trace path for regularized methods to keep chart in sync
+        if (['ridge', 'lasso', 'elastic_net'].includes(method)) {
+            runTracePath();
+        }
+
     } catch (error) {
         console.error('Regression error:', error);
+        showToast(error.message, 'error');
+    }
+}
+
+/**
+ * Run regularization path tracing
+ */
+export async function runTracePath() {
+    const method = document.getElementById('regressionMethodSelect')?.value || 'ols';
+    
+    if (!['ridge', 'lasso', 'elastic_net'].includes(method)) {
+        showToast('Trace Path is only available for regularized regression methods.', 'warning');
+        return;
+    }
+
+    try {
+        const n = STATE.rawData.length;
+        const k = STATE.xVariables.length;
+
+        if (n <= k + 1) {
+            throw new Error(`Need at least ${k + 2} data points for ${k} predictor(s). You have ${n}.`);
+        }
+
+        if (!WasmRegression.isReady()) {
+            throw new Error('WASM module is not ready yet. Please wait a moment and try again.');
+        }
+
+        // Determine parameters based on method
+        let alpha = 1.0; // Default for Lasso
+        let standardize = true;
+        let maxIter = 1000;
+        let tol = 1e-7;
+
+        if (method === 'ridge') {
+            alpha = 0.0;
+            standardize = document.getElementById('standardizeCheck')?.checked ?? true;
+        } else if (method === 'lasso') {
+            alpha = 1.0;
+            standardize = document.getElementById('standardizeCheck')?.checked ?? true;
+            maxIter = parseInt(document.getElementById('maxIterSlider')?.value) || 1000;
+            tol = parseFloat(document.getElementById('tolSelect')?.value || '1e-7');
+        } else if (method === 'elastic_net') {
+            alpha = parseFloat(document.getElementById('enAlphaSlider')?.value) || 0.5;
+            standardize = document.getElementById('enStandardizeCheck')?.checked ?? true;
+            maxIter = parseInt(document.getElementById('enMaxIterSlider')?.value) || 1000;
+            tol = parseFloat(document.getElementById('enTolSelect')?.value || '1e-7');
+        }
+
+        const yData = STATE.rawData.map(row => row[STATE.yVariable]);
+        const xData = STATE.xVariables.map(v => STATE.rawData.map(row => row[v]));
+
+        // Call WASM trace path
+        const resultJson = WasmRegression.tracePath(
+            yData, xData, 100, 0.0001, alpha, standardize, maxIter, tol
+        );
+        
+        const result = JSON.parse(resultJson);
+        if (result.error) throw new Error(result.error);
+
+                updateState({ pathResults: result });
+        
+                // Show results section if it was hidden
+                const resultsSection = document.getElementById('resultsSection');
+                if (resultsSection) resultsSection.style.display = 'block';
+        
+                // Show path chart container and update it
+                const pathChartContainer = document.getElementById('pathChartContainer');
+                if (pathChartContainer) pathChartContainer.style.display = 'block';
+        
+                // Scroll to the chart
+                pathChartContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+                // Update the path chart
+                const { updatePathChart } = await import('./charts.js');
+                updatePathChart(result);
+        
+                showToast(`Coefficient path traced (100 steps, \u03B1=${alpha.toFixed(2)})`, 'success');
+    } catch (error) {
+        console.error('Trace Path error:', error);
         showToast(error.message, 'error');
     }
 }
@@ -1497,7 +1596,13 @@ export function exportModelAsJSON() {
         variableNames: results.variableNames,
         logLikelihood: results.logLikelihood,
         aic: results.aic,
-        bic: results.bic
+        bic: results.bic,
+        leverage: results.leverage,
+        standardizedResiduals: results.standardizedResiduals,
+        yVariable: STATE.yVariable,
+        xVariables: STATE.xVariables,
+        diagnostics: STATE.diagnostics, // Save diagnostic test results
+        pathResults: STATE.pathResults // Save regularization path if traced
     };
 
     // Add method-specific fields
@@ -1517,9 +1622,9 @@ export function exportModelAsJSON() {
     }
 
     // Use WASM serialization function
-    import('./core.js').then(({ WasmRegression }) => {
+    (async () => {
         try {
-            const serialized = WasmRegression.serializeModel(
+            const serialized = await WasmRegression.serializeModel(
                 modelData,
                 modelType,
                 `Model from ${STATE.dataSourceName || 'Unknown'} (${new Date().toISOString().split('T')[0]})`
@@ -1537,7 +1642,7 @@ export function exportModelAsJSON() {
             console.error('Error exporting model:', e);
             showToast('Failed to export model', 'error');
         }
-    });
+    })();
 }
 
 /**
@@ -1554,73 +1659,100 @@ export function importModelFromJSON() {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
             try {
                 const serialized = event.target.result;
 
                 // Use WASM deserialization function to get metadata
-                import('./core.js').then(({ WasmRegression }) => {
-                    const metadata = WasmRegression.getModelMetadata(serialized);
+                const metadata = await WasmRegression.getModelMetadata(serialized);
 
-                    // Show metadata and confirm
-                    const confirmed = confirm(
-                        `Load model?\n\n` +
-                        `Type: ${metadata.model_type}\n` +
-                        `Library Version: ${metadata.library_version}\n` +
-                        `Format Version: ${metadata.format_version}\n` +
-                        `Created: ${metadata.created_at}\n` +
-                        (metadata.name ? `Name: ${metadata.name}\n` : '')
-                    );
+                // Show metadata and confirm
+                const confirmed = confirm(
+                    `Load model?\n\n` +
+                    `Type: ${metadata.model_type}\n` +
+                    `Library Version: ${metadata.library_version}\n` +
+                    `Format Version: ${metadata.format_version}\n` +
+                    `Created: ${metadata.created_at}\n` +
+                    (metadata.name ? `Name: ${metadata.name}\n` : '')
+                );
 
-                    if (confirmed) {
-                        const modelData = WasmRegression.deserializeModel(serialized);
+                if (confirmed) {
+                    const modelData = await WasmRegression.deserializeModel(serialized);
 
-                        // Store in STATE for later use
-                        STATE.importedModel = {
-                            ...modelData,
-                            metadata: metadata
-                        };
+                    // Store in STATE for later use
+                    STATE.importedModel = {
+                        ...modelData,
+                        metadata: metadata
+                    };
 
-                        // Update UI with imported model
-                        if (modelData.coefficients) {
-                            updateResultsDisplay({
-                                method: metadata.model_type.toLowerCase(),
-                                coefficients: modelData.coefficients,
-                                stdErrors: modelData.stdErrors,
-                                tStats: modelData.tStats,
-                                pValues: modelData.pValues,
-                                confIntLower: modelData.confIntLower,
-                                confIntUpper: modelData.confIntUpper,
-                                rSquared: modelData.rSquared,
-                                adjRSquared: modelData.adjRSquared,
-                                fStat: modelData.fStat,
-                                fPValue: modelData.fPValue,
-                                stdError: modelData.residualStdError,
-                                rmse: modelData.rmse,
-                                mae: modelData.mae,
-                                mse: modelData.mse,
-                                predictions: modelData.fittedValues,
-                                residuals: modelData.residuals,
-                                standardizedResiduals: modelData.residuals?.map((r, i) => {
-                                    // Recalculate if we have stdError
-                                    return modelData.residualStdError ?
-                                        r / modelData.residualStdError : 0;
-                                }),
-                                n: modelData.nObservations,
-                                k: modelData.nPredictors,
-                                variableNames: modelData.variableNames || [],
-                                logLikelihood: modelData.logLikelihood,
-                                aic: modelData.aic,
-                                bic: modelData.bic,
-                                lambda: modelData.lambda,
-                                alpha: modelData.alpha,
-                                isImported: true
-                            });
+                    // Restore variable names if available
+                    if (modelData.yVariable) updateState({ yVariable: modelData.yVariable });
+                    if (modelData.xVariables) updateState({ xVariables: modelData.xVariables });
 
-                            showToast(`Loaded ${metadata.model_type} model`, 'success');
+                    // Restore diagnostics if available
+                    if (modelData.diagnostics) {
+                        updateState({ diagnostics: modelData.diagnostics });
+                        updateDiagnosticsDisplay(modelData.diagnostics);
+                    } else {
+                        // Clear diagnostics if none saved
+                        updateState({ diagnostics: null });
+                        const diagContainer = document.getElementById('diagnosticsResults');
+                        if (diagContainer) {
+                            diagContainer.innerHTML = '<div class="diagnostics-empty"><p style="color: var(--text-muted); font-size: 0.875rem;">No diagnostic results saved with this model</p></div>';
                         }
                     }
-                });
+
+                    // Restore path results if available
+                    if (modelData.pathResults) {
+                        updateState({ pathResults: modelData.pathResults });
+                        const pathChartContainer = document.getElementById('pathChartContainer');
+                        if (pathChartContainer) pathChartContainer.style.display = 'block';
+                    } else {
+                        updateState({ pathResults: null });
+                        const pathChartContainer = document.getElementById('pathChartContainer');
+                        if (pathChartContainer) pathChartContainer.style.display = 'none';
+                    }
+
+                    // Update UI with imported model
+                    if (modelData.coefficients) {
+                        updateResultsDisplay({
+                            method: metadata.model_type.toLowerCase(),
+                            coefficients: modelData.coefficients,
+                            stdErrors: modelData.stdErrors,
+                            tStats: modelData.tStats,
+                            pValues: modelData.pValues,
+                            confIntLower: modelData.confIntLower,
+                            confIntUpper: modelData.confIntUpper,
+                            rSquared: modelData.rSquared,
+                            adjRSquared: modelData.adjRSquared,
+                            fStat: modelData.fStat,
+                            fPValue: modelData.fPValue,
+                            stdError: modelData.residualStdError,
+                            rmse: modelData.rmse,
+                            mae: modelData.mae,
+                            mse: modelData.mse,
+                            predictions: modelData.fittedValues,
+                            residuals: modelData.residuals,
+                            leverage: modelData.leverage,
+                            standardizedResiduals: modelData.standardizedResiduals || modelData.residuals?.map((r, i) => {
+                                // Recalculate if we have stdError
+                                return modelData.residualStdError ?
+                                    r / modelData.residualStdError : 0;
+                            }),
+                            n: modelData.nObservations,
+                            k: modelData.nPredictors,
+                            variableNames: modelData.variableNames || [],
+                            logLikelihood: modelData.logLikelihood,
+                            aic: modelData.aic,
+                            bic: modelData.bic,
+                            lambda: modelData.lambda,
+                            alpha: modelData.alpha,
+                            isImported: true
+                        });
+
+                        showToast(`Loaded ${metadata.model_type} model`, 'success');
+                    }
+                }
             } catch (e) {
                 console.error('Error importing model:', e);
                 showToast('Failed to import model. Invalid JSON format.', 'error');
@@ -2302,6 +2434,7 @@ export function initUI() {
     // Collapsible headers (disclaimer, help, residuals, licenses)
     setupCollapsible('disclaimerToggle', 'disclaimerContent');
     setupCollapsible('helpToggle', 'helpContent');
+    setupCollapsible('correlationToggle', 'correlationContent');
     setupCollapsible('residualsToggle', 'residualsContent');
     setupCollapsible('cvResultsToggle', 'cvResultsContent');
     setupCollapsible('licensesToggle', 'licensesContent');
@@ -2465,6 +2598,12 @@ export function initUI() {
         importModelBtn.addEventListener('click', importModelFromJSON);
     }
 
+    // Trace path button
+    const tracePathBtn = document.getElementById('tracePathBtn');
+    if (tracePathBtn) {
+        tracePathBtn.addEventListener('click', runTracePath);
+    }
+
     // Model comparison modal
     const closeModelComparisonBtn = document.getElementById('closeModelComparisonBtn');
     if (closeModelComparisonBtn) {
@@ -2532,6 +2671,13 @@ function setupCollapsible(toggleId, contentId) {
  */
 function updateRegressionMethodUI() {
     const method = document.getElementById('regressionMethodSelect')?.value || 'ols';
+
+    // Show/hide Trace Path button
+    const tracePathBtn = document.getElementById('tracePathBtn');
+    const isRegularized = ['ridge', 'lasso', 'elastic_net'].includes(method);
+    if (tracePathBtn) {
+        tracePathBtn.style.display = isRegularized ? 'block' : 'none';
+    }
 
     // Hide all method panels
     const regularizedParams = document.getElementById('regularizedParams');
@@ -2643,5 +2789,153 @@ export function hideModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.remove('active');
+    }
+}
+
+// ============================================================================
+// PREDICTION TOOL
+// ============================================================================
+
+/**
+ * Initialize the interactive prediction tool
+ * @param {Object} results - Current regression results
+ */
+export function initPredictionTool(results) {
+    const container = document.getElementById('predictionInputs');
+    if (!container) return;
+
+    const xVars = STATE.xVariables;
+    if (!xVars || xVars.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted);">Select predictors to enable the prediction tool</p>';
+        return;
+    }
+
+    const allowExtrapolation = document.getElementById('allowExtrapolationCheck')?.checked ?? false;
+
+    // Generate input controls for each predictor
+    let html = '';
+    xVars.forEach((v, i) => {
+        const data = STATE.rawData.map(row => row[v]);
+        const min = Math.min(...data);
+        const max = Math.max(...data);
+        const mean = data.reduce((a, b) => a + b, 0) / data.length;
+        const step = (max - min) / 100;
+
+        html += `
+            <div class="selector-group" style="background: var(--bg-card); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 8px;">${escapeHtml(v)}</label>
+                
+                <input type="number" class="pred-input" id="pred-input-${i}" data-idx="${i}" 
+                    value="${mean.toFixed(2)}" 
+                    ${!allowExtrapolation ? `min="${min}" max="${max}"` : ''} 
+                    step="any"
+                    style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); font-weight: 600; margin-bottom: ${allowExtrapolation ? '0' : '12px'};">
+                
+                <div id="slider-cont-${i}" style="display: ${allowExtrapolation ? 'none' : 'block'};">
+                    <input type="range" class="pred-slider" id="pred-slider-${i}" data-idx="${i}" 
+                        min="${min}" max="${max}" step="${step}" value="${mean}" style="width: 100%;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-muted); margin-top: 4px;">
+                        <span>${min.toFixed(1)}</span>
+                        <span>${max.toFixed(1)}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+
+    // Synchronize inputs and sliders
+    const inputs = container.querySelectorAll('.pred-input');
+    const sliders = container.querySelectorAll('.pred-slider');
+
+    sliders.forEach(slider => {
+        slider.addEventListener('input', (e) => {
+            const idx = e.target.getAttribute('data-idx');
+            const input = document.getElementById(`pred-input-${idx}`);
+            if (input) {
+                input.value = parseFloat(e.target.value).toFixed(2);
+                updatePrediction(results);
+            }
+        });
+    });
+
+    inputs.forEach(input => {
+        input.addEventListener('input', (e) => {
+            const idx = e.target.getAttribute('data-idx');
+            const slider = document.getElementById(`pred-slider-${idx}`);
+            if (slider && !isNaN(parseFloat(e.target.value))) {
+                slider.value = e.target.value;
+            }
+            updatePrediction(results);
+        });
+    });
+
+    // Attach extrapolation toggle listener
+    const extrapolationCheck = document.getElementById('allowExtrapolationCheck');
+    if (extrapolationCheck) {
+        extrapolationCheck.onchange = () => initPredictionTool(results);
+    }
+
+    // Reset logic
+    const resetBtn = document.getElementById('resetPredictionBtn');
+    if (resetBtn) {
+        resetBtn.onclick = () => {
+            xVars.forEach((v, i) => {
+                const data = STATE.rawData.map(row => row[v]);
+                const mean = data.reduce((a, b) => a + b, 0) / data.length;
+                const input = document.getElementById(`pred-input-${i}`);
+                const slider = document.getElementById(`pred-slider-${i}`);
+                if (input) input.value = mean.toFixed(2);
+                if (slider) slider.value = mean;
+            });
+            updatePrediction(results);
+        };
+    }
+
+    updatePrediction(results);
+}
+
+/**
+ * Calculate and update the predicted value
+ * @param {Object} results - Current regression results
+ */
+async function updatePrediction(results) {
+    const resultEl = document.getElementById('predictionResult');
+    if (!resultEl) return;
+
+    try {
+        const inputs = document.querySelectorAll('.pred-input');
+        const values = Array.from(inputs).map(inp => parseFloat(inp.value) || 0);
+
+        let prediction;
+
+        if (results.method === 'loess') {
+            const newX = values.map(v => [v]);
+            const predictions = await WasmRegression.loessPredict(
+                newX,
+                STATE.xVariables,
+                STATE.yVariable,
+                results.span,
+                results.degree,
+                results.robustIterations,
+                results.surface
+            );
+            prediction = predictions[0];
+        } else {
+            // Linear Model: intercept + sum(coefficients * variables)
+            prediction = results.coefficients[0];
+            values.forEach((val, i) => {
+                prediction += results.coefficients[i + 1] * val;
+            });
+        }
+
+        resultEl.textContent = (prediction !== undefined && !isNaN(prediction)) 
+            ? prediction.toFixed(4) 
+            : '---';
+            
+    } catch (e) {
+        console.error('[linreg-core] Prediction error:', e);
+        resultEl.textContent = 'Error';
     }
 }

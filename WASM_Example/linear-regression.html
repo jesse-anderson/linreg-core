@@ -117,6 +117,18 @@ X1,X2,Y
 3,4,6.8"></textarea>
                 </div>
 
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 0.875rem; color: var(--text-secondary);">Already have a model?</span>
+                    <button class="tool-btn" id="importModelBtn" title="Import trained model from JSON file" style="background: var(--bg-secondary);">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 4 7 8"/>
+                            <line x1="12" y1="4" x2="12" y2="17"/>
+                        </svg>
+                        Import Model
+                    </button>
+                </div>
+
                 <div id="dataPreview" style="display: none;">
                     <div class="section-header">Data Preview</div>
                     <div class="table-container">
@@ -127,6 +139,35 @@ X1,X2,Y
                     <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">
                         Showing first 10 rows of <span id="totalRows">0</span> total rows
                     </p>
+                </div>
+
+                <!-- Exploratory Analysis Section -->
+                <div id="edaSection" style="display: none; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-color);">
+                    <div class="section-header">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="3" y1="9" x2="21" y2="9"/>
+                            <line x1="3" y1="15" x2="21" y2="15"/>
+                            <line x1="9" y1="3" x2="9" y2="21"/>
+                            <line x1="15" y1="3" x2="15" y2="21"/>
+                        </svg>
+                        <span>Exploratory Analysis</span>
+                    </div>
+                    
+                    <div class="collapsible-header" id="correlationToggle" aria-expanded="true" role="button" tabindex="0">
+                        <span class="title">Correlation Matrix Heatmap</span>
+                        <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </div>
+                    <div class="collapsible-content" id="correlationContent">
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">
+                            Visualizes relationships between all numeric variables. Values range from -1 (strong negative) to +1 (strong positive).
+                        </p>
+                        <div id="correlationHeatmapContainer" style="overflow-x: auto; padding-bottom: 12px;">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -336,6 +377,13 @@ X1,X2,Y
                     Run Regression
                 </button>
 
+                <button class="tool-btn educational" id="tracePathBtn" style="width: 100%; margin-top: 8px; padding: 12px; font-size: 0.9375rem; display: none;" aria-label="Trace coefficient path across lambdas">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; vertical-align: text-bottom;">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                    Trace Path
+                </button>
+
                 <div style="margin-top: 24px;">
                     <div class="collapsible-header collapsed" id="disclaimerToggle" aria-expanded="false" role="button" tabindex="0" style="padding: 8px 0; border-bottom: 1px solid var(--border-color);">
                         <span class="title" style="color: var(--accent-warning); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
@@ -440,6 +488,20 @@ X1,X2,Y
                         <div class="chart-title">Residuals vs Leverage</div>
                         <div class="chart-wrapper">
                             <canvas id="leverageChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-title">Coefficient Plot (with 95% CI)</div>
+                        <div class="chart-wrapper">
+                            <canvas id="coefficientChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-container" id="pathChartContainer" style="display: none;">
+                        <div class="chart-title">Coefficient Path (Regularization Trace)</div>
+                        <div class="chart-wrapper">
+                            <canvas id="pathChart"></canvas>
                         </div>
                     </div>
 
@@ -607,14 +669,6 @@ X1,X2,Y
                             </svg>
                             Export Model (JSON)
                         </button>
-                        <button class="tool-btn" id="importModelBtn" title="Import trained model from JSON file">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                <polyline points="17 8 12 4 7 8"/>
-                                <line x1="12" y1="4" x2="12" y2="17"/>
-                            </svg>
-                            Import Model (JSON)
-                        </button>
                         <button class="tool-btn" id="exportPngBtn">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -640,6 +694,37 @@ X1,X2,Y
                             </svg>
                             Export Augmented Data
                         </button>
+                    </div>
+
+                    <!-- Prediction Tool -->
+                    <div style="margin-top: 32px; padding: 24px; background: var(--bg-tertiary); border-radius: 12px; border: 1px solid var(--accent-educational);">
+                        <div class="section-header" style="border: none; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center;">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; color: var(--accent-educational);">
+                                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                                </svg>
+                                <span style="color: var(--text-primary); font-weight: 700;">Interactive "What-If" Predictor</span>
+                            </div>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-muted); cursor: pointer; user-select: none;">
+                                <input type="checkbox" id="allowExtrapolationCheck">
+                                <span>Allow Extrapolation</span>
+                            </label>
+                        </div>
+                        <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 20px;">
+                            Adjust predictor values to see real-time model predictions.
+                        </p>
+                        
+                        <div id="predictionInputs" class="stats-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                            <!-- Inputs generated dynamically -->
+                        </div>
+
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Predicted ${STATE.yVariable || 'Result'}</div>
+                                <div id="predictionResult" style="font-size: 2.25rem; font-weight: 700; color: var(--accent-educational);">---</div>
+                            </div>
+                            <button class="tool-btn" id="resetPredictionBtn" style="padding: 8px 16px;">Reset to Means</button>
+                        </div>
                     </div>
 
                     <div class="section-header" style="margin-top: 32px;">
@@ -744,7 +829,7 @@ X1,X2,Y
                                         <dd style="margin: 0 0 12px;">The shaded region on the scatter plot shows where the <strong>mean</strong> of Y is likely to fall for a given X. Narrower band = more precise estimate of the regression line. Use this for estimating average values.</dd>
 
                                         <dt style="font-weight: 600; color: var(--text-primary);">Prediction Interval (Individual Values)</dt>
-                                        <dd style="margin: 0;">Wider interval that accounts for both uncertainty in the regression line AND the natural variation of individual data points. Use this for predicting individual future observations. (Not shown on chart - would be ~2-3x wider)</dd>
+                                        <dd style="margin: 0;">The dashed amber band on the scatter plot shows where an <strong>individual</strong> observation is likely to fall. Wider than the CI because it accounts for both uncertainty in the regression line AND the natural variation of individual data points. Computed via WASM using the Rust prediction intervals engine.</dd>
                                     </dl>
                                 </div>
                             </div>

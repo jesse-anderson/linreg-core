@@ -75,7 +75,8 @@ diagnostic_scripts <- list(
   list(name = "RESET", script = "test_reset.R", dir = script_dir, suffix = "reset", args = ""),
   list(name = "LOESS", script = "test_loess.R", dir = loess_dir, suffix = "loess", args = "", multi_output = TRUE),
   list(name = "Ridge GLMNet", script = "test_ridge.R", dir = regularized_dir, suffix = "ridge_glmnet", args = lambda_count),
-  list(name = "Lasso GLMNet", script = "test_lasso.R", dir = regularized_dir, suffix = "lasso_glmnet", args = lambda_count)
+  list(name = "Lasso GLMNet", script = "test_lasso.R", dir = regularized_dir, suffix = "lasso_glmnet", args = lambda_count),
+  list(name = "Prediction Intervals", script = "test_prediction_intervals.R", dir = core_dir, suffix = "prediction_intervals", args = "")
 )
 
 # Counter for results

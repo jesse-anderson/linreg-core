@@ -49,6 +49,7 @@ mod harvey_collier;
 mod jarque_bera;
 mod loess;
 mod ols_by_dataset;
+mod prediction_intervals;
 mod rainbow;
 mod regularized;
 mod reset;

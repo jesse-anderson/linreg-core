@@ -75,6 +75,7 @@ def main():
     # Core scripts to run (in core/ directory)
     core_scripts = [
         {"name": "WLS", "script": "test_wls.py", "suffix": "wls"},
+        {"name": "Prediction Intervals", "script": "test_prediction_intervals.py", "suffix": "prediction_intervals"},
     ]
 
     # Diagnostic scripts to run

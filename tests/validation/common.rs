@@ -1632,3 +1632,59 @@ pub fn expect_kfold_cv_result(json_path: &Path) -> RKfoldCVResult {
         )
     })
 }
+
+// ============================================================================
+// Prediction Intervals Specific Structures
+// ============================================================================
+
+/// Prediction interval tolerance
+/// Prediction interval tolerance. Looser than TIGHT_TOLERANCE (1e-9) because
+/// PI computation involves (X'X)^-1 leverage which amplifies numerical differences
+/// on ill-conditioned datasets (e.g., longley worst-case SE_pred diff ~3.7e-5).
+pub const PI_TOLERANCE: f64 = 1e-4;
+
+/// Prediction interval training data result
+#[derive(Debug, Deserialize)]
+pub struct PiTrainResult {
+    pub predicted: Vec<f64>,
+    pub lower: Vec<f64>,
+    pub upper: Vec<f64>,
+    pub se_pred: Vec<f64>,
+    pub leverage: Vec<f64>,
+}
+
+/// Prediction interval extrapolation data result
+#[derive(Debug, Deserialize)]
+pub struct PiExtrapolationResult {
+    pub new_x: std::collections::HashMap<String, Vec<f64>>,
+    pub predicted: Vec<f64>,
+    pub lower: Vec<f64>,
+    pub upper: Vec<f64>,
+    pub se_pred: Vec<f64>,
+    pub leverage: Vec<f64>,
+}
+
+/// Full prediction interval reference result
+#[derive(Debug, Deserialize)]
+pub struct PiReferenceResult {
+    #[allow(dead_code)]
+    pub dataset: String,
+    pub alpha: f64,
+    pub n: usize,
+    pub p: usize,
+    pub df_residuals: f64,
+    pub mse: f64,
+    pub train: PiTrainResult,
+    pub extrapolation: PiExtrapolationResult,
+}
+
+/// Load prediction interval reference result from JSON
+pub fn load_pi_result(json_path: &Path) -> Option<PiReferenceResult> {
+    if !json_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(json_path)
+        .unwrap_or_else(|e| panic!("Failed to read PI reference file {:?}: {}", json_path, e));
+    Some(serde_json::from_str(&content)
+        .unwrap_or_else(|e| panic!("Failed to parse PI reference JSON {:?}: {}", json_path, e)))
+}

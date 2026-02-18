@@ -736,3 +736,29 @@ fn test_wasm_dffits_test() {
     // Check we got some array (may be empty if no influential points)
     // Array type already confirmed by as_array()
 }
+
+// ============================================================================
+// VIF Test
+// ============================================================================
+
+#[wasm_bindgen_test]
+fn test_wasm_vif_test() {
+    let y_json = get_housing_y();
+    let x_vars_json = get_housing_x_vars();
+
+    let result_json = vif_test(&y_json, &x_vars_json);
+    let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+
+    assert!(result.get("error").is_none(), "vif_test should not error");
+
+    let test_name = result["test_name"].as_str().unwrap();
+    assert!(test_name.contains("VIF") || test_name.contains("Variance"), "Test name should mention VIF");
+
+    let vif_results = result.get("vif_results").expect("Should have vif_results").as_array().unwrap();
+    assert_eq!(vif_results.len(), 3, "Housing data has 3 predictors; should have 3 VIF values");
+
+    for v in vif_results {
+        let vif = v["vif"].as_f64().unwrap();
+        assert!(vif >= 1.0, "VIF should be >= 1.0, got {}", vif);
+    }
+}

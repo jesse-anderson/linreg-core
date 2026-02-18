@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-02-18
+
+### Added
+- **Prediction Intervals** — Uncertainty bounds for individual future observations across all regression methods
+  - `prediction_intervals()` — Exact OLS prediction intervals: `PI = ŷ ± t(α/2, df) × √(MSE × (1 + h₀))`
+  - `ridge_prediction_intervals()`, `lasso_prediction_intervals()`, `elastic_net_prediction_intervals()` — Conservative approximations using unpenalized `X'X` leverage and fit MSE
+  - Returns `predicted`, `lower_bound`, `upper_bound`, `se_pred`, `leverage`, `alpha`, `df_residuals`
+  - Full WASM bindings (`ols_prediction_intervals`, `ridge_prediction_intervals`, `lasso_prediction_intervals`, `elastic_net_prediction_intervals`)
+  - Full Python bindings via PyO3
+  - Validated against R's `predict.lm(..., interval = "prediction")` on 20 datasets
+- **Nightly CI workflow** — Scheduled nightly test runs via `.github/workflows/nightly.yml`
+
+### Changed
+- WASM demo updated with prediction interval UI controls and output display
+- Validation runners updated to include prediction interval scripts
+
+### Fixed
+- `save_model` used `__dict__` on PyO3 `#[pyclass]` objects which don't expose it — fixed to use `to_dict()`
+- `WLSResult` type name mismatch in Python serialization dispatch
+- Duplicate `PythonError` import in `prediction_intervals_impl.rs`
+
+### Tests
+- Added pytest coverage for prediction intervals and model serialization (41 new tests)
+- Added WASM tests for prediction intervals, WLS, LOESS, serialization, K-fold CV, stats utilities, and VIF (63 new tests)
+- Corrected pre-existing WASM test gaps for 5 feature areas added in prior releases (0.5.0–0.6.1)
+
 ## [0.6.1] - 2026-02-12
 
 ### Added

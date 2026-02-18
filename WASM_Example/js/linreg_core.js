@@ -341,6 +341,97 @@ export function durbin_watson_test(y_json, x_vars_json) {
 }
 
 /**
+ * Fits an elastic net regularization path via WASM (Optimized).
+ *
+ * Computes the coefficient path for a sequence of lambda values.
+ * Returns a lightweight summary to avoid excessive JSON serialization overhead.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays
+ * * `n_lambda` - Number of lambda values (default: 100)
+ * * `lambda_min_ratio` - Ratio for smallest lambda
+ * * `alpha` - Mixing parameter (0 = Ridge, 1 = Lasso)
+ * * `standardize` - Whether to standardize predictors
+ * * `max_iter` - Maximum iterations per lambda
+ * * `tol` - Convergence tolerance
+ *
+ * # Returns
+ *
+ * JSON string containing `PathResult` (lambdas, coefficients, stats).
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @param {number} n_lambda
+ * @param {number} lambda_min_ratio
+ * @param {number} alpha
+ * @param {boolean} standardize
+ * @param {number} max_iter
+ * @param {number} tol
+ * @returns {string}
+ */
+export function elastic_net_path_wasm(y_json, x_vars_json, n_lambda, lambda_min_ratio, alpha, standardize, max_iter, tol) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.elastic_net_path_wasm(ptr0, len0, ptr1, len1, n_lambda, lambda_min_ratio, alpha, standardize, max_iter, tol);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Computes approximate Elastic Net regression prediction intervals via WASM.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays (training data)
+ * * `new_x_json` - JSON array of predictor arrays (new observations)
+ * * `alpha` - Significance level (e.g., 0.05 for 95% PI)
+ * * `lambda` - Regularization strength
+ * * `enet_alpha` - Elastic net mixing parameter (0 = Ridge, 1 = Lasso)
+ * * `standardize` - Whether to standardize predictors
+ * * `max_iter` - Maximum coordinate descent iterations
+ * * `tol` - Convergence tolerance
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @param {string} new_x_json
+ * @param {number} alpha
+ * @param {number} lambda
+ * @param {number} enet_alpha
+ * @param {boolean} standardize
+ * @param {number} max_iter
+ * @param {number} tol
+ * @returns {string}
+ */
+export function elastic_net_prediction_intervals(y_json, x_vars_json, new_x_json, alpha, lambda, enet_alpha, standardize, max_iter, tol) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(new_x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.elastic_net_prediction_intervals(ptr0, len0, ptr1, len1, ptr2, len2, alpha, lambda, enet_alpha, standardize, max_iter, tol);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * Performs Elastic Net regression via WASM.
  *
  * Elastic Net combines L1 (Lasso) and L2 (Ridge) penalties.
@@ -831,6 +922,48 @@ export function kfold_cv_ridge(y_json, x_vars_json, lambda, standardize, n_folds
 }
 
 /**
+ * Computes approximate Lasso regression prediction intervals via WASM.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays (training data)
+ * * `new_x_json` - JSON array of predictor arrays (new observations)
+ * * `alpha` - Significance level (e.g., 0.05 for 95% PI)
+ * * `lambda` - Regularization strength
+ * * `standardize` - Whether to standardize predictors
+ * * `max_iter` - Maximum coordinate descent iterations
+ * * `tol` - Convergence tolerance
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @param {string} new_x_json
+ * @param {number} alpha
+ * @param {number} lambda
+ * @param {boolean} standardize
+ * @param {number} max_iter
+ * @param {number} tol
+ * @returns {string}
+ */
+export function lasso_prediction_intervals(y_json, x_vars_json, new_x_json, alpha, lambda, standardize, max_iter, tol) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(new_x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.lasso_prediction_intervals(ptr0, len0, ptr1, len1, ptr2, len2, alpha, lambda, standardize, max_iter, tol);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * Performs Lasso regression via WASM.
  *
  * Lasso regression adds an L1 penalty to the coefficients, which performs
@@ -1047,6 +1180,47 @@ export function make_lambda_path(y_json, x_vars_json, n_lambda, lambda_min_ratio
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
         wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Computes OLS prediction intervals via WASM.
+ *
+ * Fits an OLS model to the training data and computes prediction intervals
+ * for the new observations.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays (training data)
+ * * `new_x_json` - JSON array of predictor arrays (new observations)
+ * * `alpha` - Significance level (e.g., 0.05 for 95% PI)
+ *
+ * # Returns
+ *
+ * JSON string containing predicted values, lower/upper bounds, SE, leverage.
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @param {string} new_x_json
+ * @param {number} alpha
+ * @returns {string}
+ */
+export function ols_prediction_intervals(y_json, x_vars_json, new_x_json, alpha) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(new_x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.ols_prediction_intervals(ptr0, len0, ptr1, len1, ptr2, len2, alpha);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
     }
 }
 
@@ -1311,6 +1485,47 @@ export function reset_test(y_json, x_vars_json, powers_json, type_) {
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
         wasm.__wbindgen_free(deferred5_0, deferred5_1, 1);
+    }
+}
+
+/**
+ * Computes approximate Ridge regression prediction intervals via WASM.
+ *
+ * Fits a Ridge model and computes conservative prediction intervals using
+ * leverage from unpenalized X'X and MSE from the ridge fit.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response variable values
+ * * `x_vars_json` - JSON array of predictor arrays (training data)
+ * * `new_x_json` - JSON array of predictor arrays (new observations)
+ * * `alpha` - Significance level (e.g., 0.05 for 95% PI)
+ * * `lambda` - Regularization strength
+ * * `standardize` - Whether to standardize predictors
+ * @param {string} y_json
+ * @param {string} x_vars_json
+ * @param {string} new_x_json
+ * @param {number} alpha
+ * @param {number} lambda
+ * @param {boolean} standardize
+ * @returns {string}
+ */
+export function ridge_prediction_intervals(y_json, x_vars_json, new_x_json, alpha, lambda, standardize) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_vars_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(new_x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.ridge_prediction_intervals(ptr0, len0, ptr1, len1, ptr2, len2, alpha, lambda, standardize);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
     }
 }
 
@@ -1927,8 +2142,24 @@ export function wls_regression(y_json, x_vars_json, weights_json) {
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
+        __wbg___wbindgen_string_get_72fb696202c56729: function(arg0, arg1) {
+            const obj = arg1;
+            const ret = typeof(obj) === 'string' ? obj : undefined;
+            var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            var len1 = WASM_VECTOR_LEN;
+            getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+            getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+        },
         __wbg___wbindgen_throw_be289d5034ed271b: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
+        },
+        __wbg_new_0_73afc35eb544e539: function() {
+            const ret = new Date();
+            return ret;
+        },
+        __wbg_toISOString_c04e0b8b70650552: function(arg0) {
+            const ret = arg0.toISOString();
+            return ret;
         },
         __wbindgen_init_externref_table: function() {
             const table = wasm.__wbindgen_externrefs;
@@ -1944,6 +2175,14 @@ function __wbg_get_imports() {
         __proto__: null,
         "./linreg_core_bg.js": import0,
     };
+}
+
+let cachedDataViewMemory0 = null;
+function getDataViewMemory0() {
+    if (cachedDataViewMemory0 === null || cachedDataViewMemory0.buffer.detached === true || (cachedDataViewMemory0.buffer.detached === undefined && cachedDataViewMemory0.buffer !== wasm.memory.buffer)) {
+        cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
+    }
+    return cachedDataViewMemory0;
 }
 
 function getStringFromWasm0(ptr, len) {
@@ -2033,6 +2272,7 @@ let wasmModule, wasm;
 function __wbg_finalize_init(instance, module) {
     wasm = instance.exports;
     wasmModule = module;
+    cachedDataViewMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();
     return wasm;

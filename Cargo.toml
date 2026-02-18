@@ -1,11 +1,11 @@
 [package]
 name = "linreg-core"
-version = "0.6.1"
+version = "0.7.0"
 edition = "2021"
 description = "Lightweight linear regression (OLS, Ridge, Lasso, Elastic Net) with diagnostic tests. Pure Rust - no external math dependencies."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/jesse-anderson/linreg-core"
-homepage = "https://jesse-anderson.net"
+homepage = "https://jesse-anderson.net/linreg-core/"
 documentation = "https://docs.rs/linreg-core"
 readme = "README.md"
 authors = ["Jesse Anderson"]

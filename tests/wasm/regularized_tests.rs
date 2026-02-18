@@ -314,3 +314,40 @@ fn test_wasm_make_lambda_path_small() {
 
     assert_eq!(lambda_path.len(), 10, "Should have 10 lambda values");
 }
+
+#[wasm_bindgen_test]
+fn test_wasm_elastic_net_path() {
+    let y_json = get_housing_y();
+    let x_vars_json = get_housing_x_vars();
+
+    // 5 lambdas, alpha=1.0 (Lasso), standardize=true
+    let result_json = elastic_net_path_wasm(&y_json, &x_vars_json, 5, 0.01, 1.0, true, 1000, 1e-7);
+    let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+
+    // Check lambdas array
+    let lambdas = result
+        .get("lambdas")
+        .expect("Should have lambdas")
+        .as_array()
+        .unwrap();
+    assert_eq!(lambdas.len(), 5, "Should have 5 lambda values");
+
+    // Check coefficients (array of arrays)
+    let coefficients = result
+        .get("coefficients")
+        .expect("Should have coefficients")
+        .as_array()
+        .unwrap();
+    assert_eq!(coefficients.len(), 5, "Should have 5 coefficient sets");
+    assert_eq!(coefficients[0].as_array().unwrap().len(), 3, "Each set should have 3 coefficients (Intercept + housing has 2 predictors)");
+
+    // Check stats arrays
+    let r_squared = result.get("r_squared").unwrap().as_array().unwrap();
+    assert_eq!(r_squared.len(), 5);
+
+    let aic = result.get("aic").unwrap().as_array().unwrap();
+    assert_eq!(aic.len(), 5);
+
+    let n_nonzero = result.get("n_nonzero").unwrap().as_array().unwrap();
+    assert_eq!(n_nonzero.len(), 5);
+}
