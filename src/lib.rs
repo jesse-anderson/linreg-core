@@ -78,11 +78,12 @@
 //! let x = Matrix::new(100, 3, vec![0.0; 300]);
 //! let y = vec![0.0; 100];
 //!
-//! // Ridge regression (L2 penalty — shrinks coefficients, handles multicollinearity)
+//! // Ridge regression (L2 penalty - shrinks coefficients, handles multicollinearity)
 //! let ridge_result = ridge_fit(&x, &y, &RidgeFitOptions {
 //!     lambda: 1.0,
 //!     intercept: true,
 //!     standardize: true,
+//!     ..Default::default()
 //! })?;
 //!
 //! // Lasso regression (L1 penalty — automatic variable selection by zeroing coefficients)
