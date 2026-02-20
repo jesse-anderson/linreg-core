@@ -125,7 +125,7 @@ pub fn polynomial_predict_wasm(fit_json: &str, x_new_json: &str) -> String {
 ///
 /// # Returns
 ///
-/// JSON string of the [`RidgeFit`] result, which includes:
+/// JSON string of the RidgeFit result, which includes:
 /// - `intercept`, `coefficients`
 /// - `fitted_values`, `residuals`
 /// - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`
@@ -176,7 +176,7 @@ pub fn polynomial_ridge_wasm(
 ///
 /// # Returns
 ///
-/// JSON string of the [`LassoFit`] result, which includes:
+/// JSON string of the LassoFit result, which includes:
 /// - `intercept`, `coefficients`
 /// - `fitted_values`, `residuals`
 /// - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`
@@ -229,7 +229,7 @@ pub fn polynomial_lasso_wasm(
 ///
 /// # Returns
 ///
-/// JSON string of the [`ElasticNetFit`] result, which includes:
+/// JSON string of the ElasticNetFit result, which includes:
 /// - `intercept`, `coefficients`
 /// - `fitted_values`, `residuals`
 /// - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`

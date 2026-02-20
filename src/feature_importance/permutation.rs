@@ -144,7 +144,7 @@ fn predict_ols(x: &Matrix, coefficients: &[f64]) -> Vec<f64> {
 /// # Arguments
 ///
 /// * `y` - Response variable
-/// * `x_vars` - Predictor variables (each Vec<f64> is a column)
+/// * `x_vars` - Predictor variables (each `Vec<f64>` is a column)
 /// * `fit` - Fitted OLS model result
 /// * `options` - Configuration options for permutation
 ///
@@ -369,7 +369,7 @@ pub fn permutation_importance_ols_named(
 /// # Arguments
 ///
 /// * `y` - Response variable
-/// * `x_original` - Original predictor variables (each Vec<f64> is a column)
+/// * `x_original` - Original predictor variables (each `Vec<f64>` is a column)
 /// * `fit` - Fitted Ridge regression model
 /// * `options` - Configuration options for permutation
 ///
@@ -424,7 +424,7 @@ pub fn permutation_importance_ridge(
 /// # Arguments
 ///
 /// * `y` - Response variable
-/// * `x_original` - Original predictor variables (each Vec<f64> is a column)
+/// * `x_original` - Original predictor variables (each `Vec<f64>` is a column)
 /// * `fit` - Fitted Lasso regression model
 /// * `options` - Configuration options for permutation
 ///
@@ -479,7 +479,7 @@ pub fn permutation_importance_lasso(
 /// # Arguments
 ///
 /// * `y` - Response variable
-/// * `x_original` - Original predictor variables (each Vec<f64> is a column)
+/// * `x_original` - Original predictor variables (each `Vec<f64>` is a column)
 /// * `fit` - Fitted Elastic Net regression model
 /// * `options` - Configuration options for permutation
 ///
@@ -721,7 +721,7 @@ fn predict_standardized(
 /// # Arguments
 ///
 /// * `y` - Response variable
-/// * `x_vars` - Predictor variables (each Vec<f64> is a column)
+/// * `x_vars` - Predictor variables (each `Vec<f64>` is a column)
 /// * `span` - Span parameter used in original fit
 /// * `degree` - Degree of polynomial used in original fit
 /// * `options` - Configuration options for permutation

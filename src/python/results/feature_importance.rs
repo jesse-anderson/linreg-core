@@ -132,7 +132,7 @@ pub struct PyShapResult {
     pub variable_names: Vec<String>,
 
     /// SHAP values matrix (n_observations × n_features)
-    /// shap_values[i][j] = contribution of feature j to observation i
+    /// `shap_values\[i]\[j\]` = contribution of feature `j` to observation `i`
     #[pyo3(get, set)]
     pub shap_values: Vec<Vec<f64>>,
 

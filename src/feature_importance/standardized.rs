@@ -46,7 +46,7 @@ use crate::stats::stddev;
 /// # Arguments
 ///
 /// * `coefficients` - Model coefficients including intercept as first element
-/// * `x_vars` - Predictor variables (each Vec<f64> is a column)
+/// * `x_vars` - Predictor variables (each `Vec<f64>` is a column)
 ///
 /// # Returns
 ///
@@ -146,7 +146,7 @@ pub fn standardized_coefficients(
 /// # Arguments
 ///
 /// * `coefficients` - Model coefficients including intercept as first element
-/// * `x_vars` - Predictor variables (each Vec<f64> is a column)
+/// * `x_vars` - Predictor variables (each `Vec<f64>` is a column)
 /// * `variable_names` - Names for each predictor variable
 /// * `y_std` - Standard deviation of the response variable Y
 ///

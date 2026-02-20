@@ -40,9 +40,12 @@ pub fn extract_f64_vec(obj: &Bound<PyAny>) -> PyResult<Vec<f64>> {
         if let Ok(array) = obj.downcast::<PyArray1<f64>>() {
             return Ok(unsafe { array.as_slice()? }.to_vec());
         }
-        // Also try to handle integer arrays
+        // Also try to handle integer arrays (i32 for Windows/32-bit, i64 for 64-bit)
+        if let Ok(array) = obj.downcast::<PyArray1<i32>>() {
+            return Ok(unsafe { array.as_slice()?.iter().map(|&x| x as f64).collect() });
+        }
         if let Ok(array) = obj.downcast::<PyArray1<i64>>() {
-            return Ok(unsafe { array.as_slice()? }.iter().map(|&x| x as f64).collect());
+            return Ok(unsafe { array.as_slice()?.iter().map(|&x| x as f64).collect() });
         }
     }
 
@@ -135,7 +138,21 @@ pub fn extract_f64_matrix(obj: &Bound<PyAny>) -> PyResult<Vec<Vec<f64>>> {
             }
             return Ok(result);
         }
-        // Try int64 arrays
+        // Try int32 arrays (Windows/32-bit default)
+        if let Ok(array) = obj.downcast::<PyArray2<i32>>() {
+            let slice = unsafe { array.as_slice()? };
+            let dims = array.dims();
+            let nrows = dims[0];
+            let ncols = dims[1];
+            let mut result = Vec::with_capacity(nrows);
+            for row_idx in 0..nrows {
+                let start = row_idx * ncols;
+                let end = start + ncols;
+                result.push(slice[start..end].iter().map(|&x| x as f64).collect());
+            }
+            return Ok(result);
+        }
+        // Try int64 arrays (64-bit default)
         if let Ok(array) = obj.downcast::<PyArray2<i64>>() {
             let slice = unsafe { array.as_slice()? };
             let dims = array.dims();

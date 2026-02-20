@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Interpretation
 ///
-/// - `beta_star[i]` = "A 1 SD increase in Xᵢ leads to beta_star[i] SD change in Y"
+/// - `beta_star[i]` = "A 1 SD increase in Xᵢ leads to `beta_star[i]` SD change in Y"
 /// - Absolute values indicate relative importance
 /// - Sign indicates direction of relationship
 ///
@@ -217,7 +217,7 @@ pub struct ShapOutput {
     /// Names of predictor variables (excluding intercept)
     pub variable_names: Vec<String>,
     /// SHAP values matrix (n_observations × n_features)
-    /// shap_values[i][j] = contribution of feature j to observation i
+    /// `shap_values[i][j]` = contribution of feature `j` to observation `i`
     pub shap_values: Vec<Vec<f64>>,
     /// Base value (mean prediction / intercept contribution)
     pub base_value: f64,

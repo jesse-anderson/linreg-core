@@ -53,7 +53,7 @@ use crate::stats::mean;
 ///
 /// # Arguments
 ///
-/// * `x_vars` - Predictor variables (each Vec<f64> is a column)
+/// * `x_vars` - Predictor variables (each `Vec<f64>` is a column)
 /// * `coefficients` - Model coefficients including intercept as first element
 ///
 /// # Returns
@@ -175,7 +175,7 @@ pub fn shap_values_linear(x_vars: &[Vec<f64>], coefficients: &[f64]) -> Result<S
 ///
 /// # Arguments
 ///
-/// * `x_vars` - Predictor variables (each Vec<f64> is a column)
+/// * `x_vars` - Predictor variables (each `Vec<f64>` is a column)
 /// * `coefficients` - Model coefficients including intercept as first element
 /// * `variable_names` - Names for each predictor variable
 ///
@@ -381,7 +381,7 @@ pub fn shap_values_polynomial(
 ///
 /// # Arguments
 ///
-/// * `x_vars` - Predictor variables (each Vec<f64> is a column)
+/// * `x_vars` - Predictor variables (each `Vec<f64>` is a column)
 /// * `fit` - Fitted Ridge regression model
 ///
 /// # Returns
@@ -426,7 +426,7 @@ pub fn shap_values_ridge(
 ///
 /// # Arguments
 ///
-/// * `x_vars` - Predictor variables (each Vec<f64> is a column)
+/// * `x_vars` - Predictor variables (each `Vec<f64>` is a column)
 /// * `fit` - Fitted Lasso regression model
 ///
 /// # Returns
@@ -471,7 +471,7 @@ pub fn shap_values_lasso(
 ///
 /// # Arguments
 ///
-/// * `x_vars` - Predictor variables (each Vec<f64> is a column)
+/// * `x_vars` - Predictor variables (each `Vec<f64>` is a column)
 /// * `fit` - Fitted Elastic Net regression model
 ///
 /// # Returns
