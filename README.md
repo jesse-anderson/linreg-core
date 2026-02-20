@@ -21,7 +21,7 @@ A lightweight, self-contained linear regression library written in Rust. Compile
 
 | Section | Description |
 |---------|-------------|
-| [Features](#features) | Regression methods, model statistics, diagnostic tests |
+| [Features](#features) | Regression methods, model statistics, feature importance, diagnostic tests |
 | [Rust Usage](#rust-usage) | Native Rust crate usage |
 | [WebAssembly Usage](#webassembly-usage) | Browser/JavaScript usage |
 | [Python Usage](#python-usage) | Python bindings via PyO3 |
@@ -39,10 +39,13 @@ A lightweight, self-contained linear regression library written in Rust. Compile
 - **Ridge Regression:** L2-regularized regression with optional standardization, effective degrees of freedom, model selection criteria
 - **Lasso Regression:** L1-regularized regression via coordinate descent with automatic variable selection, convergence tracking, model selection criteria
 - **Elastic Net:** Combined L1 + L2 regularization for variable selection with multicollinearity handling, active set convergence, model selection criteria
+- **Polynomial Regression:** Polynomial fitting of any degree with centering/standardization for numerical stability
 - **LOESS:** Locally estimated scatterplot smoothing for non-parametric curve fitting with configurable span, polynomial degree, and robust fitting
 - **WLS (Weighted Least Squares):** Regression with observation weights for heteroscedastic data, includes confidence intervals
+- **Prediction Intervals:** Uncertainty bounds for individual future observations (OLS, Ridge, Lasso, Elastic Net)
 - **K-Fold Cross Validation:** Model evaluation and hyperparameter tuning for all regression types (OLS, Ridge, Lasso, Elastic Net) with customizable folds, shuffling, and seeding
 - **Lambda Path Generation:** Create regularization paths for cross-validation
+- **Model Serialization:** Save/load trained models to/from JSON for all model types
 
 ### Model Statistics
 - **Fit Metrics:** R-squared, Adjusted R-squared, F-statistic, F-test p-value
@@ -50,6 +53,12 @@ A lightweight, self-contained linear regression library written in Rust. Compile
 - **Model Selection:** Log-likelihood, AIC (Akaike Information Criterion), BIC (Bayesian Information Criterion)
 - **Residuals:** Raw residuals, standardized residuals, fitted values, leverage (hat matrix diagonal)
 - **Multicollinearity:** Variance Inflation Factor (VIF) for each predictor
+
+### Feature Importance
+- **Standardized Coefficients:** Coefficients scaled by standard deviation for cross-variable comparison
+- **SHAP Values:** Exact SHAP (Shapley Additive Explanations) for linear models — local and global importance
+- **Permutation Importance:** Performance drop when feature values are randomly shuffled
+- **VIF Ranking:** Automatic multicollinearity assessment with interpretation guidance
 
 ### Diagnostic Tests
 | Category | Tests |
@@ -69,7 +78,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-linreg-core = { version = "0.6", default-features = false }
+linreg-core = { version = "0.8", default-features = false }
 ```
 
 ### OLS Regression (Rust)
@@ -193,6 +202,61 @@ fn main() -> Result<(), linreg_core::Error> {
     println!("Non-zero coefficients: {}", result.n_nonzero);
     println!("AIC: {:.4}", result.aic);
     println!("BIC: {:.4}", result.bic);
+
+    Ok(())
+}
+```
+
+### Polynomial Regression (Rust)
+
+```rust,no_run
+use linreg_core::polynomial::{polynomial_regression, polynomial_predict};
+
+fn main() -> Result<(), linreg_core::Error> {
+    let y = vec![2.1, 4.9, 10.8, 19.5, 32.1];  // Quadratic relationship
+    let x = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+
+    // Fit degree-2 polynomial with centering for numerical stability
+    let fit = polynomial_regression(&y, &x, 2, true, true)?;
+
+    println!("R²: {:.4}", fit.ols_output.r_squared);
+    println!("Coefficients: {:?}", fit.ols_output.coefficients);
+
+    // Predict at new x values
+    let new_x = vec![2.5, 5.5];
+    let predictions = polynomial_predict(&fit, &new_x)?;
+    println!("Predictions: {:?}", predictions);
+
+    Ok(())
+}
+```
+
+### Feature Importance (Rust)
+
+```rust,no_run
+use linreg_core::feature_importance::{
+    standardized_coefficients, shap_values_linear,
+    permutation_importance_ols, PermutationImportanceOptions,
+};
+
+fn main() -> Result<(), linreg_core::Error> {
+    let y = vec![2.5, 3.7, 4.2, 5.1, 6.3];
+    let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    let x2 = vec![2.0, 4.0, 5.0, 4.0, 3.0];
+
+    // Standardized coefficients for comparison
+    let std_coef = standardized_coefficients(&[0.8, 0.5], &[x1.clone(), x2.clone()])?;
+    println!("Standardized: {:?}", std_coef.standardized_coefficients);
+
+    // SHAP values for local explanations
+    let shap = shap_values_linear(&[x1, x2], &[1.5, 0.3])?;
+    println!("SHAP: {:?}", shap.mean_abs_shap);
+
+    // Permutation importance
+    let perm = permutation_importance_ols(
+        &y, &[x1, x2], &PermutationImportanceOptions::default()
+    )?;
+    println!("Importance: {:?}", perm.importance);
 
     Ok(())
 }
@@ -1265,7 +1329,7 @@ cargo test --features ffi --test ffi_vba_tests
 For native Rust without WASM overhead:
 
 ```toml
-linreg-core = { version = "0.6", default-features = false }
+linreg-core = { version = "0.8", default-features = false }
 ```
 
 For Python bindings (built with maturin):
@@ -1288,6 +1352,12 @@ cargo test
 
 # WASM tests
 wasm-pack test --node
+
+# FFI tests (VBA/C bindings)
+cargo test --features ffi
+
+# Python tests (requires maturin build)
+pytest tests/python/
 
 # All tests including doctests
 cargo test --all-features

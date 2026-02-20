@@ -31,7 +31,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! linreg-core = { version = "0.6", default-features = false }
+//! linreg-core = { version = "0.8", default-features = false }
 //! ```
 //!
 //! ```rust
@@ -53,7 +53,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! linreg-core = "0.6"
+//! linreg-core = "0.8"
 //! ```
 //!
 //! Build with `wasm-pack build --target web`, then use in JavaScript:
@@ -189,7 +189,7 @@
 //! For native-only builds (smaller binary, no WASM deps):
 //!
 //! ```toml
-//! linreg-core = { version = "0.6", default-features = false }
+//! linreg-core = { version = "0.8", default-features = false }
 //! ```
 //!
 //! ## Why This Library?
@@ -204,10 +204,12 @@
 //!
 //! - [`core`] — OLS regression, coefficients, residuals, VIF, AIC/BIC
 //! - [`regularized`] — Ridge, Lasso, Elastic Net, regularization paths
+//! - [`polynomial`] — Polynomial regression of any degree with centering/standardization
 //! - [`weighted_regression`] — Weighted Least Squares (WLS)
 //! - [`loess`] — Locally weighted scatterplot smoothing
 //! - [`cross_validation`] — K-Fold Cross Validation for all regression types
 //! - [`mod@prediction_intervals`] — Prediction and confidence intervals for all model types
+//! - [`feature_importance`] — Standardized coefficients, SHAP, permutation importance, VIF ranking
 //! - [`diagnostics`] — 14 statistical tests (linearity, heteroscedasticity, normality, autocorrelation, influence)
 //! - [`serialization`] — Model save/load to JSON (native Rust)
 //! - [`stats`] — Descriptive statistics utilities
