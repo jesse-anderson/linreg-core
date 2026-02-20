@@ -1381,7 +1381,7 @@ impl PyPolynomialResult {
             .zip(&self.feature_names)
             .enumerate()
             .map(|(i, zip_val)| {
-                let (((((coef, se), t), p), name)) = zip_val;
+                let ((((coef, se), t), p), name) = zip_val;
                 format!("  [{:2}] {:12} coef={:8.4}, SE={:8.4}, t={:6.3}, p={:8.4e}",
                     i, name, coef, se, t, p)
             })
