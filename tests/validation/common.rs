@@ -1612,6 +1612,88 @@ pub fn load_kfold_cv_result(json_path: &Path) -> Option<RKfoldCVResult> {
     serde_json::from_str(&content).ok()
 }
 
+// ============================================================================
+// Polynomial Regression Specific Structures
+// ============================================================================
+
+/// Polynomial regression tolerance (matches OLS — polynomial IS OLS with transformed features)
+pub const POLYNOMIAL_TOLERANCE: f64 = 1e-8;
+
+/// Polynomial result from R/Python validation (unified format)
+#[derive(Debug, Deserialize)]
+pub struct PolynomialResult {
+    #[allow(dead_code)]
+    pub test: String,
+    #[allow(dead_code)]
+    pub method: String,
+    #[allow(dead_code)]
+    pub dataset: String,
+    #[allow(dead_code)]
+    pub formula: String,
+    pub degree: usize,
+    pub n: usize,
+    #[allow(dead_code)]
+    pub k: usize,
+    pub df_residual: usize,
+    #[allow(dead_code)]
+    pub df_model: usize,
+    #[allow(dead_code)]
+    pub variable_names: Vec<String>,
+    pub coefficients: Vec<f64>,
+    pub std_errors: Vec<f64>,
+    pub t_stats: Vec<f64>,
+    pub p_values: Vec<f64>,
+    pub r_squared: f64,
+    pub adj_r_squared: f64,
+    pub f_statistic: f64,
+    pub f_p_value: f64,
+    pub mse: f64,
+    pub rmse: f64,
+    pub mae: f64,
+    #[allow(dead_code)]
+    pub residual_std_error: f64,
+    pub log_likelihood: f64,
+    pub aic: f64,
+    pub bic: f64,
+    pub conf_int_lower: Vec<f64>,
+    pub conf_int_upper: Vec<f64>,
+    pub fitted_values: Vec<f64>,
+    pub residuals: Vec<f64>,
+}
+
+/// Load polynomial result from JSON
+pub fn load_polynomial_result(json_path: &Path) -> Option<PolynomialResult> {
+    if !json_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(json_path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+/// Load polynomial result, panicking loudly with instructions if file not found
+pub fn expect_polynomial_result(json_path: &Path) -> PolynomialResult {
+    if !json_path.exists() {
+        panic!(
+            "Polynomial result file not found: {}\n\
+             \n\
+             To generate this file, run:\n\
+               cd verification/scripts/runners && Rscript run_all_diagnostics_r.R\n\
+             \n\
+             Or generate individual polynomial results:\n\
+               Rscript verification/scripts/r/core/test_polynomial.R <csv_path> <output_dir> <degree>",
+            json_path.display()
+        );
+    }
+    load_polynomial_result(json_path).unwrap_or_else(|| {
+        panic!(
+            "Failed to parse polynomial result file: {}\n\
+             \n\
+             The file may be corrupted. Try regenerating it.",
+            json_path.display()
+        )
+    })
+}
+
 /// Load K-Fold CV result, panicking loudly with instructions if file not found
 pub fn expect_kfold_cv_result(json_path: &Path) -> RKfoldCVResult {
     if !json_path.exists() {

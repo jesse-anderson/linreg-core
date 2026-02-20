@@ -112,7 +112,7 @@ fn main() {
             "-".to_string() // Intercept has no VIF
         } else {
             match vif_results.as_ref().and_then(|v| v.get(i - 1)) {
-                Some(v) if *v > 10.0 => format!(" {:.2} ⚠", v),
+                Some(v) if *v > 10.0 => format!(" {:.2} (HIGH)", v),
                 Some(v) => format!(" {:.2}", v),
                 None => "-".to_string(),
             }
@@ -141,7 +141,7 @@ fn main() {
         println!("\nVIF Interpretation:");
         println!("  - VIF < 5:   Low multicollinearity");
         println!("  - VIF 5-10:  Moderate multicollinearity");
-        println!("  - VIF > 10:  High multicollinearity ⚠");
+        println!("  - VIF > 10:  High multicollinearity (!)");
     }
 
     println!();
@@ -199,12 +199,12 @@ fn run_diagnostics(y: &[f64], x_vars: &[Vec<f64>]) {
 
     // Helper to print test result
     fn print_test(name: &str, stat: f64, p: f64, interpretation: &str) {
-        let status = if p < 0.05 { "FAIL ⚠" } else { "PASS ✓" };
+        let status = if p < 0.05 { "FAIL" } else { "PASS" };
         println!(
             "{:<25} statistic={:>8.3}  p-value={:.4}  {}",
             name, stat, p, status
         );
-        println!("  → {}", interpretation);
+        println!("  -> {}", interpretation);
     }
 
     println!("Linearity Tests:");
@@ -258,6 +258,6 @@ fn run_diagnostics(y: &[f64], x_vars: &[Vec<f64>]) {
     println!("\nAutocorrelation:");
     if let Ok(dw) = diagnostics::durbin_watson_test(y, x_vars) {
         println!("{:<25} statistic={:>8.3}", "Durbin-Watson", dw.statistic);
-        println!("  → Values near 2.0 indicate no autocorrelation");
+        println!("  -> Values near 2.0 indicate no autocorrelation");
     }
 }

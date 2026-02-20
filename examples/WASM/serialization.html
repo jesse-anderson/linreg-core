@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Serialization — linreg-core WASM</title>
+  <style>
+    body { font-family: monospace; max-width: 780px; margin: 2rem auto; padding: 0 1rem; }
+    h1   { font-size: 1.3rem; border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+    pre  { background: #f5f5f5; padding: 1rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Model Serialization — linreg-core WASM</h1>
+  <p>Train -> serialize -> inspect metadata -> deserialize -> verify round-trip fidelity.</p>
+  <pre id="output">Loading WASM…</pre>
+
+  <script type="module">
+    import init, {
+      ols_regression,
+      ridge_regression,
+      serialize_model,
+      deserialize_model,
+      get_model_metadata,
+    } from 'https://unpkg.com/linreg-core/linreg_core.js';
+    await init();
+
+    const y        = [150, 200, 250, 300, 220, 270, 310, 180, 240, 290];
+    const sqft     = [ 10,  14,  18,  22,  15,  19,  23,  12,  17,  21];
+    const bedrooms = [  2,   3,   3,   4,   3,   3,   4,   2,   3,   4];
+    const names    = ['Intercept', 'SqFt', 'Bedrooms'];
+
+    const yJson     = JSON.stringify(y);
+    const xJson     = JSON.stringify([sqft, bedrooms]);
+    const namesJson = JSON.stringify(names);
+
+    // ── Train both models ─────────────────────────────────────────────────────
+    const olsJson   = ols_regression(yJson, xJson, namesJson);
+    const ridgeJson = ridge_regression(yJson, xJson, namesJson, 1.0, true);
+    const ols       = JSON.parse(olsJson);
+    const ridge     = JSON.parse(ridgeJson);
+
+    // ── Serialize ─────────────────────────────────────────────────────────────
+    // serialize_model(model_json, model_type, optional_name)
+    const olsSerialized   = serialize_model(olsJson,   'OLS',   'Housing OLS');
+    const ridgeSerialized = serialize_model(ridgeJson, 'Ridge', 'Housing Ridge λ=1');
+
+    // ── Inspect metadata ──────────────────────────────────────────────────────
+    const olsMeta   = JSON.parse(get_model_metadata(olsSerialized));
+    const ridgeMeta = JSON.parse(get_model_metadata(ridgeSerialized));
+
+    // ── Deserialize ───────────────────────────────────────────────────────────
+    const olsRecovered   = JSON.parse(deserialize_model(olsSerialized));
+    const ridgeRecovered = JSON.parse(deserialize_model(ridgeSerialized));
+
+    console.log('ols', ols, 'ridge', ridge,
+                'olsMeta', olsMeta, 'ridgeMeta', ridgeMeta,
+                'olsRecovered', olsRecovered, 'ridgeRecovered', ridgeRecovered);
+
+    const f4 = v => (v != null ? Number(v).toFixed(4) : '—');
+    const match = (a, b) => Math.abs(a - b) < 1e-10 ? 'OK' : 'MISMATCH';
+
+    const lines = [];
+
+    // ── 1. Original coefficients ───────────────────────────────────────────────
+    lines.push('━━━ 1. Trained Coefficients ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('Variable       OLS coef    Ridge coef');
+    lines.push('─'.repeat(40));
+    // OLS: coefficients[0]=intercept, [1..]=predictors
+    // Ridge: intercept is separate, coefficients[0..]=predictors
+    const ridgeCoefs = [ridge.intercept, ...ridge.coefficients];
+    names.forEach((name, i) => {
+      lines.push(
+        name.padEnd(14) +
+        f4(ols.coefficients[i]).padStart(10) + '  ' +
+        f4(ridgeCoefs[i]).padStart(10)
+      );
+    });
+    lines.push('R²             ' + f4(ols.r_squared).padStart(10) + '  ' + f4(ridge.r_squared).padStart(10));
+
+    // ── 2. Metadata ───────────────────────────────────────────────────────────
+    lines.push('');
+    lines.push('━━━ 2. Serialized Metadata ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('Field              OLS model           Ridge model');
+    lines.push('─'.repeat(60));
+    lines.push('format_version   ' + String(olsMeta.format_version).padStart(10) + '   ' + String(ridgeMeta.format_version).padStart(10));
+    lines.push('library_version  ' + String(olsMeta.library_version).padStart(10) + '   ' + String(ridgeMeta.library_version).padStart(10));
+    lines.push('model_type       ' + String(olsMeta.model_type).padStart(10) + '   ' + String(ridgeMeta.model_type).padStart(10));
+    lines.push('name             ' + String(olsMeta.name ?? '—').padStart(10) + '   ' + String(ridgeMeta.name ?? '—').padStart(10));
+    lines.push('created_at       ' + String(olsMeta.created_at).slice(0, 24));
+
+    // ── 3. Round-trip verification ─────────────────────────────────────────────
+    lines.push('');
+    lines.push('━━━ 3. Round-Trip Fidelity (original vs deserialized) ━━━━━━━━━━━━━━');
+    lines.push('');
+    lines.push('OLS coefficients:');
+    lines.push('  Variable       Original   Recovered   Status');
+    lines.push('  ' + '─'.repeat(44));
+    names.forEach((name, i) => {
+      const orig = ols.coefficients[i];
+      const recv = olsRecovered.coefficients[i];
+      lines.push(
+        '  ' + name.padEnd(14) +
+        f4(orig).padStart(10) + '  ' +
+        f4(recv).padStart(10) + '  ' +
+        match(orig, recv)
+      );
+    });
+
+    lines.push('');
+    lines.push('Ridge coefficients:');
+    lines.push('  Variable       Original   Recovered   Status');
+    lines.push('  ' + '─'.repeat(44));
+    // Ridge recovered: intercept separate, coefficients for predictors
+    const ridgeRecCoefs = [ridgeRecovered.intercept, ...ridgeRecovered.coefficients];
+    names.forEach((name, i) => {
+      const orig = ridgeCoefs[i];
+      const recv = ridgeRecCoefs[i];
+      lines.push(
+        '  ' + name.padEnd(14) +
+        f4(orig).padStart(10) + '  ' +
+        f4(recv).padStart(10) + '  ' +
+        match(orig, recv)
+      );
+    });
+
+    // ── 4. Serialized JSON preview ─────────────────────────────────────────────
+    lines.push('');
+    lines.push('━━━ 4. Serialized JSON Structure (OLS, first 400 chars) ━━━━━━━━━━━━');
+    const preview = JSON.stringify(JSON.parse(olsSerialized), null, 2);
+    lines.push(preview.slice(0, 400) + (preview.length > 400 ? '\n  …' : ''));
+
+    document.getElementById('output').textContent = lines.join('\n');
+  </script>
+</body>
+</html>

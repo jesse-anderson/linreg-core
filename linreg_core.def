@@ -1,0 +1,97 @@
+; linreg_core.def
+; Module-definition file for the linreg_core Windows DLL.
+;
+; Purpose: export every public FFI symbol with its plain (undecorated) name.
+; On i686-pc-windows-msvc the MSVC linker would otherwise emit
+; stdcall-decorated names like _LR_OLS@16, which VBA Declare statements
+; cannot find.  Listing names here forces the plain exported name.
+;
+; x86_64 builds do not need this file (no stdcall decoration), but it is
+; harmless to include it via the build script only for i686 targets.
+
+LIBRARY linreg_core
+EXPORTS
+    ; ── Handle management ────────────────────────────────────────────────────
+    LR_Free
+    LR_GetLastError
+
+    ; ── OLS regression ───────────────────────────────────────────────────────
+    LR_OLS
+    LR_GetRSquared
+    LR_GetAdjRSquared
+    LR_GetFStatistic
+    LR_GetFPValue
+    LR_GetMSE
+    LR_GetNumCoefficients
+    LR_GetNumObservations
+    LR_GetCoefficients
+    LR_GetStdErrors
+    LR_GetTStats
+    LR_GetPValues
+    LR_GetResiduals
+    LR_GetFittedValues
+
+    ; ── Regularized regression ───────────────────────────────────────────────
+    LR_Ridge
+    LR_Lasso
+    LR_ElasticNet
+    LR_GetIntercept
+    LR_GetDF
+    LR_GetNNonzero
+    LR_GetConverged
+
+    ; ── Diagnostic tests ─────────────────────────────────────────────────────
+    LR_GetStatistic
+    LR_GetPValue
+    LR_GetTestDF
+    LR_GetAutocorrelation
+    LR_BreuschPagan
+    LR_JarqueBera
+    LR_ShapiroWilk
+    LR_AndersonDarling
+    LR_HarveyCollier
+    LR_White
+    LR_Rainbow
+    LR_Reset
+    LR_DurbinWatson
+    LR_BreuschGodfrey
+
+    ; ── Influence diagnostics ─────────────────────────────────────────────────
+    LR_CooksDistance
+    LR_DFFITS
+    LR_VIF
+    LR_DFBETAS
+
+    ; ── Generic vector / matrix getters ──────────────────────────────────────
+    LR_GetVectorLength
+    LR_GetVector
+    LR_GetMatrixRows
+    LR_GetMatrixCols
+    LR_GetMatrix
+
+    ; ── WLS and lambda path ───────────────────────────────────────────────────
+    LR_WLS
+    LR_LambdaPath
+
+    ; ── K-Fold cross validation ───────────────────────────────────────────────
+    LR_KFoldOLS
+    LR_KFoldRidge
+    LR_KFoldLasso
+    LR_KFoldElasticNet
+    LR_GetCVNFolds
+    LR_GetCVMeanMSE
+    LR_GetCVStdMSE
+    LR_GetCVMeanRMSE
+    LR_GetCVStdRMSE
+    LR_GetCVMeanR2
+
+    ; ── Prediction intervals ─────────────────────────────────────────────────
+    LR_PredictionIntervals
+    LR_GetPredicted
+    LR_GetLowerBound
+    LR_GetUpperBound
+    LR_GetSEPred
+
+    ; ── Utilities ────────────────────────────────────────────────────────────
+    LR_Version
+    LR_Init

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Diagnostics — linreg-core WASM</title>
+  <style>
+    body { font-family: monospace; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+    h1   { font-size: 1.3rem; border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+    pre  { background: #f5f5f5; padding: 1rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Regression Diagnostics — linreg-core WASM</h1>
+  <p>All 16 diagnostic tests on <code>price ~ sqft + bedrooms</code> (n=10).</p>
+  <pre id="output">Loading WASM…</pre>
+
+  <script type="module">
+    import init, {
+      // Linearity
+      rainbow_test,
+      harvey_collier_test,
+      reset_test,
+      // Heteroscedasticity
+      breusch_pagan_test,
+      white_test,
+      // Normality
+      jarque_bera_test,
+      shapiro_wilk_test,
+      anderson_darling_test,
+      // Autocorrelation
+      durbin_watson_test,
+      breusch_godfrey_test,
+      // Influential observations
+      cooks_distance_test,
+      dfbetas_test,
+      dffits_test,
+      // Multicollinearity
+      vif_test,
+    } from 'https://unpkg.com/linreg-core/linreg_core.js';
+    await init();
+
+    const y        = [150, 200, 250, 300, 220, 270, 310, 180, 240, 290];
+    const sqft     = [ 10,  14,  18,  22,  15,  19,  23,  12,  17,  21];
+    const bedrooms = [  2,   3,   3,   4,   3,   3,   4,   2,   3,   4];
+
+    const yJson = JSON.stringify(y);
+    const xJson = JSON.stringify([sqft, bedrooms]);
+
+    // ── Run all tests ────────────────────────────────────────────────────────
+    // Linearity
+    const rain = JSON.parse(rainbow_test(yJson, xJson, 0.5, 'r'));
+    const hc   = JSON.parse(harvey_collier_test(yJson, xJson));
+    const rst  = JSON.parse(reset_test(yJson, xJson, JSON.stringify([2, 3]), 'fitted'));
+    // Heteroscedasticity
+    const bp   = JSON.parse(breusch_pagan_test(yJson, xJson));
+    const wht  = JSON.parse(white_test(yJson, xJson, 'both'));
+    // Normality
+    const jb   = JSON.parse(jarque_bera_test(yJson, xJson));
+    const sw   = JSON.parse(shapiro_wilk_test(yJson, xJson));
+    const ad   = JSON.parse(anderson_darling_test(yJson, xJson));
+    // Autocorrelation
+    const dw   = JSON.parse(durbin_watson_test(yJson, xJson));
+    const bg   = JSON.parse(breusch_godfrey_test(yJson, xJson, 2, 'chisq'));
+    // Influence
+    const cd   = JSON.parse(cooks_distance_test(yJson, xJson));
+    const dfb  = JSON.parse(dfbetas_test(yJson, xJson));
+    const dff  = JSON.parse(dffits_test(yJson, xJson));
+    // Multicollinearity
+    const vif  = JSON.parse(vif_test(yJson, xJson));
+
+    console.log('rain', rain, 'hc', hc, 'rst', rst,
+                'bp', bp, 'wht', wht,
+                'jb', jb, 'sw', sw, 'ad', ad,
+                'dw', dw, 'bg', bg,
+                'cd', cd, 'dfb', dfb, 'dff', dff,
+                'vif', vif);
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    const f4   = v => (v != null ? Number(v).toFixed(4) : '—');
+    const pass = v => v ? 'PASS' : 'FAIL';
+    // Standard DiagnosticTestResult row (statistic, p_value, is_passed)
+    const row  = (label, stat, pv, passed) =>
+      label.padEnd(26) + f4(stat).padStart(10) + f4(pv).padStart(10) + '   ' + pass(passed);
+
+    const lines = [];
+    lines.push('Model: price ~ sqft + bedrooms  (n=10)');
+    lines.push('');
+
+    // ── 1. Linearity ─────────────────────────────────────────────────────────
+    lines.push('━━━ 1. Linearity ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('Test                        Statistic    p-value   Result');
+    lines.push('─'.repeat(62));
+
+    // RainbowTestOutput: r_result is a RainbowSingleResult {method, statistic, p_value, is_passed}
+    if (rain.r_result) {
+      lines.push(row('Rainbow (R)', rain.r_result.statistic, rain.r_result.p_value, rain.r_result.is_passed));
+    }
+    // DiagnosticTestResult
+    lines.push(row('Harvey-Collier', hc.statistic, hc.p_value, hc.is_passed));
+    lines.push(row('RESET (fitted, p=2,3)', rst.statistic, rst.p_value, rst.is_passed));
+
+    lines.push('');
+    lines.push('  Rainbow:        ' + rain.interpretation);
+    lines.push('  Harvey-Collier: ' + hc.interpretation);
+    lines.push('  RESET:          ' + rst.interpretation);
+
+    // ── 2. Heteroscedasticity ─────────────────────────────────────────────────
+    lines.push('');
+    lines.push('━━━ 2. Heteroscedasticity ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('Test                        Statistic    p-value   Result');
+    lines.push('─'.repeat(62));
+
+    // DiagnosticTestResult
+    lines.push(row('Breusch-Pagan', bp.statistic, bp.p_value, bp.is_passed));
+
+    // WhiteTestOutput: r_result and python_result are WhiteSingleResult {method, statistic, p_value, is_passed}
+    if (wht.r_result) {
+      lines.push(row('White (R method)', wht.r_result.statistic, wht.r_result.p_value, wht.r_result.is_passed));
+    }
+    if (wht.python_result) {
+      lines.push(row('White (Python method)', wht.python_result.statistic, wht.python_result.p_value, wht.python_result.is_passed));
+    }
+
+    lines.push('');
+    lines.push('  Breusch-Pagan: ' + bp.interpretation);
+    lines.push('  White:         ' + wht.interpretation);
+
+    // ── 3. Normality ──────────────────────────────────────────────────────────
+    lines.push('');
+    lines.push('━━━ 3. Normality ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('Test                        Statistic    p-value   Result');
+    lines.push('─'.repeat(62));
+
+    lines.push(row('Jarque-Bera',        jb.statistic, jb.p_value, jb.is_passed));
+    lines.push(row('Shapiro-Wilk (W)',   sw.statistic, sw.p_value, sw.is_passed));
+    lines.push(row('Anderson-Darling',   ad.statistic, ad.p_value, ad.is_passed));
+
+    lines.push('');
+    lines.push('  Jarque-Bera:      ' + jb.interpretation);
+    lines.push('  Shapiro-Wilk:     ' + sw.interpretation);
+    lines.push('  Anderson-Darling: ' + ad.interpretation);
+
+    // ── 4. Autocorrelation ────────────────────────────────────────────────────
+    lines.push('');
+    lines.push('━━━ 4. Autocorrelation ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('Test                        Statistic    p-value   Result');
+    lines.push('─'.repeat(62));
+
+    // DurbinWatsonResult: statistic, autocorrelation — no p_value
+    lines.push(
+      'Durbin-Watson'.padEnd(26) +
+      f4(dw.statistic).padStart(10) + '         —' +
+      '   rho=' + f4(dw.autocorrelation)
+    );
+    // BreuschGodfreyResult: statistic, p_value, is_passed
+    lines.push(row('Breusch-Godfrey (lag=2)', bg.statistic, bg.p_value, bg.is_passed));
+
+    lines.push('');
+    lines.push('  Durbin-Watson:    ' + dw.interpretation);
+    lines.push('  Breusch-Godfrey: ' + bg.interpretation);
+
+    // ── 5. Influential Observations ───────────────────────────────────────────
+    lines.push('');
+    lines.push('━━━ 5. Influential Observations ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    // CooksDistanceResult: distances, threshold_4_over_n, influential_4_over_n
+    lines.push("Cook's Distance  (threshold 4/n = " + f4(cd.threshold_4_over_n) + ')');
+    lines.push('  Obs    Distance   Flag');
+    lines.push('  ' + '─'.repeat(28));
+    cd.distances.forEach((d, i) => {
+      const flag = cd.influential_4_over_n.includes(i) ? ' <-- influential' : '';
+      lines.push('  ' + String(i + 1).padStart(3) + '  ' + f4(d).padStart(10) + flag);
+    });
+    const cdInfl = cd.influential_4_over_n.length;
+    lines.push('  ' + (cdInfl === 0 ? 'No influential observations' : cdInfl + ' influential observation(s)'));
+
+    lines.push('');
+    // DffitsResult: dffits, threshold, influential_observations
+    lines.push('DFFITS  (threshold = ' + f4(dff.threshold) + ')');
+    lines.push('  Obs   DFFITS     Flag');
+    lines.push('  ' + '─'.repeat(28));
+    dff.dffits.forEach((v, i) => {
+      const flag = dff.influential_observations.includes(i + 1) ? ' <-- influential' : '';
+      lines.push('  ' + String(i + 1).padStart(3) + '  ' + f4(v).padStart(10) + flag);
+    });
+
+    lines.push('');
+    // DfbetasResult: dfbetas (n x p matrix), threshold, n, p
+    lines.push('DFBETAS  (threshold = ' + f4(dfb.threshold) + ', ' + dfb.n + ' obs, ' + dfb.p + ' params)');
+    // Show first 5 rows, columns = parameters (intercept, X1, X2)
+    const paramNames = ['Intercept', 'SqFt', 'Bedrooms'];
+    lines.push('  Obs  ' + paramNames.map(n => n.padStart(10)).join(''));
+    lines.push('  ' + '─'.repeat(40));
+    dfb.dfbetas.forEach((row_vals, i) => {
+      lines.push(
+        '  ' + String(i + 1).padStart(3) + '  ' +
+        row_vals.map(v => f4(v).padStart(10)).join('')
+      );
+    });
+
+    // ── 6. Multicollinearity ──────────────────────────────────────────────────
+    lines.push('');
+    lines.push('━━━ 6. Multicollinearity (VIF) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    // VifDiagnosticResult: max_vif, vif_results [{variable, vif, rsquared, interpretation}]
+    lines.push('Variable          VIF        R²    Interpretation');
+    lines.push('─'.repeat(58));
+    vif.vif_results.forEach(v => {
+      lines.push(
+        v.variable.padEnd(16) +
+        f4(v.vif).padStart(8) + '  ' +
+        f4(v.rsquared).padStart(6) + '  ' +
+        v.interpretation
+      );
+    });
+    lines.push('Max VIF: ' + f4(vif.max_vif) + '  — ' + vif.interpretation);
+
+    document.getElementById('output').textContent = lines.join('\n');
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 [package]
 name = "linreg-core"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
 description = "Lightweight linear regression (OLS, Ridge, Lasso, Elastic Net) with diagnostic tests. Pure Rust - no external math dependencies."
 license = "MIT OR Apache-2.0"
@@ -24,6 +24,7 @@ exclude = [
 
     # Exclude Python venv from published crate (large, not needed)
     "verification/.venv/",
+    "verification/venv_validation/",
     "venv_py*/",
 
     # Keep R/Python scripts for manual verification by contributors
@@ -87,6 +88,8 @@ numpy = ["dep:numpy"]
 # Enable validation tests against R/Python reference values
 # This includes test data JSON files in the published crate
 validation = []
+# Enable Windows DLL (FFI) bindings for VBA/Excel use
+ffi = []
 
 [dependencies]
 # Core dependencies (always available)
@@ -118,6 +121,46 @@ rustc_version = "0.4"
 humantime = "2.1"
 rand = "0.8"
 rand_chacha = "0.3"
+
+[[example]]
+name = "basic_usage"
+path = "examples/Rust/basic_usage.rs"
+
+[[example]]
+name = "comprehensive_example"
+path = "examples/Rust/comprehensive_example.rs"
+
+[[example]]
+name = "diagnostics"
+path = "examples/Rust/diagnostics.rs"
+
+[[example]]
+name = "loess_example"
+path = "examples/Rust/loess_example.rs"
+
+[[example]]
+name = "serialization_example"
+path = "examples/Rust/serialization_example.rs"
+
+[[example]]
+name = "cross_validation"
+path = "examples/Rust/cross_validation.rs"
+
+[[example]]
+name = "verify_nightly"
+path = "examples/Rust/verify_nightly.rs"
+
+[[example]]
+name = "regularized_regression"
+path = "examples/Rust/regularized_regression.rs"
+
+[[example]]
+name = "weighted_regression"
+path = "examples/Rust/weighted_regression.rs"
+
+[[example]]
+name = "prediction_intervals"
+path = "examples/Rust/prediction_intervals.rs"
 
 [[bench]]
 name = "core"

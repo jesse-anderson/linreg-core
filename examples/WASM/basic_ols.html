@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Basic OLS — linreg-core WASM</title>
+  <style>
+    body { font-family: monospace; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+    h1   { font-size: 1.3rem; border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+    pre  { background: #f5f5f5; padding: 1rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Basic OLS Regression — linreg-core WASM</h1>
+  <p>Fits an OLS model: <code>price ~ sqft + bedrooms</code></p>
+  <pre id="output">Loading WASM…</pre>
+
+  <script type="module">
+    import init, { ols_regression } from 'https://unpkg.com/linreg-core/linreg_core.js';
+    await init();
+
+    const y        = [150, 200, 250, 300, 220, 270, 310, 180, 240, 290];
+    const sqft     = [ 10,  14,  18,  22,  15,  19,  23,  12,  17,  21];
+    const bedrooms = [  2,   3,   3,   4,   3,   3,   4,   2,   3,   4];
+    const names    = ['Intercept', 'SqFt', 'Bedrooms'];
+
+    const r = JSON.parse(ols_regression(
+      JSON.stringify(y),
+      JSON.stringify([sqft, bedrooms]),
+      JSON.stringify(names)
+    ));
+
+    const sig = p => p < 0.001 ? '***' : p < 0.01 ? '**' : p < 0.05 ? '*' : '';
+    const f4  = v => v.toFixed(4);
+
+    const lines = [
+      '── Coefficients ───────────────────────────────────────────',
+      'Variable         Coef         SE            t         p',
+      '─'.repeat(58),
+    ];
+    names.forEach((name, i) => {
+      lines.push(
+        name.padEnd(14) +
+        f4(r.coefficients[i]).padStart(12) + '  ' +
+        f4(r.std_errors[i]).padStart(10) + '  ' +
+        r.t_stats[i].toFixed(3).padStart(8) + '  ' +
+        r.p_values[i].toExponential(2).padStart(10) + '  ' +
+        sig(r.p_values[i])
+      );
+    });
+
+    lines.push('');
+    lines.push('── Model Fit ──────────────────────────────────────────────');
+    lines.push('R²:           ' + f4(r.r_squared));
+    lines.push('Adj R²:       ' + f4(r.adj_r_squared));
+    lines.push('F-statistic:  ' + r.f_statistic.toFixed(2) + '  (p = ' + r.f_p_value.toExponential(3) + ')');
+    lines.push('MSE:          ' + f4(r.mse));
+    lines.push('Observations: ' + r.n);
+    lines.push('Predictors:   ' + r.k);
+    lines.push('DF residual:  ' + r.df);
+
+    lines.push('');
+    lines.push('── VIF (multicollinearity) ────────────────────────────────');
+    r.vif.forEach(v => {
+      const note = v.vif > 10 ? ' (HIGH)' : v.vif > 5 ? ' (moderate)' : ' (ok)';
+      lines.push('  ' + v.variable.padEnd(12) + ' VIF = ' + f4(v.vif) + '  ' + v.interpretation);
+    });
+
+    document.getElementById('output').textContent = lines.join('\n');
+  </script>
+</body>
+</html>

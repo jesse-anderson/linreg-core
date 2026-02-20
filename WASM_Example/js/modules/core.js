@@ -46,7 +46,17 @@ import init, {
     ols_prediction_intervals,
     ridge_prediction_intervals,
     lasso_prediction_intervals,
-    elastic_net_prediction_intervals
+    elastic_net_prediction_intervals,
+    polynomial_regression_wasm,
+    polynomial_predict_wasm,
+    polynomial_ridge_wasm,
+    polynomial_lasso_wasm,
+    polynomial_elastic_net_wasm,
+    standardized_coefficients,
+    shap_values_linear,
+    permutation_importance_ols,
+    vif_ranking,
+    feature_importance_ols
 } from '../linreg_core.js';
 
 import { STATE, showToast } from './utils.js';
@@ -147,6 +157,40 @@ export const WasmRegression = {
         const xJson = JSON.stringify(xVars);
         const weightsJson = JSON.stringify(weights);
         return wls_regression(yJson, xJson, weightsJson);
+    },
+
+    // Polynomial OLS Regression
+    polynomialOls: (y, x, degree, center, standardize) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(x);
+        return polynomial_regression_wasm(yJson, xJson, degree, center, standardize);
+    },
+
+    // Polynomial Predictions
+    polynomialPredict: (fitJson, xNew) => {
+        const xNewJson = JSON.stringify(xNew);
+        return polynomial_predict_wasm(fitJson, xNewJson);
+    },
+
+    // Polynomial Ridge Regression
+    polynomialRidge: (y, x, degree, lambda, center, standardize) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(x);
+        return polynomial_ridge_wasm(yJson, xJson, degree, lambda, center, standardize);
+    },
+
+    // Polynomial Lasso Regression
+    polynomialLasso: (y, x, degree, lambda, center, standardize) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(x);
+        return polynomial_lasso_wasm(yJson, xJson, degree, lambda, center, standardize);
+    },
+
+    // Polynomial Elastic Net Regression
+    polynomialElasticNet: (y, x, degree, lambda, alpha, center, standardize) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(x);
+        return polynomial_elastic_net_wasm(yJson, xJson, degree, lambda, alpha, center, standardize);
     },
 
     // Lambda Path Generation
@@ -329,6 +373,81 @@ export const WasmRegression = {
         const yJson = JSON.stringify(y);
         const xJson = JSON.stringify(xVars);
         return elastic_net_path_wasm(yJson, xJson, nLambda, lambdaMinRatio, alpha, standardize, maxIter, tol);
+    },
+
+    // ========================================================================
+    // Prediction Intervals
+    // ========================================================================
+
+    /**
+     * Compute OLS prediction intervals
+     * @param {number[]} y - Response variable
+     * @param {number[][]} xVars - Predictor variables (training data)
+     * @param {number[][]} newX - New predictor values
+     * @param {number} alpha - Significance level (e.g., 0.05 for 95% PI)
+     * @returns {string} JSON string with predicted, lower_bound, upper_bound, se_pred, leverage
+     */
+    olsPredictionIntervals: (y, xVars, newX, alpha = 0.05) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const newXJson = JSON.stringify(newX);
+        return ols_prediction_intervals(yJson, xJson, newXJson, alpha);
+    },
+
+    /**
+     * Compute approximate Ridge prediction intervals
+     * @param {number[]} y - Response variable
+     * @param {number[][]} xVars - Predictor variables (training data)
+     * @param {number[][]} newX - New predictor values
+     * @param {number} alpha - Significance level
+     * @param {number} lambda - Regularization strength
+     * @param {boolean} standardize - Whether to standardize predictors
+     * @returns {string} JSON string with prediction interval results
+     */
+    ridgePredictionIntervals: (y, xVars, newX, alpha = 0.05, lambda = 1.0, standardize = true) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const newXJson = JSON.stringify(newX);
+        return ridge_prediction_intervals(yJson, xJson, newXJson, alpha, lambda, standardize);
+    },
+
+    /**
+     * Compute approximate Lasso prediction intervals
+     * @param {number[]} y - Response variable
+     * @param {number[][]} xVars - Predictor variables (training data)
+     * @param {number[][]} newX - New predictor values
+     * @param {number} alpha - Significance level
+     * @param {number} lambda - Regularization strength
+     * @param {boolean} standardize - Whether to standardize predictors
+     * @param {number} maxIter - Maximum iterations
+     * @param {number} tol - Convergence tolerance
+     * @returns {string} JSON string with prediction interval results
+     */
+    lassoPredictionIntervals: (y, xVars, newX, alpha = 0.05, lambda = 1.0, standardize = true, maxIter = 100000, tol = 1e-7) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const newXJson = JSON.stringify(newX);
+        return lasso_prediction_intervals(yJson, xJson, newXJson, alpha, lambda, standardize, maxIter, tol);
+    },
+
+    /**
+     * Compute approximate Elastic Net prediction intervals
+     * @param {number[]} y - Response variable
+     * @param {number[][]} xVars - Predictor variables (training data)
+     * @param {number[][]} newX - New predictor values
+     * @param {number} alpha - Significance level
+     * @param {number} lambda - Regularization strength
+     * @param {number} enetAlpha - Elastic net mixing parameter (0=Ridge, 1=Lasso)
+     * @param {boolean} standardize - Whether to standardize predictors
+     * @param {number} maxIter - Maximum iterations
+     * @param {number} tol - Convergence tolerance
+     * @returns {string} JSON string with prediction interval results
+     */
+    elasticNetPredictionIntervals: (y, xVars, newX, alpha = 0.05, lambda = 1.0, enetAlpha = 0.5, standardize = true, maxIter = 100000, tol = 1e-7) => {
+        const yJson = JSON.stringify(y);
+        const xJson = JSON.stringify(xVars);
+        const newXJson = JSON.stringify(newX);
+        return elastic_net_prediction_intervals(yJson, xJson, newXJson, alpha, lambda, enetAlpha, standardize, maxIter, tol);
     }
 };
 
@@ -811,6 +930,327 @@ export async function predictLoess(newX, xVarNames, yVarName, span, degree, robu
 }
 
 // ============================================================================
+// POLYNOMIAL REGRESSION FUNCTIONS
+// ============================================================================
+
+/**
+ * Calculate Polynomial OLS regression
+ * @param {string} yVar - Y variable name
+ * @param {string} xVar - Single X variable name (polynomial regression works with one predictor)
+ * @param {number} degree - Polynomial degree (1 = linear, 2 = quadratic, etc.)
+ * @param {boolean} center - Whether to center X before expansion (reduces multicollinearity)
+ * @param {boolean} standardize - Whether to standardize polynomial features
+ * @returns {Promise<Object>} Regression results
+ */
+export async function calculatePolynomialRegression(yVar, xVar, degree = 2, center = true, standardize = false) {
+    const n = STATE.rawData.length;
+
+    if (n <= degree + 1) {
+        throw new Error(`Need at least ${degree + 2} data points for degree ${degree} polynomial. You have ${n}.`);
+    }
+
+    if (!WasmRegression.isReady()) {
+        throw new Error('WASM module is not ready yet. Please wait a moment and try again.');
+    }
+
+    const yData = STATE.rawData.map(row => row[yVar]);
+    const xData = STATE.rawData.map(row => row[xVar]);
+
+    const resultJson = WasmRegression.polynomialOls(yData, xData, degree, center, standardize);
+    const result = JSON.parse(resultJson);
+    console.log(`[linreg-core] Polynomial OLS: n=${n}, degree=${degree}, center=${center}, R²=${result.ols_output?.r_squared?.toFixed(4) || 'N/A'}`);
+
+    if (result.error) {
+        throw new Error(result.error);
+    }
+
+    const ols = result.ols_output;
+    if (!ols) {
+        throw new Error('Invalid polynomial response: missing ols_output');
+    }
+
+    // Generate feature names for display
+    const featureNames = result.feature_names || ['Intercept', 'x', 'x²', 'x³', 'x⁴', 'x⁵'].slice(0, degree + 1);
+
+    // Store the fit JSON for predictions
+    const fitJson = resultJson;
+
+    return {
+        coefficients: ols.coefficients,
+        stdErrors: ols.std_errors,
+        tStats: ols.t_stats,
+        pValues: ols.p_values,
+        rSquared: ols.r_squared,
+        adjRSquared: ols.adj_r_squared,
+        mse: ols.mse,
+        rmse: ols.rmse,
+        mae: ols.mae,
+        stdError: ols.std_error,
+        fStat: ols.f_statistic,
+        fPValue: ols.f_p_value,
+        predictions: ols.predictions,
+        residuals: ols.residuals,
+        standardizedResiduals: ols.standardized_residuals,
+        leverage: ols.leverage,
+        confidenceIntervals: ols.conf_int_lower?.map((lower, i) => [lower, ols.conf_int_upper[i]]) || [],
+        confIntLower: ols.conf_int_lower || [],
+        confIntUpper: ols.conf_int_upper || [],
+        n: ols.n,
+        k: ols.k,
+        df: ols.df,
+        variableNames: featureNames,
+        logLikelihood: ols.log_likelihood,
+        aic: ols.aic,
+        bic: ols.bic,
+        method: 'polynomial',
+        polynomial: {
+            degree: result.degree,
+            centered: result.centered,
+            xMean: result.x_mean,
+            xStd: result.x_std,
+            standardized: result.standardized,
+            fitJson: fitJson, // Store for predictions
+            xVar: xVar
+        }
+    };
+}
+
+/**
+ * Calculate Polynomial Ridge regression
+ * @param {string} yVar - Y variable name
+ * @param {string} xVar - Single X variable name
+ * @param {number} degree - Polynomial degree
+ * @param {number} lambda - Regularization strength
+ * @param {boolean} center - Whether to center X
+ * @param {boolean} standardize - Whether to standardize features
+ * @returns {Promise<Object>} Regression results
+ */
+export async function calculatePolynomialRidge(yVar, xVar, degree, lambda, center, standardize) {
+    const n = STATE.rawData.length;
+
+    if (n <= degree + 1) {
+        throw new Error(`Need at least ${degree + 2} data points for degree ${degree} polynomial. You have ${n}.`);
+    }
+
+    if (!WasmRegression.isReady()) {
+        throw new Error('WASM module is not ready yet. Please wait a moment and try again.');
+    }
+
+    const yData = STATE.rawData.map(row => row[yVar]);
+    const xData = STATE.rawData.map(row => row[xVar]);
+
+    const resultJson = WasmRegression.polynomialRidge(yData, xData, degree, lambda, center, standardize);
+    const result = JSON.parse(resultJson);
+    console.log(`[linreg-core] Polynomial Ridge: n=${n}, degree=${degree}, λ=${lambda}, R²=${result.r_squared?.toFixed(4) || 'N/A'}`);
+
+    if (result.error) {
+        throw new Error(result.error);
+    }
+
+    // Generate feature names
+    const featureNames = ['Intercept'];
+    for (let i = 1; i <= degree; i++) {
+        featureNames.push(i === 1 ? 'x' : i === 2 ? 'x²' : i === 3 ? 'x³' : `x^${i}`);
+    }
+
+    const standardizedResiduals = result.residuals.map(r => r / result.rmse);
+
+    return {
+        coefficients: [result.intercept, ...result.coefficients],
+        lambda: result.lambda,
+        rSquared: result.r_squared,
+        adjRSquared: result.adj_r_squared,
+        mse: result.mse,
+        stdError: result.rmse,
+        rmse: result.rmse,
+        mae: result.mae,
+        predictions: result.fitted_values,
+        residuals: result.residuals,
+        standardizedResiduals: standardizedResiduals,
+        df: result.df,
+        n: n,
+        k: degree + 1,
+        variableNames: featureNames,
+        logLikelihood: result.log_likelihood,
+        aic: result.aic,
+        bic: result.bic,
+        method: 'polynomial_ridge',
+        polynomial: {
+            degree: degree,
+            centered: center,
+            lambda: lambda,
+            xVar: xVar
+        }
+    };
+}
+
+/**
+ * Calculate Polynomial Lasso regression
+ * @param {string} yVar - Y variable name
+ * @param {string} xVar - Single X variable name
+ * @param {number} degree - Polynomial degree
+ * @param {number} lambda - Regularization strength
+ * @param {boolean} center - Whether to center X
+ * @param {boolean} standardize - Whether to standardize features
+ * @returns {Promise<Object>} Regression results
+ */
+export async function calculatePolynomialLasso(yVar, xVar, degree, lambda, center, standardize) {
+    const n = STATE.rawData.length;
+
+    if (n <= degree + 1) {
+        throw new Error(`Need at least ${degree + 2} data points for degree ${degree} polynomial. You have ${n}.`);
+    }
+
+    if (!WasmRegression.isReady()) {
+        throw new Error('WASM module is not ready yet. Please wait a moment and try again.');
+    }
+
+    const yData = STATE.rawData.map(row => row[yVar]);
+    const xData = STATE.rawData.map(row => row[xVar]);
+
+    const resultJson = WasmRegression.polynomialLasso(yData, xData, degree, lambda, center, standardize);
+    const result = JSON.parse(resultJson);
+    console.log(`[linreg-core] Polynomial Lasso: n=${n}, degree=${degree}, λ=${lambda}, R²=${result.r_squared?.toFixed(4) || 'N/A'}, nonzero=${result.n_nonzero || 0}`);
+
+    if (result.error) {
+        throw new Error(result.error);
+    }
+
+    // Generate feature names
+    const featureNames = ['Intercept'];
+    for (let i = 1; i <= degree; i++) {
+        featureNames.push(i === 1 ? 'x' : i === 2 ? 'x²' : i === 3 ? 'x³' : `x^${i}`);
+    }
+
+    const standardizedResiduals = result.residuals.map(r => r / result.rmse);
+
+    return {
+        coefficients: [result.intercept, ...result.coefficients],
+        lambda: result.lambda,
+        rSquared: result.r_squared,
+        adjRSquared: result.adj_r_squared,
+        mse: result.mse,
+        stdError: result.rmse,
+        rmse: result.rmse,
+        mae: result.mae,
+        predictions: result.fitted_values,
+        residuals: result.residuals,
+        standardizedResiduals: standardizedResiduals,
+        nNonzero: result.n_nonzero,
+        iterations: result.iterations,
+        converged: result.converged,
+        n: n,
+        k: degree + 1,
+        variableNames: featureNames,
+        logLikelihood: result.log_likelihood,
+        aic: result.aic,
+        bic: result.bic,
+        method: 'polynomial_lasso',
+        polynomial: {
+            degree: degree,
+            centered: center,
+            lambda: lambda,
+            xVar: xVar
+        }
+    };
+}
+
+/**
+ * Calculate Polynomial Elastic Net regression
+ * @param {string} yVar - Y variable name
+ * @param {string} xVar - Single X variable name
+ * @param {number} degree - Polynomial degree
+ * @param {number} lambda - Regularization strength
+ * @param {number} alpha - Mixing parameter (0=Ridge, 1=Lasso)
+ * @param {boolean} center - Whether to center X
+ * @param {boolean} standardize - Whether to standardize features
+ * @returns {Promise<Object>} Regression results
+ */
+export async function calculatePolynomialElasticNet(yVar, xVar, degree, lambda, alpha, center, standardize) {
+    const n = STATE.rawData.length;
+
+    if (n <= degree + 1) {
+        throw new Error(`Need at least ${degree + 2} data points for degree ${degree} polynomial. You have ${n}.`);
+    }
+
+    if (!WasmRegression.isReady()) {
+        throw new Error('WASM module is not ready yet. Please wait a moment and try again.');
+    }
+
+    const yData = STATE.rawData.map(row => row[yVar]);
+    const xData = STATE.rawData.map(row => row[xVar]);
+
+    const resultJson = WasmRegression.polynomialElasticNet(yData, xData, degree, lambda, alpha, center, standardize);
+    const result = JSON.parse(resultJson);
+    console.log(`[linreg-core] Polynomial Elastic Net: n=${n}, degree=${degree}, λ=${lambda}, α=${alpha}, R²=${result.r_squared?.toFixed(4) || 'N/A'}, nonzero=${result.n_nonzero || 0}`);
+
+    if (result.error) {
+        throw new Error(result.error);
+    }
+
+    // Generate feature names
+    const featureNames = ['Intercept'];
+    for (let i = 1; i <= degree; i++) {
+        featureNames.push(i === 1 ? 'x' : i === 2 ? 'x²' : i === 3 ? 'x³' : `x^${i}`);
+    }
+
+    const standardizedResiduals = result.residuals.map(r => r / result.rmse);
+
+    return {
+        coefficients: [result.intercept, ...result.coefficients],
+        lambda: result.lambda,
+        alpha: result.alpha,
+        rSquared: result.r_squared,
+        adjRSquared: result.adj_r_squared,
+        mse: result.mse,
+        stdError: result.rmse,
+        rmse: result.rmse,
+        mae: result.mae,
+        predictions: result.fitted_values,
+        residuals: result.residuals,
+        standardizedResiduals: standardizedResiduals,
+        nNonzero: result.n_nonzero,
+        iterations: result.iterations,
+        converged: result.converged,
+        n: n,
+        k: degree + 1,
+        variableNames: featureNames,
+        logLikelihood: result.log_likelihood,
+        aic: result.aic,
+        bic: result.bic,
+        method: 'polynomial_elastic_net',
+        polynomial: {
+            degree: degree,
+            centered: center,
+            lambda: lambda,
+            alpha: alpha,
+            xVar: xVar
+        }
+    };
+}
+
+/**
+ * Predict using a fitted polynomial model
+ * @param {string} fitJson - The JSON string of the fitted model
+ * @param {Array<number>} xNew - New X values to predict
+ * @returns {Promise<Array<number>>} Predicted values
+ */
+export async function predictPolynomial(fitJson, xNew) {
+    if (!WasmRegression.isReady()) {
+        throw new Error('WASM module is not ready yet. Please wait a moment and try again.');
+    }
+
+    const resultJson = WasmRegression.polynomialPredict(fitJson, xNew);
+    const result = JSON.parse(resultJson);
+
+    if (result.error) {
+        throw new Error(result.error);
+    }
+
+    return result;
+}
+
+// ============================================================================
 // STATISTICAL FUNCTIONS
 // ============================================================================
 
@@ -991,80 +1431,5 @@ export const Stats = {
         }
         const metadataJson = get_model_metadata(serializedJson);
         return JSON.parse(metadataJson);
-    },
-
-    // ========================================================================
-    // Prediction Intervals
-    // ========================================================================
-
-    /**
-     * Compute OLS prediction intervals
-     * @param {number[]} y - Response variable
-     * @param {number[][]} xVars - Predictor variables (training data)
-     * @param {number[][]} newX - New predictor values
-     * @param {number} alpha - Significance level (e.g., 0.05 for 95% PI)
-     * @returns {string} JSON string with predicted, lower_bound, upper_bound, se_pred, leverage
-     */
-    olsPredictionIntervals: (y, xVars, newX, alpha = 0.05) => {
-        const yJson = JSON.stringify(y);
-        const xJson = JSON.stringify(xVars);
-        const newXJson = JSON.stringify(newX);
-        return ols_prediction_intervals(yJson, xJson, newXJson, alpha);
-    },
-
-    /**
-     * Compute approximate Ridge prediction intervals
-     * @param {number[]} y - Response variable
-     * @param {number[][]} xVars - Predictor variables (training data)
-     * @param {number[][]} newX - New predictor values
-     * @param {number} alpha - Significance level
-     * @param {number} lambda - Regularization strength
-     * @param {boolean} standardize - Whether to standardize predictors
-     * @returns {string} JSON string with prediction interval results
-     */
-    ridgePredictionIntervals: (y, xVars, newX, alpha = 0.05, lambda = 1.0, standardize = true) => {
-        const yJson = JSON.stringify(y);
-        const xJson = JSON.stringify(xVars);
-        const newXJson = JSON.stringify(newX);
-        return ridge_prediction_intervals(yJson, xJson, newXJson, alpha, lambda, standardize);
-    },
-
-    /**
-     * Compute approximate Lasso prediction intervals
-     * @param {number[]} y - Response variable
-     * @param {number[][]} xVars - Predictor variables (training data)
-     * @param {number[][]} newX - New predictor values
-     * @param {number} alpha - Significance level
-     * @param {number} lambda - Regularization strength
-     * @param {boolean} standardize - Whether to standardize predictors
-     * @param {number} maxIter - Maximum iterations
-     * @param {number} tol - Convergence tolerance
-     * @returns {string} JSON string with prediction interval results
-     */
-    lassoPredictionIntervals: (y, xVars, newX, alpha = 0.05, lambda = 1.0, standardize = true, maxIter = 100000, tol = 1e-7) => {
-        const yJson = JSON.stringify(y);
-        const xJson = JSON.stringify(xVars);
-        const newXJson = JSON.stringify(newX);
-        return lasso_prediction_intervals(yJson, xJson, newXJson, alpha, lambda, standardize, maxIter, tol);
-    },
-
-    /**
-     * Compute approximate Elastic Net prediction intervals
-     * @param {number[]} y - Response variable
-     * @param {number[][]} xVars - Predictor variables (training data)
-     * @param {number[][]} newX - New predictor values
-     * @param {number} alpha - Significance level
-     * @param {number} lambda - Regularization strength
-     * @param {number} enetAlpha - Elastic net mixing parameter (0=Ridge, 1=Lasso)
-     * @param {boolean} standardize - Whether to standardize predictors
-     * @param {number} maxIter - Maximum iterations
-     * @param {number} tol - Convergence tolerance
-     * @returns {string} JSON string with prediction interval results
-     */
-    elasticNetPredictionIntervals: (y, xVars, newX, alpha = 0.05, lambda = 1.0, enetAlpha = 0.5, standardize = true, maxIter = 100000, tol = 1e-7) => {
-        const yJson = JSON.stringify(y);
-        const xJson = JSON.stringify(xVars);
-        const newXJson = JSON.stringify(newX);
-        return elastic_net_prediction_intervals(yJson, xJson, newXJson, alpha, lambda, enetAlpha, standardize, maxIter, tol);
     }
 };

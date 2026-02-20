@@ -1,0 +1,24 @@
+# .cargo/config.toml — linreg-core
+#
+# Static CRT for Windows MSVC DLL builds.
+#
+# When building the FFI DLL with:
+#
+#   cargo build --release --target x86_64-pc-windows-msvc --features ffi
+#   cargo build --release --target i686-pc-windows-msvc   --features ffi
+#
+# the MSVC linker would otherwise pull in VCRUNTIME140.dll and the Universal
+# CRT DLLs (api-ms-win-crt-*.dll) as runtime dependencies.  End users who
+# don't have the Visual C++ Redistributable installed would get a load-time
+# error.
+#
+# `+crt-static` statically links the CRT into the DLL so the only remaining
+# dependencies are system DLLs that ship with every Windows install:
+#   KERNEL32.dll, ntdll.dll, bcryptprimitives.dll,
+#   api-ms-win-core-synch-l1-2-0.dll  (Windows 8+, fine for any Office host)
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.i686-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

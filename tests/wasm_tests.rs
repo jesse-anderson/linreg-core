@@ -21,5 +21,6 @@ use wasm::fixtures;
 use wasm::integration_tests;
 use wasm::diagnostic_tests;
 use wasm::ols_tests;
+use wasm::polynomial_tests;
 use wasm::regularized_tests;
 use wasm::utility_tests;

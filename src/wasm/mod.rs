@@ -23,7 +23,9 @@ pub mod cross_validation;
 pub mod csv;
 pub mod diagnostics;
 pub mod domain;
+pub mod feature_importance;
 pub mod loess;
+pub mod polynomial;
 pub mod prediction_intervals;
 pub mod regression;
 pub mod regularized;
@@ -35,7 +37,15 @@ pub mod tests;
 pub use cross_validation::{kfold_cv_elastic_net, kfold_cv_lasso, kfold_cv_ols, kfold_cv_ridge};
 pub use csv::parse_csv;
 pub use domain::check_domain;
+pub use feature_importance::{
+    feature_importance_ols, permutation_importance_ols, shap_values_linear,
+    standardized_coefficients, vif_ranking,
+};
 pub use loess::{loess_fit, loess_predict};
+pub use polynomial::{
+    polynomial_elastic_net_wasm, polynomial_lasso_wasm, polynomial_predict_wasm,
+    polynomial_regression_wasm, polynomial_ridge_wasm,
+};
 pub use prediction_intervals::{
     ols_prediction_intervals, ridge_prediction_intervals as wasm_ridge_pi,
     lasso_prediction_intervals as wasm_lasso_pi,

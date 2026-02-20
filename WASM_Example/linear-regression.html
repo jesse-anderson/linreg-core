@@ -192,6 +192,10 @@ X1,X2,Y
                             <option value="ridge">Ridge (L2 Regularized)</option>
                             <option value="lasso">Lasso (L1 Regularized)</option>
                             <option value="elastic_net">Elastic Net (L1 + L2)</option>
+                            <option value="polynomial">Polynomial Regression</option>
+                            <option value="polynomial_ridge">Polynomial Ridge</option>
+                            <option value="polynomial_lasso">Polynomial Lasso</option>
+                            <option value="polynomial_enet">Polynomial Elastic Net</option>
                             <option value="wls">WLS (Weighted Least Squares)</option>
                             <option value="loess">LOESS (Non-Parametric Smoothing)</option>
                         </select>
@@ -283,6 +287,79 @@ X1,X2,Y
                         </div>
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
                             <strong>Elastic Net</strong> combines Ridge (α=0) and Lasso (α=1) penalties. Alpha controls the mix: 0.5 gives equal weight to both penalties.
+                        </p>
+                    </div>
+
+                    <!-- Polynomial Parameters -->
+                    <div id="polynomialOptions" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px;">
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label for="polyDegreeSlider">Polynomial Degree: <span id="polyDegreeValue">2</span></label>
+                            <input type="range" id="polyDegreeSlider" min="1" max="10" step="1" value="2" style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                                <span>1 (Linear)</span>
+                                <span>5 (Quintic)</span>
+                                <span>10 (High)</span>
+                            </div>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="polyCenterCheck" checked>
+                                <span>Center predictor (reduces multicollinearity)</span>
+                            </label>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="polyStandardizeCheck">
+                                <span>Standardize polynomial features</span>
+                            </label>
+                        </div>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
+                            <strong>Polynomial Regression</strong> models non-linear relationships by expanding a single predictor into polynomial terms (x, x², x³, etc.). Centering is recommended for degree ≥ 3 to reduce multicollinearity between terms.
+                        </p>
+                    </div>
+
+                    <!-- Polynomial Regularized Parameters -->
+                    <div id="polyRegularizedOptions" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px;">
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label for="polyRegDegreeSlider">Polynomial Degree: <span id="polyRegDegreeValue">2</span></label>
+                            <input type="range" id="polyRegDegreeSlider" min="1" max="10" step="1" value="2" style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                                <span>1 (Linear)</span>
+                                <span>5 (Quintic)</span>
+                                <span>10 (High)</span>
+                            </div>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label for="polyLambdaSlider">Lambda (λ): <span id="polyLambdaValue">0.1</span></label>
+                            <input type="range" id="polyLambdaSlider" min="0.01" max="10" step="0.01" value="0.1" style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                                <span>0.01 (weak)</span>
+                                <span>10 (strong)</span>
+                            </div>
+                        </div>
+                        <div class="selector-group" id="polyAlphaGroup" style="margin-bottom: 12px; display: none;">
+                            <label for="polyAlphaSlider">Alpha (α): <span id="polyAlphaValue">0.5</span></label>
+                            <input type="range" id="polyAlphaSlider" min="0" max="1" step="0.01" value="0.5" style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                                <span>0 (Ridge)</span>
+                                <span>0.5</span>
+                                <span>1 (Lasso)</span>
+                            </div>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 12px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="polyRegCenterCheck" checked>
+                                <span>Center predictor (reduces multicollinearity)</span>
+                            </label>
+                        </div>
+                        <div class="selector-group" style="margin-bottom: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="polyRegStandardizeCheck" checked>
+                                <span>Standardize polynomial features (recommended)</span>
+                            </label>
+                        </div>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
+                            <span id="polyRegDesc"><strong>Polynomial Ridge</strong> adds L2 regularization to polynomial regression, shrinking coefficients to handle multicollinearity inherent in polynomial terms.</span>
                         </p>
                     </div>
 
@@ -523,6 +600,34 @@ X1,X2,Y
                                 <!-- Populated dynamically -->
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Feature Importance Panel -->
+                    <div style="margin-top: 24px;">
+                        <div class="collapsible-header collapsed" id="featureImportanceToggle" aria-expanded="false" role="button" tabindex="0">
+                            <span class="title">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px; vertical-align: text-bottom;">
+                                    <rect x="3" y="3" width="7" height="7"/>
+                                    <rect x="14" y="3" width="7" height="7"/>
+                                    <rect x="14" y="14" width="7" height="7"/>
+                                    <path d="M3 21h7v-7H3v7z"/>
+                                </svg>
+                                Feature Importance Analysis
+                            </span>
+                            <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </div>
+                        <div class="collapsible-content collapsed" id="featureImportanceContent">
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin: 4px 0 16px;">
+                                Analyze which predictors contribute most to the model using standardized coefficients, SHAP values, VIF ranking, and permutation importance.
+                            </p>
+                            <div id="featureImportanceResults">
+                                <div style="padding: 20px; text-align: center; background: var(--bg-secondary); border-radius: 8px;">
+                                    <p style="color: var(--text-muted); font-size: 0.875rem;">Run OLS or WLS regression with multiple predictors to see feature importance analysis</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Diagnostics Panel (Linearity Tests) -->

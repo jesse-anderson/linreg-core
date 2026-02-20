@@ -485,6 +485,73 @@ export function elastic_net_regression(y_json, x_vars_json, _variable_names, lam
 }
 
 /**
+ * Computes complete feature importance analysis for OLS regression.
+ *
+ * This combines standardized coefficients, SHAP values, VIF ranking,
+ * and permutation importance into a single call.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `variable_names_json` - JSON array of variable names
+ * * `y_std` - Standard deviation of response variable
+ * * `n_permutations` - Number of permutation iterations
+ * * `seed` - Random seed (use 0 for no seed)
+ *
+ * # Returns
+ *
+ * JSON string with all feature importance metrics
+ *
+ * # Example
+ *
+ * ```javascript
+ * const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+ * const x = [[1,2,3,4,5], [2,4,5,4,3]];
+ * const names = ["Temperature", "Pressure"];
+ *
+ * const result = JSON.parse(feature_importance_ols(
+ *     JSON.stringify(y),
+ *     JSON.stringify(x),
+ *     JSON.stringify(names),
+ *     2.5,   // y_std
+ *     50,    // n_permutations
+ *     42     // seed
+ * ));
+ *
+ * console.log(result.standardized_coefficients);
+ * console.log(result.shap);
+ * console.log(result.permutation_importance);
+ * console.log(result.vif_ranking);
+ * ```
+ * @param {string} y_json
+ * @param {string} x_json
+ * @param {string} variable_names_json
+ * @param {number} y_std
+ * @param {number} n_permutations
+ * @param {bigint} seed
+ * @returns {string}
+ */
+export function feature_importance_ols(y_json, x_json, variable_names_json, y_std, n_permutations, seed) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(variable_names_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.feature_importance_ols(ptr0, len0, ptr1, len1, ptr2, len2, y_std, n_permutations, seed);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * Extract metadata from a serialized model without deserializing the full model.
  *
  * This function returns only the metadata portion of a serialized model,
@@ -1316,6 +1383,291 @@ export function parse_csv(content) {
 }
 
 /**
+ * Computes permutation importance for OLS regression.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `fit_json` - JSON string of OLS fit result
+ * * `n_permutations` - Number of permutation iterations
+ * * `seed` - Random seed (use 0 for no seed)
+ *
+ * # Returns
+ *
+ * JSON string of [`PermutationImportanceOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+ * const x = [[1,2,3,4,5], [2,4,5,4,3]];
+ * const fit = JSON.parse(ols_regression(...)); // from regression module
+ *
+ * const result = JSON.parse(permutation_importance_ols(
+ *     JSON.stringify(y),
+ *     JSON.stringify(x),
+ *     JSON.stringify(fit),
+ *     50,  // n_permutations
+ *     42   // seed
+ * ));
+ * console.log(result.importance);
+ * ```
+ * @param {string} y_json
+ * @param {string} x_json
+ * @param {string} fit_json
+ * @param {number} n_permutations
+ * @param {bigint} seed
+ * @returns {string}
+ */
+export function permutation_importance_ols(y_json, x_json, fit_json, n_permutations, seed) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(fit_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.permutation_importance_ols(ptr0, len0, ptr1, len1, ptr2, len2, n_permutations, seed);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Fit polynomial Elastic Net regression via WASM.
+ *
+ * Elastic Net combines L1 and L2 penalties, balancing variable selection
+ * with multicollinearity handling.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values, e.g. `[1.0, 4.0, 9.0]`
+ * * `x_json` - JSON array of predictor values, e.g. `[1.0, 2.0, 3.0]`
+ * * `degree` - Polynomial degree (≥ 1)
+ * * `lambda` - Regularization strength (≥ 0)
+ * * `alpha` - Mixing parameter: 0 = Ridge, 1 = Lasso
+ * * `center` - Whether to center x before expansion (reduces multicollinearity)
+ * * `standardize` - Whether to standardize features (recommended)
+ *
+ * # Returns
+ *
+ * JSON string of the [`ElasticNetFit`] result, which includes:
+ * - `intercept`, `coefficients`
+ * - `fitted_values`, `residuals`
+ * - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`
+ * - `n_nonzero`, `converged`, `n_iterations`
+ * - `log_likelihood`, `aic`, `bic`
+ * @param {string} y_json
+ * @param {string} x_json
+ * @param {number} degree
+ * @param {number} lambda
+ * @param {number} alpha
+ * @param {boolean} center
+ * @param {boolean} standardize
+ * @returns {string}
+ */
+export function polynomial_elastic_net_wasm(y_json, x_json, degree, lambda, alpha, center, standardize) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.polynomial_elastic_net_wasm(ptr0, len0, ptr1, len1, degree, lambda, alpha, center, standardize);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Fit polynomial Lasso regression via WASM.
+ *
+ * Lasso can perform variable selection among polynomial terms,
+ * potentially eliminating higher-order terms.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values, e.g. `[1.0, 4.0, 9.0]`
+ * * `x_json` - JSON array of predictor values, e.g. `[1.0, 2.0, 3.0]`
+ * * `degree` - Polynomial degree (≥ 1)
+ * * `lambda` - Regularization strength (≥ 0)
+ * * `center` - Whether to center x before expansion (reduces multicollinearity)
+ * * `standardize` - Whether to standardize features (recommended)
+ *
+ * # Returns
+ *
+ * JSON string of the [`LassoFit`] result, which includes:
+ * - `intercept`, `coefficients`
+ * - `fitted_values`, `residuals`
+ * - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`
+ * - `n_nonzero`, `converged`, `n_iterations`
+ * - `log_likelihood`, `aic`, `bic`
+ * @param {string} y_json
+ * @param {string} x_json
+ * @param {number} degree
+ * @param {number} lambda
+ * @param {boolean} center
+ * @param {boolean} standardize
+ * @returns {string}
+ */
+export function polynomial_lasso_wasm(y_json, x_json, degree, lambda, center, standardize) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.polynomial_lasso_wasm(ptr0, len0, ptr1, len1, degree, lambda, center, standardize);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Predict using a fitted polynomial model via WASM.
+ *
+ * # Arguments
+ *
+ * * `fit_json` - JSON string of the `PolynomialFit` returned by [`polynomial_regression_wasm`]
+ * * `x_new_json` - JSON array of new predictor values, e.g. `[6.0, 7.0]`
+ *
+ * # Returns
+ *
+ * JSON array of predicted values, or a JSON error object on failure.
+ * @param {string} fit_json
+ * @param {string} x_new_json
+ * @returns {string}
+ */
+export function polynomial_predict_wasm(fit_json, x_new_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(fit_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_new_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.polynomial_predict_wasm(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Fit polynomial regression via WASM.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values, e.g. `[1.0, 4.0, 9.0]`
+ * * `x_json` - JSON array of predictor values, e.g. `[1.0, 2.0, 3.0]`
+ * * `degree` - Polynomial degree (≥ 1)
+ * * `center` - Whether to center x before expanding (reduces multicollinearity)
+ * * `standardize` - Whether to standardize polynomial features
+ *
+ * # Returns
+ *
+ * JSON string of the complete [`PolynomialFit`], which includes:
+ * - `ols_output` — full OLS regression output (coefficients, R², F-stat, etc.)
+ * - `degree`, `centered`, `x_mean`, `x_std`, `standardized`
+ * - `feature_names`, `feature_means`, `feature_stds`
+ *
+ * The returned JSON can be passed directly to [`polynomial_predict_wasm`].
+ *
+ * # Errors
+ *
+ * Returns a JSON error object `{"error": "…"}` if:
+ * - JSON parsing fails
+ * - `degree` is 0
+ * - `y` and `x` have different lengths
+ * - Insufficient data
+ * - Domain check fails
+ * @param {string} y_json
+ * @param {string} x_json
+ * @param {number} degree
+ * @param {boolean} center
+ * @param {boolean} standardize
+ * @returns {string}
+ */
+export function polynomial_regression_wasm(y_json, x_json, degree, center, standardize) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.polynomial_regression_wasm(ptr0, len0, ptr1, len1, degree, center, standardize);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Fit polynomial Ridge regression via WASM.
+ *
+ * Ridge regularization helps with multicollinearity in polynomial features.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values, e.g. `[1.0, 4.0, 9.0]`
+ * * `x_json` - JSON array of predictor values, e.g. `[1.0, 2.0, 3.0]`
+ * * `degree` - Polynomial degree (≥ 1)
+ * * `lambda` - Regularization strength (≥ 0)
+ * * `center` - Whether to center x before expansion (reduces multicollinearity)
+ * * `standardize` - Whether to standardize features (recommended)
+ *
+ * # Returns
+ *
+ * JSON string of the [`RidgeFit`] result, which includes:
+ * - `intercept`, `coefficients`
+ * - `fitted_values`, `residuals`
+ * - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`
+ * - `effective_df`, `log_likelihood`, `aic`, `bic`
+ * @param {string} y_json
+ * @param {string} x_json
+ * @param {number} degree
+ * @param {number} lambda
+ * @param {boolean} center
+ * @param {boolean} standardize
+ * @returns {string}
+ */
+export function polynomial_ridge_wasm(y_json, x_json, degree, lambda, center, standardize) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.polynomial_ridge_wasm(ptr0, len0, ptr1, len1, degree, lambda, center, standardize);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * Performs the Python method White test for heteroscedasticity via WASM.
  *
  * This implementation matches Python's `statsmodels.stats.diagnostic.het_white()` function.
@@ -1645,6 +1997,54 @@ export function serialize_model(model_json, model_type, name) {
 }
 
 /**
+ * Computes SHAP (SHapley Additive exPlanations) values for linear models.
+ *
+ * # Arguments
+ *
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `coefficients_json` - JSON array of coefficients including intercept
+ * * `variable_names_json` - JSON array of variable names
+ *
+ * # Returns
+ *
+ * JSON string of [`ShapOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const result = JSON.parse(shap_values_linear(
+ *     JSON.stringify([[1,2,3], [2,4,6]]),
+ *     JSON.stringify([5, 2, 3]),
+ *     JSON.stringify(["X1", "X2"])
+ * ));
+ * console.log(result.mean_abs_shap); // Global importance
+ * console.log(result.shap_values); // Local contributions
+ * ```
+ * @param {string} x_json
+ * @param {string} coefficients_json
+ * @param {string} variable_names_json
+ * @returns {string}
+ */
+export function shap_values_linear(x_json, coefficients_json, variable_names_json) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(coefficients_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(variable_names_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.shap_values_linear(ptr0, len0, ptr1, len1, ptr2, len2);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * Performs the Shapiro-Wilk test for normality via WASM.
  *
  * The Shapiro-Wilk test is a powerful test for normality,
@@ -1682,6 +2082,56 @@ export function shapiro_wilk_test(y_json, x_vars_json) {
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
         wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Computes standardized coefficients for feature importance.
+ *
+ * # Arguments
+ *
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `coefficients_json` - JSON array of coefficients including intercept
+ * * `variable_names_json` - JSON array of variable names
+ * * `y_std` - Standard deviation of response variable
+ *
+ * # Returns
+ *
+ * JSON string of [`StandardizedCoefficientsOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const result = JSON.parse(standardized_coefficients(
+ *     JSON.stringify([[1,2,3,4,5], [10,20,30,40,50]]),
+ *     JSON.stringify([1, 0.5, -0.3]),
+ *     JSON.stringify(["Temperature", "Pressure"]),
+ *     2.5
+ * ));
+ * console.log(result.standardized_coefficients);
+ * ```
+ * @param {string} x_json
+ * @param {string} coefficients_json
+ * @param {string} variable_names_json
+ * @param {number} y_std
+ * @returns {string}
+ */
+export function standardized_coefficients(x_json, coefficients_json, variable_names_json, y_std) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(coefficients_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(variable_names_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.standardized_coefficients(ptr0, len0, ptr1, len1, ptr2, len2, y_std);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
     }
 }
 
@@ -1982,6 +2432,42 @@ export function test_t_critical(df, alpha) {
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
         wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Computes VIF (Variance Inflation Factor) ranking.
+ *
+ * # Arguments
+ *
+ * * `vif_json` - JSON array of VIF results from OLS output
+ *
+ * # Returns
+ *
+ * JSON string of [`VifRankingOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const fit = JSON.parse(ols_regression(...));
+ * const result = JSON.parse(vif_ranking(JSON.stringify(fit.vif)));
+ * console.log(result.ranking); // Sorted by VIF (lowest first)
+ * ```
+ * @param {string} vif_json
+ * @returns {string}
+ */
+export function vif_ranking(vif_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(vif_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vif_ranking(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
     }
 }
 

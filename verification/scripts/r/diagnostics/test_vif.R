@@ -87,6 +87,13 @@ data <- convert_categorical_to_numeric(data, dataset_name)
 response_col <- names(data)[1]
 predictor_cols <- names(data)[-1]
 
+# VIF requires at least 2 predictors
+if (length(predictor_cols) < 2) {
+  cat(paste0("SKIP: Dataset '", dataset_name, "' has only ", length(predictor_cols),
+             " predictor. VIF requires at least 2 predictors.\n"))
+  quit(status = 0)
+}
+
 # Build formula: response ~ predictor1 + predictor2 + ...
 formula_str <- paste(response_col, "~", paste(predictor_cols, collapse = " + "))
 formula <- as.formula(formula_str)

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Prediction Intervals — linreg-core WASM</title>
+  <style>
+    body { font-family: monospace; max-width: 780px; margin: 2rem auto; padding: 0 1rem; }
+    h1   { font-size: 1.3rem; border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+    pre  { background: #f5f5f5; padding: 1rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Prediction Intervals — linreg-core WASM</h1>
+  <p>OLS, Ridge, Lasso, and Elastic Net 95% prediction intervals. Includes extrapolation.</p>
+  <pre id="output">Loading WASM…</pre>
+
+  <script type="module">
+    import init, {
+      ols_prediction_intervals,
+      ridge_prediction_intervals,
+      lasso_prediction_intervals,
+      elastic_net_prediction_intervals,
+    } from 'https://unpkg.com/linreg-core/linreg_core.js';
+    await init();
+
+    // Training data: sqft (hundreds) vs price ($k), n=10
+    const sqft  = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28];
+    const price = [150, 175, 210, 240, 265, 295, 330, 360, 400, 430];
+
+    const yJson = JSON.stringify(price);
+    const xJson = JSON.stringify([sqft]);
+
+    // New points: 4 in-range + 1 extrapolation
+    const newSqft  = [11, 15, 19, 25, 35];
+    const newXJson = JSON.stringify([newSqft]);
+
+    // ols_prediction_intervals(y, x, new_x, alpha)
+    // ridge_prediction_intervals(y, x, new_x, alpha, lambda, standardize:bool)
+    // lasso_prediction_intervals(y, x, new_x, alpha, lambda, standardize:bool, max_iter, tol)
+    // elastic_net_prediction_intervals(y, x, new_x, alpha, lambda, enet_alpha, standardize:bool, max_iter, tol)
+    const ols_pi  = JSON.parse(ols_prediction_intervals(yJson, xJson, newXJson, 0.05));
+    const rdg_pi  = JSON.parse(ridge_prediction_intervals(yJson, xJson, newXJson, 0.05, 1.0, true));
+    const lso_pi  = JSON.parse(lasso_prediction_intervals(yJson, xJson, newXJson, 0.05, 0.5, true, 10000, 1e-7));
+    const enet_pi = JSON.parse(elastic_net_prediction_intervals(yJson, xJson, newXJson, 0.05, 0.5, 0.5, true, 10000, 1e-7));
+
+    console.log('ols_pi', ols_pi, 'rdg_pi', rdg_pi, 'lso_pi', lso_pi, 'enet_pi', enet_pi);
+
+    const f2 = v => (v != null ? Number(v).toFixed(2) : '—');
+    const f4 = v => (v != null ? Number(v).toFixed(4) : '—');
+
+    // PredictionIntervalOutput fields: predicted, lower_bound, upper_bound, se_pred, leverage, alpha, df_residuals
+    const lines = [];
+    lines.push(`Training: n=10  sqft range [10,28]   α=0.05 (95% intervals)`);
+    lines.push(`OLS df_residuals: ${ols_pi.df_residuals}`);
+    lines.push('');
+
+    // ── OLS ──────────────────────────────────────────────────────────────────
+    lines.push('━━━ OLS Prediction Intervals (exact, using leverage) ━━━━━━━━━━━━━━━');
+    lines.push('  SqFt  Predicted    Lower     Upper    Width   Leverage');
+    lines.push('  ' + '─'.repeat(60));
+    newSqft.forEach((x, i) => {
+      const width = ols_pi.upper_bound[i] - ols_pi.lower_bound[i];
+      const note  = x > 28 ? '  <-- extrapolation' : '';
+      lines.push(
+        '  ' + String(x).padStart(4) + '  ' +
+        f2(ols_pi.predicted[i]).padStart(9) + '  ' +
+        f2(ols_pi.lower_bound[i]).padStart(8) + '  ' +
+        f2(ols_pi.upper_bound[i]).padStart(8) + '  ' +
+        f2(width).padStart(7) + '  ' +
+        f4(ols_pi.leverage[i]).padStart(8) + note
+      );
+    });
+    lines.push('');
+    lines.push('  SE(prediction):');
+    newSqft.forEach((x, i) => {
+      lines.push('    sqft=' + String(x).padStart(2) + '  SE=' + f4(ols_pi.se_pred[i]));
+    });
+
+    // ── Ridge ─────────────────────────────────────────────────────────────────
+    lines.push('');
+    lines.push('━━━ Ridge PI (λ=1.0, conservative approximation) ━━━━━━━━━━━━━━━━━━━');
+    lines.push('  SqFt  Predicted    Lower     Upper    Width');
+    lines.push('  ' + '─'.repeat(50));
+    newSqft.forEach((x, i) => {
+      const width = rdg_pi.upper_bound[i] - rdg_pi.lower_bound[i];
+      const note  = x > 28 ? '  <-- extrapolation' : '';
+      lines.push(
+        '  ' + String(x).padStart(4) + '  ' +
+        f2(rdg_pi.predicted[i]).padStart(9) + '  ' +
+        f2(rdg_pi.lower_bound[i]).padStart(8) + '  ' +
+        f2(rdg_pi.upper_bound[i]).padStart(8) + '  ' +
+        f2(width).padStart(7) + note
+      );
+    });
+
+    // ── Lasso ─────────────────────────────────────────────────────────────────
+    lines.push('');
+    lines.push('━━━ Lasso PI (λ=0.5, conservative approximation) ━━━━━━━━━━━━━━━━━━━');
+    lines.push('  SqFt  Predicted    Lower     Upper    Width');
+    lines.push('  ' + '─'.repeat(50));
+    newSqft.forEach((x, i) => {
+      const width = lso_pi.upper_bound[i] - lso_pi.lower_bound[i];
+      const note  = x > 28 ? '  <-- extrapolation' : '';
+      lines.push(
+        '  ' + String(x).padStart(4) + '  ' +
+        f2(lso_pi.predicted[i]).padStart(9) + '  ' +
+        f2(lso_pi.lower_bound[i]).padStart(8) + '  ' +
+        f2(lso_pi.upper_bound[i]).padStart(8) + '  ' +
+        f2(width).padStart(7) + note
+      );
+    });
+
+    // ── Elastic Net ───────────────────────────────────────────────────────────
+    lines.push('');
+    lines.push('━━━ Elastic Net PI (λ=0.5, α=0.5, conservative approximation) ━━━━━━');
+    lines.push('  SqFt  Predicted    Lower     Upper    Width');
+    lines.push('  ' + '─'.repeat(50));
+    newSqft.forEach((x, i) => {
+      const width = enet_pi.upper_bound[i] - enet_pi.lower_bound[i];
+      const note  = x > 28 ? '  <-- extrapolation' : '';
+      lines.push(
+        '  ' + String(x).padStart(4) + '  ' +
+        f2(enet_pi.predicted[i]).padStart(9) + '  ' +
+        f2(enet_pi.lower_bound[i]).padStart(8) + '  ' +
+        f2(enet_pi.upper_bound[i]).padStart(8) + '  ' +
+        f2(width).padStart(7) + note
+      );
+    });
+
+    // ── Width comparison at sqft=19 ───────────────────────────────────────────
+    lines.push('');
+    lines.push('━━━ Interval Width Comparison at sqft=19 (in-range) ━━━━━━━━━━━━━━━━');
+    const i19 = newSqft.indexOf(19);
+    const methods = [
+      ['OLS (exact)',   ols_pi],
+      ['Ridge',         rdg_pi],
+      ['Lasso',         lso_pi],
+      ['Elastic Net',   enet_pi],
+    ];
+    lines.push('  Method            Predicted    Lower     Upper    Width');
+    lines.push('  ' + '─'.repeat(56));
+    methods.forEach(([label, pi]) => {
+      const width = pi.upper_bound[i19] - pi.lower_bound[i19];
+      lines.push(
+        '  ' + label.padEnd(16) + '  ' +
+        f2(pi.predicted[i19]).padStart(9) + '  ' +
+        f2(pi.lower_bound[i19]).padStart(8) + '  ' +
+        f2(pi.upper_bound[i19]).padStart(8) + '  ' +
+        f2(width).padStart(7)
+      );
+    });
+    lines.push('');
+    lines.push('  Note: Regularized intervals are conservative (wider) because they');
+    lines.push('        use unpenalized leverage with the penalized model\'s MSE.');
+    lines.push('        OLS interval width grows at sqft=35 (extrapolation) due');
+    lines.push('        to high leverage far from the training data centre.');
+
+    document.getElementById('output').textContent = lines.join('\n');
+  </script>
+</body>
+</html>

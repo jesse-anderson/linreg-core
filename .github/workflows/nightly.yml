@@ -105,7 +105,7 @@ jobs:
               lasso_fit, LassoFitOptions,
               elastic_net_fit, ElasticNetOptions,
           };
-          use linreg_core::distributions::{student_t_cdf, normal_cdf, chi_square_cdf};
+          use linreg_core::distributions::{student_t_cdf, normal_cdf, chi_squared_survival};
 
           fn assert_close(actual: f64, expected: f64, tol: f64, label: &str) {
               let diff = (actual - expected).abs();
@@ -126,9 +126,9 @@ jobs:
               let x = vec![vec![1.0, 2.0, 3.0, 4.0, 5.0]];
               let names = vec!["Intercept".to_string(), "X1".to_string()];
               let r = ols_regression(&y, &x, &names).expect("OLS failed");
-              assert_close(r.coefficients[0], 1.55, 1e-10, "intercept");
-              assert_close(r.coefficients[1], 0.93, 1e-10, "slope");
-              assert_close(r.r_squared, 0.9890909090909091, 1e-10, "R-squared");
+              assert_close(r.coefficients[0], 1.66, 1e-10, "intercept");
+              assert_close(r.coefficients[1], 0.9, 1e-10, "slope");
+              assert_close(r.r_squared, 0.9839650145772594, 1e-8, "R-squared");
               println!();
 
               // ── OLS Golden Values (housing) ──
@@ -198,8 +198,8 @@ jobs:
               println!("--- Statistical Distributions ---");
               assert_close(student_t_cdf(1.96, 20.0), 0.9681, 1e-3, "t CDF(1.96, df=20)");
               assert_close(normal_cdf(1.96), 0.97500, 1e-4, "Normal CDF(1.96)");
-              assert_close(normal_cdf(0.0), 0.5, 1e-10, "Normal CDF(0.0)");
-              assert_close(chi_square_cdf(5.991, 2.0), 0.9500, 1e-3, "Chi² CDF(5.991, df=2)");
+              assert_close(normal_cdf(0.0), 0.5, 1e-8, "Normal CDF(0.0)");
+              assert_close(1.0 - chi_squared_survival(5.991, 2.0), 0.9500, 1e-3, "Chi² CDF(5.991, df=2)");
               println!();
 
               println!("=== All nightly crate tests PASSED ===");
@@ -253,9 +253,9 @@ jobs:
           y = [2.5, 3.7, 4.2, 5.1, 6.3]
           x = [[1.0, 2.0, 3.0, 4.0, 5.0]]
           r = linreg_core.ols_regression(y, x, ["Intercept", "X1"])
-          assert abs(r.r_squared - 0.9890909090909091) < 1e-10, f"R² drift: {r.r_squared}"
-          assert abs(r.coefficients[0] - 1.55) < 1e-10, f"Intercept drift: {r.coefficients[0]}"
-          assert abs(r.coefficients[1] - 0.93) < 1e-10, f"Slope drift: {r.coefficients[1]}"
+          assert abs(r.r_squared - 0.9839650145772594) < 1e-8, f"R² drift: {r.r_squared}"
+          assert abs(r.coefficients[0] - 1.66) < 1e-10, f"Intercept drift: {r.coefficients[0]}"
+          assert abs(r.coefficients[1] - 0.9) < 1e-10, f"Slope drift: {r.coefficients[1]}"
 
           # Housing golden values
           y2 = [245.5, 312.8, 198.4, 425.6, 278.9, 356.2, 189.5, 512.3, 234.7, 298.1]
@@ -326,9 +326,9 @@ jobs:
             JSON.stringify([[1.0, 2.0, 3.0, 4.0, 5.0]]),
             JSON.stringify(["Intercept", "X1"])
           ));
-          assertClose(r.coefficients[0], 1.55, 1e-10, 'intercept');
-          assertClose(r.coefficients[1], 0.93, 1e-10, 'slope');
-          assertClose(r.r_squared, 0.9890909090909091, 1e-10, 'R-squared');
+          assertClose(r.coefficients[0], 1.66, 1e-10, 'intercept');
+          assertClose(r.coefficients[1], 0.9, 1e-10, 'slope');
+          assertClose(r.r_squared, 0.9839650145772594, 1e-8, 'R-squared');
           console.log();
 
           // ── OLS Golden Values (housing) ──

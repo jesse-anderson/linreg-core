@@ -264,6 +264,49 @@ export function elastic_net_prediction_intervals(y_json: string, x_vars_json: st
 export function elastic_net_regression(y_json: string, x_vars_json: string, _variable_names: string, lambda: number, alpha: number, standardize: boolean, max_iter: number, tol: number): string;
 
 /**
+ * Computes complete feature importance analysis for OLS regression.
+ *
+ * This combines standardized coefficients, SHAP values, VIF ranking,
+ * and permutation importance into a single call.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `variable_names_json` - JSON array of variable names
+ * * `y_std` - Standard deviation of response variable
+ * * `n_permutations` - Number of permutation iterations
+ * * `seed` - Random seed (use 0 for no seed)
+ *
+ * # Returns
+ *
+ * JSON string with all feature importance metrics
+ *
+ * # Example
+ *
+ * ```javascript
+ * const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+ * const x = [[1,2,3,4,5], [2,4,5,4,3]];
+ * const names = ["Temperature", "Pressure"];
+ *
+ * const result = JSON.parse(feature_importance_ols(
+ *     JSON.stringify(y),
+ *     JSON.stringify(x),
+ *     JSON.stringify(names),
+ *     2.5,   // y_std
+ *     50,    // n_permutations
+ *     42     // seed
+ * ));
+ *
+ * console.log(result.standardized_coefficients);
+ * console.log(result.shap);
+ * console.log(result.permutation_importance);
+ * console.log(result.vif_ranking);
+ * ```
+ */
+export function feature_importance_ols(y_json: string, x_json: string, variable_names_json: string, y_std: number, n_permutations: number, seed: bigint): string;
+
+/**
  * Extract metadata from a serialized model without deserializing the full model.
  *
  * This function returns only the metadata portion of a serialized model,
@@ -725,6 +768,162 @@ export function ols_regression(y_json: string, x_vars_json: string, variable_nam
 export function parse_csv(content: string): string;
 
 /**
+ * Computes permutation importance for OLS regression.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `fit_json` - JSON string of OLS fit result
+ * * `n_permutations` - Number of permutation iterations
+ * * `seed` - Random seed (use 0 for no seed)
+ *
+ * # Returns
+ *
+ * JSON string of [`PermutationImportanceOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+ * const x = [[1,2,3,4,5], [2,4,5,4,3]];
+ * const fit = JSON.parse(ols_regression(...)); // from regression module
+ *
+ * const result = JSON.parse(permutation_importance_ols(
+ *     JSON.stringify(y),
+ *     JSON.stringify(x),
+ *     JSON.stringify(fit),
+ *     50,  // n_permutations
+ *     42   // seed
+ * ));
+ * console.log(result.importance);
+ * ```
+ */
+export function permutation_importance_ols(y_json: string, x_json: string, fit_json: string, n_permutations: number, seed: bigint): string;
+
+/**
+ * Fit polynomial Elastic Net regression via WASM.
+ *
+ * Elastic Net combines L1 and L2 penalties, balancing variable selection
+ * with multicollinearity handling.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values, e.g. `[1.0, 4.0, 9.0]`
+ * * `x_json` - JSON array of predictor values, e.g. `[1.0, 2.0, 3.0]`
+ * * `degree` - Polynomial degree (≥ 1)
+ * * `lambda` - Regularization strength (≥ 0)
+ * * `alpha` - Mixing parameter: 0 = Ridge, 1 = Lasso
+ * * `center` - Whether to center x before expansion (reduces multicollinearity)
+ * * `standardize` - Whether to standardize features (recommended)
+ *
+ * # Returns
+ *
+ * JSON string of the [`ElasticNetFit`] result, which includes:
+ * - `intercept`, `coefficients`
+ * - `fitted_values`, `residuals`
+ * - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`
+ * - `n_nonzero`, `converged`, `n_iterations`
+ * - `log_likelihood`, `aic`, `bic`
+ */
+export function polynomial_elastic_net_wasm(y_json: string, x_json: string, degree: number, lambda: number, alpha: number, center: boolean, standardize: boolean): string;
+
+/**
+ * Fit polynomial Lasso regression via WASM.
+ *
+ * Lasso can perform variable selection among polynomial terms,
+ * potentially eliminating higher-order terms.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values, e.g. `[1.0, 4.0, 9.0]`
+ * * `x_json` - JSON array of predictor values, e.g. `[1.0, 2.0, 3.0]`
+ * * `degree` - Polynomial degree (≥ 1)
+ * * `lambda` - Regularization strength (≥ 0)
+ * * `center` - Whether to center x before expansion (reduces multicollinearity)
+ * * `standardize` - Whether to standardize features (recommended)
+ *
+ * # Returns
+ *
+ * JSON string of the [`LassoFit`] result, which includes:
+ * - `intercept`, `coefficients`
+ * - `fitted_values`, `residuals`
+ * - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`
+ * - `n_nonzero`, `converged`, `n_iterations`
+ * - `log_likelihood`, `aic`, `bic`
+ */
+export function polynomial_lasso_wasm(y_json: string, x_json: string, degree: number, lambda: number, center: boolean, standardize: boolean): string;
+
+/**
+ * Predict using a fitted polynomial model via WASM.
+ *
+ * # Arguments
+ *
+ * * `fit_json` - JSON string of the `PolynomialFit` returned by [`polynomial_regression_wasm`]
+ * * `x_new_json` - JSON array of new predictor values, e.g. `[6.0, 7.0]`
+ *
+ * # Returns
+ *
+ * JSON array of predicted values, or a JSON error object on failure.
+ */
+export function polynomial_predict_wasm(fit_json: string, x_new_json: string): string;
+
+/**
+ * Fit polynomial regression via WASM.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values, e.g. `[1.0, 4.0, 9.0]`
+ * * `x_json` - JSON array of predictor values, e.g. `[1.0, 2.0, 3.0]`
+ * * `degree` - Polynomial degree (≥ 1)
+ * * `center` - Whether to center x before expanding (reduces multicollinearity)
+ * * `standardize` - Whether to standardize polynomial features
+ *
+ * # Returns
+ *
+ * JSON string of the complete [`PolynomialFit`], which includes:
+ * - `ols_output` — full OLS regression output (coefficients, R², F-stat, etc.)
+ * - `degree`, `centered`, `x_mean`, `x_std`, `standardized`
+ * - `feature_names`, `feature_means`, `feature_stds`
+ *
+ * The returned JSON can be passed directly to [`polynomial_predict_wasm`].
+ *
+ * # Errors
+ *
+ * Returns a JSON error object `{"error": "…"}` if:
+ * - JSON parsing fails
+ * - `degree` is 0
+ * - `y` and `x` have different lengths
+ * - Insufficient data
+ * - Domain check fails
+ */
+export function polynomial_regression_wasm(y_json: string, x_json: string, degree: number, center: boolean, standardize: boolean): string;
+
+/**
+ * Fit polynomial Ridge regression via WASM.
+ *
+ * Ridge regularization helps with multicollinearity in polynomial features.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values, e.g. `[1.0, 4.0, 9.0]`
+ * * `x_json` - JSON array of predictor values, e.g. `[1.0, 2.0, 3.0]`
+ * * `degree` - Polynomial degree (≥ 1)
+ * * `lambda` - Regularization strength (≥ 0)
+ * * `center` - Whether to center x before expansion (reduces multicollinearity)
+ * * `standardize` - Whether to standardize features (recommended)
+ *
+ * # Returns
+ *
+ * JSON string of the [`RidgeFit`] result, which includes:
+ * - `intercept`, `coefficients`
+ * - `fitted_values`, `residuals`
+ * - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`
+ * - `effective_df`, `log_likelihood`, `aic`, `bic`
+ */
+export function polynomial_ridge_wasm(y_json: string, x_json: string, degree: number, lambda: number, center: boolean, standardize: boolean): string;
+
+/**
  * Performs the Python method White test for heteroscedasticity via WASM.
  *
  * This implementation matches Python's `statsmodels.stats.diagnostic.het_white()` function.
@@ -904,6 +1103,33 @@ export function ridge_regression(y_json: string, x_vars_json: string, _variable_
 export function serialize_model(model_json: string, model_type: string, name?: string | null): string;
 
 /**
+ * Computes SHAP (SHapley Additive exPlanations) values for linear models.
+ *
+ * # Arguments
+ *
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `coefficients_json` - JSON array of coefficients including intercept
+ * * `variable_names_json` - JSON array of variable names
+ *
+ * # Returns
+ *
+ * JSON string of [`ShapOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const result = JSON.parse(shap_values_linear(
+ *     JSON.stringify([[1,2,3], [2,4,6]]),
+ *     JSON.stringify([5, 2, 3]),
+ *     JSON.stringify(["X1", "X2"])
+ * ));
+ * console.log(result.mean_abs_shap); // Global importance
+ * console.log(result.shap_values); // Local contributions
+ * ```
+ */
+export function shap_values_linear(x_json: string, coefficients_json: string, variable_names_json: string): string;
+
+/**
  * Performs the Shapiro-Wilk test for normality via WASM.
  *
  * The Shapiro-Wilk test is a powerful test for normality,
@@ -925,6 +1151,34 @@ export function serialize_model(model_json: string, model_type: string, name?: s
  * Returns a JSON error object if parsing fails or domain check fails.
  */
 export function shapiro_wilk_test(y_json: string, x_vars_json: string): string;
+
+/**
+ * Computes standardized coefficients for feature importance.
+ *
+ * # Arguments
+ *
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `coefficients_json` - JSON array of coefficients including intercept
+ * * `variable_names_json` - JSON array of variable names
+ * * `y_std` - Standard deviation of response variable
+ *
+ * # Returns
+ *
+ * JSON string of [`StandardizedCoefficientsOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const result = JSON.parse(standardized_coefficients(
+ *     JSON.stringify([[1,2,3,4,5], [10,20,30,40,50]]),
+ *     JSON.stringify([1, 0.5, -0.3]),
+ *     JSON.stringify(["Temperature", "Pressure"]),
+ *     2.5
+ * ));
+ * console.log(result.standardized_coefficients);
+ * ```
+ */
+export function standardized_coefficients(x_json: string, coefficients_json: string, variable_names_json: string, y_std: number): string;
 
 /**
  * Computes the correlation coefficient between two JSON arrays of f64 values.
@@ -1067,6 +1321,27 @@ export function test_r_accuracy(): string;
 export function test_t_critical(df: number, alpha: number): string;
 
 /**
+ * Computes VIF (Variance Inflation Factor) ranking.
+ *
+ * # Arguments
+ *
+ * * `vif_json` - JSON array of VIF results from OLS output
+ *
+ * # Returns
+ *
+ * JSON string of [`VifRankingOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const fit = JSON.parse(ols_regression(...));
+ * const result = JSON.parse(vif_ranking(JSON.stringify(fit.vif)));
+ * console.log(result.ranking); // Sorted by VIF (lowest first)
+ * ```
+ */
+export function vif_ranking(vif_json: string): string;
+
+/**
  * Performs Variance Inflation Factor (VIF) analysis via WASM.
  *
  * VIF measures how much the variance of regression coefficients is inflated
@@ -1175,6 +1450,7 @@ export interface InitOutput {
     readonly elastic_net_path_wasm: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
     readonly elastic_net_prediction_intervals: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => [number, number];
     readonly elastic_net_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
+    readonly feature_importance_ols: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: bigint) => [number, number];
     readonly get_model_metadata: (a: number, b: number) => [number, number];
     readonly get_version: () => [number, number];
     readonly harvey_collier_test: (a: number, b: number, c: number, d: number) => [number, number];
@@ -1191,6 +1467,12 @@ export interface InitOutput {
     readonly ols_prediction_intervals: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly ols_regression: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly parse_csv: (a: number, b: number) => [number, number];
+    readonly permutation_importance_ols: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: bigint) => [number, number];
+    readonly polynomial_elastic_net_wasm: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
+    readonly polynomial_lasso_wasm: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
+    readonly polynomial_predict_wasm: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly polynomial_regression_wasm: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+    readonly polynomial_ridge_wasm: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
     readonly python_white_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly r_white_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly rainbow_test: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
@@ -1198,7 +1480,9 @@ export interface InitOutput {
     readonly ridge_prediction_intervals: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
     readonly ridge_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
     readonly serialize_model: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+    readonly shap_values_linear: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly shapiro_wilk_test: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly standardized_coefficients: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly stats_correlation: (a: number, b: number, c: number, d: number) => [number, number];
     readonly stats_mean: (a: number, b: number) => [number, number];
     readonly stats_median: (a: number, b: number) => [number, number];
@@ -1210,6 +1494,7 @@ export interface InitOutput {
     readonly test_housing_regression: () => [number, number];
     readonly test_r_accuracy: () => [number, number];
     readonly test_t_critical: (a: number, b: number) => [number, number];
+    readonly vif_ranking: (a: number, b: number) => [number, number];
     readonly vif_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly white_test: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly wls_regression: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];

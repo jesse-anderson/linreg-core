@@ -1426,3 +1426,104 @@ main {
     color: white;
     border-color: var(--accent-educational);
 }
+
+/* ============================================================================
+// Feature Importance Styles
+// ============================================================================ */
+
+.importance-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.importance-card {
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    text-align: center;
+}
+
+.importance-label {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+}
+
+.importance-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent-educational);
+    margin-bottom: 4px;
+}
+
+.importance-sub {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.importance-section {
+    margin-bottom: 24px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.importance-section:last-child {
+    margin-bottom: 0;
+}
+
+.importance-section-header {
+    margin-bottom: 16px;
+}
+
+.importance-section-header h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.importance-section-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.importance-section-desc span {
+    font-weight: 500;
+}
+
+/* Positive/Negative value indicators in tables */
+.results-table td.positive {
+    color: var(--accent-success);
+}
+
+.results-table td.negative {
+    color: var(--accent-error);
+}
+
+/* Loading spinner for feature importance */
+.loading-spinner {
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--accent-educational);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

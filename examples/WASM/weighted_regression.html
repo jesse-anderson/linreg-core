@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Weighted Regression — linreg-core WASM</title>
+  <style>
+    body { font-family: monospace; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+    h1   { font-size: 1.3rem; border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+    pre  { background: #f5f5f5; padding: 1rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Weighted Least Squares — linreg-core WASM</h1>
+  <p>OLS vs WLS on heteroscedastic data (spending variance grows with income).</p>
+  <pre id="output">Loading WASM…</pre>
+
+  <script type="module">
+    import init, { ols_regression, wls_regression } from 'https://unpkg.com/linreg-core/linreg_core.js';
+    await init();
+
+    const income   = [20, 25, 30, 35, 40, 50, 60, 75, 90, 110];
+    const spending = [18, 21, 25, 27, 31, 38, 50, 55, 72,  95];
+    const stdDevs  = [ 1,1.2,1.5, 2, 2.5,3.5, 5,  7,  9,  12];
+    const weights  = stdDevs.map(s => 1 / (s * s));
+    const names    = ['Intercept', 'Income'];
+
+    const yJson = JSON.stringify(spending);
+    const xJson = JSON.stringify([income]);
+
+    const ols = JSON.parse(ols_regression(yJson, xJson, JSON.stringify(names)));
+    const wls = JSON.parse(wls_regression(yJson, xJson, JSON.stringify(weights)));
+
+    console.log('ols', ols, 'wls', wls);
+
+    const f4 = v => (v != null ? v.toFixed(4) : '—');
+
+    const lines = [];
+    lines.push('── OLS vs WLS Comparison ────────────────────────────────────────────');
+    lines.push('Metric                    OLS          WLS');
+    lines.push('─'.repeat(50));
+
+    // OLS field names (from WASM)
+    const olsInt   = ols.coefficients[0];
+    const olsSlope = ols.coefficients[1];
+    const olsIntSE = ols.std_errors[0];
+    const olsSlopeSE = ols.std_errors[1];
+
+    // WLS field names — check console for actuals
+    const wlsInt     = wls.coefficients?.[0] ?? wls.intercept;
+    const wlsSlope   = wls.coefficients?.[1] ?? wls.coefficients?.[0];
+    const wlsIntSE   = wls.std_errors?.[0] ?? wls.standard_errors?.[0];
+    const wlsSlopeSE = wls.std_errors?.[1] ?? wls.standard_errors?.[1];
+
+    lines.push('Intercept             ' + f4(olsInt).padStart(12)   + '  ' + f4(wlsInt).padStart(12));
+    lines.push('Intercept SE          ' + f4(olsIntSE).padStart(12) + '  ' + f4(wlsIntSE).padStart(12));
+    lines.push('Income slope          ' + f4(olsSlope).padStart(12)   + '  ' + f4(wlsSlope).padStart(12));
+    lines.push('Income slope SE       ' + f4(olsSlopeSE).padStart(12) + '  ' + f4(wlsSlopeSE).padStart(12));
+    lines.push('R²                    ' + f4(ols.r_squared).padStart(12) + '  ' + f4(wls.r_squared).padStart(12));
+    lines.push('MSE                   ' + f4(ols.mse).padStart(12)      + '  ' + f4(wls.mse).padStart(12));
+
+    lines.push('');
+    lines.push('── Fitted Values ────────────────────────────────────────────────────');
+    lines.push('Income   Spending   OLS fit   WLS fit   Weight');
+    lines.push('─'.repeat(50));
+    const olsFitted = ols.predictions;
+    const wlsFitted = wls.fitted_values ?? wls.predictions;
+    income.forEach((inc, i) => {
+      lines.push(
+        String(inc).padStart(6) + '  ' +
+        String(spending[i]).padStart(8) + '  ' +
+        f4(olsFitted[i]).padStart(8) + '  ' +
+        f4(wlsFitted[i]).padStart(8) + '  ' +
+        weights[i].toFixed(4).padStart(8)
+      );
+    });
+
+    document.getElementById('output').textContent = lines.join('\n');
+  </script>
+</body>
+</html>

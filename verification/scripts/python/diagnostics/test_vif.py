@@ -89,6 +89,11 @@ def main():
     response_col = data.columns[0]
     predictor_cols = data.columns[1:]
 
+    # VIF requires at least 2 predictors
+    if len(predictor_cols) < 2:
+        print(f"SKIP: Dataset '{dataset_name}' has only {len(predictor_cols)} predictor. VIF requires at least 2 predictors.")
+        return
+
     # Prepare data for statsmodels (add constant for intercept)
     X = data[predictor_cols]
     X = sm.add_constant(X)

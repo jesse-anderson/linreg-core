@@ -10,10 +10,11 @@
 [![Live Demo](https://img.shields.io/badge/demo-online-brightgreen)](https://jesse-anderson.net/linreg-core/)
 
 
-A lightweight, self-contained linear regression library written in Rust. Compiles to WebAssembly for browser use, Python bindings via PyO3, or runs as a native Rust crate.
+A lightweight, self-contained linear regression library written in Rust. Compiles to WebAssembly for browser use, Python bindings via PyO3, a native Windows DLL for Excel VBA, or runs as a native Rust crate.
 
 **Key design principle:** All linear algebra and statistical distribution functions are implemented from scratch — no external math libraries required. This keeps binary sizes small and makes the crate highly portable.
 
+**[Live Demo Link](https://jesse-anderson.net/linreg-core/)**
 ---
 
 ## Table of Contents
@@ -24,6 +25,7 @@ A lightweight, self-contained linear regression library written in Rust. Compile
 | [Rust Usage](#rust-usage) | Native Rust crate usage |
 | [WebAssembly Usage](#webassembly-usage) | Browser/JavaScript usage |
 | [Python Usage](#python-usage) | Python bindings via PyO3 |
+| [VBA / Excel Usage](#vba--excel-usage) | Excel VBA via native Windows DLL |
 | [Feature Flags](#feature-flags) | Build configuration options |
 | [Validation](#validation) | Testing and verification |
 | [Implementation Notes](#implementation-notes) | Technical details |
@@ -1104,12 +1106,160 @@ The `save_model()` and `load_model()` functions work with all result types: `OLS
 
 ---
 
+## VBA / Excel Usage
+
+The library ships as a native Windows DLL, letting you call it directly from Excel VBA via `Declare` statements. Prebuilt binaries are included in the `VBA_Example/` directory:
+
+| File | Architecture |
+|------|-------------|
+| `linreg_core_x64.dll` | 64-bit Excel (Office 2010+) |
+| `linreg_core_x86.dll` | 32-bit Excel (legacy) |
+
+### Installation
+
+1. Copy `linreg_core_x64.dll` (and/or `linreg_core_x86.dll`) to the same folder as your `.xlsm` workbook.
+2. Import `LinregCore.bas` into your VBA project (ALT+F11 → File → Import File).
+3. Optionally import `ExampleMacros.bas` for ready-to-run demo macros. Once both files are imported, run `SetupWorkbook()` from the Immediate Window or a button to automatically create example sheets and load sample data.
+
+### Building from Source
+
+```bash
+# 64-bit (modern Excel)
+cargo build --release --target x86_64-pc-windows-msvc --features ffi
+
+# 32-bit (legacy Excel)
+cargo build --release --target i686-pc-windows-msvc --features ffi
+```
+
+The 32-bit build automatically uses `linreg_core.def` to strip stdcall decoration, so VBA `Declare` statements work without modification.
+
+### High-Level Wrappers
+
+`LinregCore.bas` exposes friendly wrapper functions that return 2D Excel arrays you can drop straight into cells with `Application.Transpose`:
+
+```vba
+' OLS regression - returns (k+6)×5 summary array
+Dim result As Variant
+result = LinReg_OLS(y, X)
+
+' Regularized regression
+result = LinReg_Ridge(y, X, lambda:=1.0, standardize:=True)
+result = LinReg_Lasso(y, X, lambda:=0.1)
+result = LinReg_ElasticNet(y, X, lambda:=0.1, alpha:=0.5)
+
+' Weighted OLS
+result = LinReg_WLS(y, X, weights)
+
+' Prediction intervals (n_new × 4: predicted, lower, upper, SE)
+result = LinReg_PredictionIntervals(y, X, newX, alpha:=0.05)
+
+' Diagnostic tests - each returns 1×3: {statistic, p-value, df}
+result = LinReg_BreuschPagan(y, X)
+result = LinReg_White(y, X)
+result = LinReg_JarqueBera(y, X)
+result = LinReg_ShapiroWilk(y, X)
+result = LinReg_AndersonDarling(y, X)
+result = LinReg_HarveyCollier(y, X)
+result = LinReg_Rainbow(y, X, fraction:=0.5)
+result = LinReg_Reset(y, X)
+result = LinReg_DurbinWatson(y, X)   ' {DW statistic, ρ, ""}
+result = LinReg_BreuschGodfrey(y, X, lagOrder:=1)
+
+' Influence diagnostics
+result = LinReg_VIF(y, X)            ' p×1
+result = LinReg_CooksDistance(y, X)  ' n×1
+result = LinReg_DFFITS(y, X)         ' n×1
+result = LinReg_DFBETAS(y, X)        ' (n+1)×(p+1) with header row/col
+
+' Regularization path and cross-validation
+result = LinReg_LambdaPath(y, X, nLambda:=100, lmr:=0.01, alpha:=1.0)
+result = LinReg_KFoldOLS(y, X, nFolds:=5)        ' 1×6 CV metrics
+result = LinReg_KFoldRidge(y, X, lambda:=1.0)
+result = LinReg_KFoldLasso(y, X, lambda:=0.1)
+result = LinReg_KFoldElasticNet(y, X, lambda:=0.1, alpha:=0.5)
+```
+
+All wrappers return a 1-element array containing an error string on failure:
+
+```vba
+If IsArray(result) And UBound(result, 1) = 0 Then
+    MsgBox "Error: " & result(0)
+    Exit Sub
+End If
+```
+
+### Low-Level Handle API
+
+The DLL uses an opaque handle pattern. All `LR_*` functions return a `usize` handle (0 = error); call `LR_Free` when done:
+
+```vba
+' --- declarations already in LinregCore.bas ---
+' Private Declare PtrSafe Function LR_OLS Lib "linreg_core_x64.dll" ...
+' Private Declare PtrSafe Sub LR_Free Lib "linreg_core_x64.dll" ...
+
+Sub LowLevelExample()
+    Dim n As Long, p As Long
+    n = 5 : p = 1
+
+    Dim y(4) As Double
+    y(0) = 2.5 : y(1) = 3.7 : y(2) = 4.2 : y(3) = 5.1 : y(4) = 6.3
+
+    ' X is row-major, no intercept column (added automatically)
+    Dim X(4) As Double
+    X(0) = 1 : X(1) = 2 : X(2) = 3 : X(3) = 4 : X(4) = 5
+
+    Dim h As LongPtr
+    h = LR_OLS(VarPtr(y(0)), n, VarPtr(X(0)), n, p)
+
+    If h = 0 Then
+        MsgBox "Regression failed"
+        Exit Sub
+    End If
+
+    Dim r2 As Double, mse As Double
+    r2  = LR_GetRSquared(h)
+    mse = LR_GetMSE(h)
+
+    ' Retrieve coefficient vector (intercept + slopes = p+1 values)
+    Dim coefs(1) As Double
+    LR_GetCoefficients h, VarPtr(coefs(0)), p + 1
+
+    Debug.Print "R²=" & r2 & "  MSE=" & mse
+    Debug.Print "Intercept=" & coefs(0) & "  Slope=" & coefs(1)
+
+    LR_Free h
+End Sub
+```
+
+### Key FFI Functions
+
+| Category | Functions |
+|----------|-----------|
+| **Lifecycle** | `LR_Init`, `LR_Free`, `LR_GetLastError`, `LR_Version` |
+| **Regression** | `LR_OLS`, `LR_Ridge`, `LR_Lasso`, `LR_ElasticNet`, `LR_WLS` |
+| **Predictions** | `LR_PredictionIntervals` |
+| **Diagnostics** | `LR_BreuschPagan`, `LR_White`, `LR_JarqueBera`, `LR_ShapiroWilk`, `LR_AndersonDarling`, `LR_HarveyCollier`, `LR_Rainbow`, `LR_Reset`, `LR_DurbinWatson`, `LR_BreuschGodfrey` |
+| **Influence** | `LR_CooksDistance`, `LR_DFFITS`, `LR_DFBETAS`, `LR_VIF` |
+| **Path / CV** | `LR_LambdaPath`, `LR_KFoldOLS`, `LR_KFoldRidge`, `LR_KFoldLasso`, `LR_KFoldElasticNet` |
+| **Scalar getters** | `LR_GetRSquared`, `LR_GetAdjRSquared`, `LR_GetFStatistic`, `LR_GetFPValue`, `LR_GetMSE`, `LR_GetIntercept`, `LR_GetDF`, `LR_GetNNonzero`, `LR_GetStatistic`, `LR_GetPValue`, `LR_GetTestDF`, `LR_GetAutocorrelation` |
+| **Vector getters** | `LR_GetCoefficients`, `LR_GetStdErrors`, `LR_GetTStats`, `LR_GetPValues`, `LR_GetResiduals`, `LR_GetFittedValues`, `LR_GetVector`, `LR_GetMatrix`, `LR_GetPredicted`, `LR_GetLowerBound`, `LR_GetUpperBound`, `LR_GetSEPred` |
+
+### Running FFI Tests
+
+```bash
+cargo test --features ffi --test ffi_tests
+cargo test --features ffi --test ffi_vba_tests
+```
+
+---
+
 ## Feature Flags
 
 | Feature | Default | Description |
 |---------|---------|-------------|
 | `wasm` | Yes | Enables WASM bindings and browser support |
 | `python` | No | Enables Python bindings via PyO3 |
+| `ffi` | No | Enables Windows DLL bindings for VBA/Excel use |
 | `validation` | No | Includes test data for validation tests |
 
 For native Rust without WASM overhead:

@@ -33,6 +33,7 @@ default_script_dir <- "verification/scripts/r/diagnostics"
 default_regularized_dir <- "verification/scripts/r/regularized"
 default_core_dir <- "verification/scripts/r/core"
 default_loess_dir <- "verification/scripts/r/loess"
+default_feature_importance_dir <- "verification/scripts/r/feature_importance"
 default_lambda_count <- 20
 
 csv_dir <- ifelse(length(args) >= 1, args[1], default_csv_dir)
@@ -42,6 +43,7 @@ regularized_dir <- ifelse(length(args) >= 4, args[4], default_regularized_dir)
 lambda_count <- ifelse(length(args) >= 5, args[5], default_lambda_count)
 core_dir <- ifelse(length(args) >= 6, args[6], default_core_dir)
 loess_dir <- ifelse(length(args) >= 7, args[7], default_loess_dir)
+feature_importance_dir <- ifelse(length(args) >= 8, args[8], default_feature_importance_dir)
 
 # Validate CSV directory
 if (!dir.exists(csv_dir)) {
@@ -76,7 +78,10 @@ diagnostic_scripts <- list(
   list(name = "LOESS", script = "test_loess.R", dir = loess_dir, suffix = "loess", args = "", multi_output = TRUE),
   list(name = "Ridge GLMNet", script = "test_ridge.R", dir = regularized_dir, suffix = "ridge_glmnet", args = lambda_count),
   list(name = "Lasso GLMNet", script = "test_lasso.R", dir = regularized_dir, suffix = "lasso_glmnet", args = lambda_count),
-  list(name = "Prediction Intervals", script = "test_prediction_intervals.R", dir = core_dir, suffix = "prediction_intervals", args = "")
+  list(name = "Prediction Intervals", script = "test_prediction_intervals.R", dir = core_dir, suffix = "prediction_intervals", args = ""),
+  list(name = "Polynomial Degree 2", script = "test_polynomial.R", dir = core_dir, suffix = "polynomial_degree2", args = "2"),
+  list(name = "Polynomial Degree 3", script = "test_polynomial.R", dir = core_dir, suffix = "polynomial_degree3", args = "3"),
+  list(name = "Feature Importance", script = "test_feature_importance.R", dir = feature_importance_dir, suffix = "feature_importance", args = "")
 )
 
 # Counter for results
@@ -98,6 +103,7 @@ cat("Script Directory:", script_dir, "\n")
 cat("Regularized Directory:", regularized_dir, "\n")
 cat("Core Directory:", core_dir, "\n")
 cat("LOESS Directory:", loess_dir, "\n")
+cat("Feature Importance Directory:", feature_importance_dir, "\n")
 cat("Datasets:", length(csv_files), "\n")
 cat("Diagnostic Tests:", length(diagnostic_scripts), "\n")
 cat("Total Tests to Run:", total_tests, "\n")

@@ -5,7 +5,20 @@
 import { STATE, updateState, escapeHtml, formatPValue, showToast, getCurrentTheme } from './utils.js';
 import { updateCharts } from './charts.js';
 import { runDiagnostics } from './diagnostics.js';
-import { calculateRegression, calculateRidgeRegression, calculateLassoRegression, calculateElasticNetRegression, calculateWlsRegression, calculateLoessRegression, WasmRegression } from './core.js';
+import * as FeatureImportance from './featureImportance.js';
+import {
+    calculateRegression,
+    calculateRidgeRegression,
+    calculateLassoRegression,
+    calculateElasticNetRegression,
+    calculateWlsRegression,
+    calculateLoessRegression,
+    calculatePolynomialRegression,
+    calculatePolynomialRidge,
+    calculatePolynomialLasso,
+    calculatePolynomialElasticNet,
+    WasmRegression
+} from './core.js';
 import { formatMethodName } from './regularized.js';
 import { getExampleDescription } from './data.js';
 
@@ -181,6 +194,25 @@ export function updateResultsDisplay(results) {
     // Show diagnostic buttons
     const diagnosticButtons = document.getElementById('diagnosticButtons');
     if (diagnosticButtons) diagnosticButtons.style.display = 'block';
+
+    // Show and update feature importance section (for OLS/WLS with multiple predictors)
+    const featureImportanceToggle = document.getElementById('featureImportanceToggle');
+    const featureImportanceContent = document.getElementById('featureImportanceContent');
+
+    if (featureImportanceToggle && featureImportanceContent) {
+        if ((results.method === 'ols' || results.method === 'wls') && STATE.xVariables.length >= 2) {
+            // Auto-expand and calculate feature importance
+            featureImportanceToggle.classList.remove('collapsed');
+            featureImportanceToggle.setAttribute('aria-expanded', 'true');
+            featureImportanceContent.classList.remove('collapsed');
+            FeatureImportance.updateFeatureImportanceDisplay(results);
+        } else {
+            // Collapse and show message
+            featureImportanceToggle.classList.add('collapsed');
+            featureImportanceToggle.setAttribute('aria-expanded', 'false');
+            featureImportanceContent.classList.add('collapsed');
+        }
+    }
 
     // Update statistics cards
     updateStatisticsCards(results, isRegularized);
@@ -456,16 +488,31 @@ function updateCoefficientsTable(results, isRegularized = false) {
     const pValues = results.pValues;
     const ci = results.confidenceIntervals;
     const hasCi = ci && ci.length > 0;
+    const hasStdErr = stdErrs && stdErrs.length > 0;
+    const hasTStats = tStats && tStats.length > 0;
+    const hasPValues = pValues && pValues.length > 0;
 
     let html = '';
     names.forEach((name, i) => {
         const signClass = coeffs[i] >= 0 ? 'positive' : 'negative';
         html += `<tr>
             <td>${escapeHtml(name)}</td>
-            <td class="${signClass}">${coeffs[i].toFixed(4)}</td>
-            <td>${stdErrs[i].toFixed(4)}</td>
-            <td>${tStats[i].toFixed(4)}</td>
-            <td>${formatPValue(pValues[i])}</td>`;
+            <td class="${signClass}">${coeffs[i].toFixed(4)}</td>`;
+        if (hasStdErr) {
+            html += `<td>${stdErrs[i].toFixed(4)}</td>`;
+        } else {
+            html += `<td>-</td>`;
+        }
+        if (hasTStats) {
+            html += `<td>${tStats[i].toFixed(4)}</td>`;
+        } else {
+            html += `<td>-</td>`;
+        }
+        if (hasPValues) {
+            html += `<td>${formatPValue(pValues[i])}</td>`;
+        } else {
+            html += `<td>-</td>`;
+        }
         if (hasCi) {
             html += `<td>${ci[i][0].toFixed(4)}</td>
             <td>${ci[i][1].toFixed(4)}</td>`;
@@ -477,7 +524,10 @@ function updateCoefficientsTable(results, isRegularized = false) {
 
     const thead = table.querySelector('thead tr');
     if (thead) {
-        let headerHtml = '<th>Variable</th><th>Coefficient</th><th>Std Error</th><th>t-stat</th><th>p-value</th>';
+        let headerHtml = '<th>Variable</th><th>Coefficient</th>';
+        if (hasStdErr) headerHtml += '<th>Std Error</th>';
+        if (hasTStats) headerHtml += '<th>t-stat</th>';
+        if (hasPValues) headerHtml += '<th>p-value</th>';
         if (hasCi) {
             headerHtml += '<th>95% CI Lower</th><th>95% CI Upper</th>';
         }
@@ -979,6 +1029,47 @@ export async function runRegression() {
                     throw new Error('Please select a weights variable for WLS regression.');
                 }
                 results = await calculateWlsRegression(STATE.yVariable, STATE.xVariables, wlsWeights);
+                break;
+            case 'polynomial':
+                // Polynomial regression requires exactly one predictor
+                if (STATE.xVariables.length !== 1) {
+                    throw new Error('Polynomial regression requires exactly one predictor. Please select only one X variable.');
+                }
+                const polyDegree = parseInt(document.getElementById('polyDegreeSlider')?.value) || 2;
+                const polyCenter = document.getElementById('polyCenterCheck')?.checked ?? true;
+                const polyStandardize = document.getElementById('polyStandardizeCheck')?.checked ?? false;
+                results = await calculatePolynomialRegression(STATE.yVariable, STATE.xVariables[0], polyDegree, polyCenter, polyStandardize);
+                break;
+            case 'polynomial_ridge':
+                if (STATE.xVariables.length !== 1) {
+                    throw new Error('Polynomial regression requires exactly one predictor. Please select only one X variable.');
+                }
+                const polyRDegree = parseInt(document.getElementById('polyRegDegreeSlider')?.value) || 2;
+                const polyRLambda = parseFloat(document.getElementById('polyLambdaSlider')?.value) || 0.1;
+                const polyRCenter = document.getElementById('polyRegCenterCheck')?.checked ?? true;
+                const polyRStandardize = document.getElementById('polyRegStandardizeCheck')?.checked ?? true;
+                results = await calculatePolynomialRidge(STATE.yVariable, STATE.xVariables[0], polyRDegree, polyRLambda, polyRCenter, polyRStandardize);
+                break;
+            case 'polynomial_lasso':
+                if (STATE.xVariables.length !== 1) {
+                    throw new Error('Polynomial regression requires exactly one predictor. Please select only one X variable.');
+                }
+                const polyLDegree = parseInt(document.getElementById('polyRegDegreeSlider')?.value) || 2;
+                const polyLLambda = parseFloat(document.getElementById('polyLambdaSlider')?.value) || 0.1;
+                const polyLCenter = document.getElementById('polyRegCenterCheck')?.checked ?? true;
+                const polyLStandardize = document.getElementById('polyRegStandardizeCheck')?.checked ?? true;
+                results = await calculatePolynomialLasso(STATE.yVariable, STATE.xVariables[0], polyLDegree, polyLLambda, polyLCenter, polyLStandardize);
+                break;
+            case 'polynomial_enet':
+                if (STATE.xVariables.length !== 1) {
+                    throw new Error('Polynomial regression requires exactly one predictor. Please select only one X variable.');
+                }
+                const polyEDegree = parseInt(document.getElementById('polyRegDegreeSlider')?.value) || 2;
+                const polyELambda = parseFloat(document.getElementById('polyLambdaSlider')?.value) || 0.1;
+                const polyEAlpha = parseFloat(document.getElementById('polyAlphaSlider')?.value) || 0.5;
+                const polyECenter = document.getElementById('polyRegCenterCheck')?.checked ?? true;
+                const polyEStandardize = document.getElementById('polyRegStandardizeCheck')?.checked ?? true;
+                results = await calculatePolynomialElasticNet(STATE.yVariable, STATE.xVariables[0], polyEDegree, polyELambda, polyEAlpha, polyECenter, polyEStandardize);
                 break;
             default:
                 results = await calculateRegression(STATE.yVariable, STATE.xVariables);
@@ -2438,6 +2529,7 @@ export function initUI() {
     setupCollapsible('residualsToggle', 'residualsContent');
     setupCollapsible('cvResultsToggle', 'cvResultsContent');
     setupCollapsible('licensesToggle', 'licensesContent');
+    setupCollapsible('featureImportanceToggle', 'featureImportanceContent');
 
     // Cross-validation enable checkbox toggle
     const cvEnableCheck = document.getElementById('cvEnableCheck');
@@ -2536,6 +2628,42 @@ export function initUI() {
         loessSpanSlider.addEventListener('input', (e) => {
             const loessSpanValue = document.getElementById('loessSpanValue');
             if (loessSpanValue) loessSpanValue.textContent = parseFloat(e.target.value).toFixed(2);
+        });
+    }
+
+    // Polynomial Degree slider
+    const polyDegreeSlider = document.getElementById('polyDegreeSlider');
+    if (polyDegreeSlider) {
+        polyDegreeSlider.addEventListener('input', (e) => {
+            const polyDegreeValue = document.getElementById('polyDegreeValue');
+            if (polyDegreeValue) polyDegreeValue.textContent = e.target.value;
+        });
+    }
+
+    // Polynomial Regularized Degree slider
+    const polyRegDegreeSlider = document.getElementById('polyRegDegreeSlider');
+    if (polyRegDegreeSlider) {
+        polyRegDegreeSlider.addEventListener('input', (e) => {
+            const polyRegDegreeValue = document.getElementById('polyRegDegreeValue');
+            if (polyRegDegreeValue) polyRegDegreeValue.textContent = e.target.value;
+        });
+    }
+
+    // Polynomial Lambda slider
+    const polyLambdaSlider = document.getElementById('polyLambdaSlider');
+    if (polyLambdaSlider) {
+        polyLambdaSlider.addEventListener('input', (e) => {
+            const polyLambdaValue = document.getElementById('polyLambdaValue');
+            if (polyLambdaValue) polyLambdaValue.textContent = parseFloat(e.target.value).toFixed(2);
+        });
+    }
+
+    // Polynomial Alpha slider
+    const polyAlphaSlider = document.getElementById('polyAlphaSlider');
+    if (polyAlphaSlider) {
+        polyAlphaSlider.addEventListener('input', (e) => {
+            const polyAlphaValue = document.getElementById('polyAlphaValue');
+            if (polyAlphaValue) polyAlphaValue.textContent = parseFloat(e.target.value).toFixed(2);
         });
     }
 
@@ -2684,11 +2812,15 @@ function updateRegressionMethodUI() {
     const elasticNetOptions = document.getElementById('elasticNetOptions');
     const loessOptions = document.getElementById('loessOptions');
     const wlsOptions = document.getElementById('wlsOptions');
+    const polynomialOptions = document.getElementById('polynomialOptions');
+    const polyRegularizedOptions = document.getElementById('polyRegularizedOptions');
 
     if (regularizedParams) regularizedParams.style.display = 'none';
     if (elasticNetOptions) elasticNetOptions.style.display = 'none';
     if (loessOptions) loessOptions.style.display = 'none';
     if (wlsOptions) wlsOptions.style.display = 'none';
+    if (polynomialOptions) polynomialOptions.style.display = 'none';
+    if (polyRegularizedOptions) polyRegularizedOptions.style.display = 'none';
 
     // Show selected method panel
     switch (method) {
@@ -2706,6 +2838,34 @@ function updateRegressionMethodUI() {
         case 'elastic_net':
             if (elasticNetOptions) elasticNetOptions.style.display = 'block';
             break;
+        case 'polynomial':
+            if (polynomialOptions) polynomialOptions.style.display = 'block';
+            break;
+        case 'polynomial_ridge':
+        case 'polynomial_lasso':
+        case 'polynomial_enet':
+            if (polyRegularizedOptions) {
+                polyRegularizedOptions.style.display = 'block';
+                // Update description based on method
+                const descEl = document.getElementById('polyRegDesc');
+                const alphaGroup = document.getElementById('polyAlphaGroup');
+                if (descEl) {
+                    const methodName = method === 'polynomial_ridge' ? 'Polynomial Ridge' :
+                                     method === 'polynomial_lasso' ? 'Polynomial Lasso' :
+                                     'Polynomial Elastic Net';
+                    const description = method === 'polynomial_ridge' ?
+                        '<strong>Polynomial Ridge</strong> adds L2 regularization to polynomial regression, shrinking coefficients to handle multicollinearity inherent in polynomial terms.' :
+                        method === 'polynomial_lasso' ?
+                        '<strong>Polynomial Lasso</strong> adds L1 regularization to polynomial regression, performing variable selection by potentially eliminating higher-order terms.' :
+                        '<strong>Polynomial Elastic Net</strong> combines L1 and L2 penalties for polynomial regression, balancing variable selection with multicollinearity handling.';
+                    descEl.innerHTML = description;
+                }
+                // Show alpha slider only for Elastic Net
+                if (alphaGroup) {
+                    alphaGroup.style.display = method === 'polynomial_enet' ? 'block' : 'none';
+                }
+            }
+            break;
         case 'loess':
             if (loessOptions) loessOptions.style.display = 'block';
             break;
@@ -2717,7 +2877,7 @@ function updateRegressionMethodUI() {
     }
 
     // Disable CV checkbox for methods without CV support
-    const cvSupported = !['wls', 'loess'].includes(method);
+    const cvSupported = !['wls', 'loess', 'polynomial', 'polynomial_ridge', 'polynomial_lasso', 'polynomial_enet'].includes(method);
     const cvEnableCheck = document.getElementById('cvEnableCheck');
     const cvOptions = document.getElementById('cvOptions');
     if (cvEnableCheck) {

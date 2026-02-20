@@ -45,6 +45,9 @@ include!("csv_impl.rs");
 include!("wls_impl.rs");
 include!("serialization_impl.rs");
 include!("prediction_intervals_impl.rs");
+include!("cross_validation_impl.rs");
+include!("polynomial_impl.rs");
+include!("feature_importance_impl.rs");
 
 // ============================================================================
 // Python Module Definition
@@ -77,6 +80,13 @@ fn linreg_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyCSVResult>()?;
     m.add_class::<PyWlsResult>()?;
     m.add_class::<PyPredictionIntervalResult>()?;
+    m.add_class::<PyFoldResult>()?;
+    m.add_class::<PyCVResult>()?;
+    m.add_class::<PyPolynomialResult>()?;
+    m.add_class::<PyStandardizedCoefficientsResult>()?;
+    m.add_class::<PyShapResult>()?;
+    m.add_class::<PyVifRankingResult>()?;
+    m.add_class::<PyPermutationImportanceResult>()?;
 
     // OLS Regression
     m.add_function(wrap_pyfunction!(ols_regression, m)?)?;
@@ -138,6 +148,35 @@ fn linreg_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ridge_prediction_intervals, m)?)?;
     m.add_function(wrap_pyfunction!(lasso_prediction_intervals, m)?)?;
     m.add_function(wrap_pyfunction!(elastic_net_prediction_intervals, m)?)?;
+
+    // Cross Validation
+    m.add_function(wrap_pyfunction!(py_kfold_cv_ols, m)?)?;
+    m.add_function(wrap_pyfunction!(py_kfold_cv_ridge, m)?)?;
+    m.add_function(wrap_pyfunction!(py_kfold_cv_lasso, m)?)?;
+    m.add_function(wrap_pyfunction!(py_kfold_cv_elastic_net, m)?)?;
+
+    // Polynomial Regression
+    m.add_function(wrap_pyfunction!(py_polynomial_regression, m)?)?;
+    m.add_function(wrap_pyfunction!(polynomial_predict, m)?)?;
+    m.add_function(wrap_pyfunction!(py_polynomial_ridge, m)?)?;
+    m.add_function(wrap_pyfunction!(py_polynomial_lasso, m)?)?;
+    m.add_function(wrap_pyfunction!(py_polynomial_elastic_net, m)?)?;
+
+    // Feature Importance
+    m.add_function(wrap_pyfunction!(py_standardized_coefficients, m)?)?;
+    m.add_function(wrap_pyfunction!(py_shap_values_linear, m)?)?;
+    m.add_function(wrap_pyfunction!(py_shap_values_ridge, m)?)?;
+    m.add_function(wrap_pyfunction!(py_shap_values_lasso, m)?)?;
+    m.add_function(wrap_pyfunction!(py_shap_values_elastic_net, m)?)?;
+    m.add_function(wrap_pyfunction!(py_shap_values_polynomial, m)?)?;
+    m.add_function(wrap_pyfunction!(py_vif_ranking, m)?)?;
+    m.add_function(wrap_pyfunction!(py_vif_ranking_from_values, m)?)?;
+    m.add_function(wrap_pyfunction!(py_permutation_importance_ols, m)?)?;
+    m.add_function(wrap_pyfunction!(py_permutation_importance_ridge, m)?)?;
+    m.add_function(wrap_pyfunction!(py_permutation_importance_lasso, m)?)?;
+    m.add_function(wrap_pyfunction!(py_permutation_importance_elastic_net, m)?)?;
+    m.add_function(wrap_pyfunction!(py_permutation_importance_loess, m)?)?;
+    m.add_function(wrap_pyfunction!(py_feature_importance_ols, m)?)?;
 
     Ok(())
 }

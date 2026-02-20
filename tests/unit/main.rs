@@ -15,9 +15,11 @@ mod distributions; // New modular test structure for distributions
                   // Old: distributions_tests (kept for now for backward compatibility)
 mod distributions_tests; // Legacy file - will be removed after migration
 mod error_tests;
+mod feature_importance_tests;  // Feature importance metrics tests
 mod glmnet_algorithm_tests;  // GLMNET algorithm validation tests
 mod input_validation_tests;
 mod linalg;
 mod loess_tests;  // LOESS non-parametric regression tests
 mod regularized_tests;
+mod polynomial_tests;     // Polynomial regression tests
 mod serialization_tests;  // Model save/load tests

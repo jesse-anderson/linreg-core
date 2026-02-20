@@ -23,7 +23,12 @@ import {
     calculateLassoRegression,
     calculateElasticNetRegression,
     calculateLoessRegression,
-    predictLoess
+    predictLoess,
+    calculatePolynomialRegression,
+    calculatePolynomialRidge,
+    calculatePolynomialLasso,
+    calculatePolynomialElasticNet,
+    predictPolynomial
 } from './modules/core.js';
 
 // Import diagnostics

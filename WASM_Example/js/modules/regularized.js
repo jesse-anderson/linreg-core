@@ -261,7 +261,11 @@ export function formatMethodName(method) {
         'lasso': 'Lasso',
         'elastic_net': 'Elastic Net',
         'wls': 'WLS',
-        'loess': 'LOESS'
+        'loess': 'LOESS',
+        'polynomial': 'Polynomial',
+        'polynomial_ridge': 'Poly Ridge',
+        'polynomial_lasso': 'Poly Lasso',
+        'polynomial_enet': 'Poly Elastic Net'
     };
     return names[method] || method.toUpperCase();
 }
@@ -283,6 +287,16 @@ export function getMethodParameters(result) {
             return { Weights: result.weights };
         case 'loess':
             return { Span: result.span, Degree: result.degree };
+        case 'polynomial':
+            return { Degree: result.polynomial?.degree };
+        case 'polynomial_ridge':
+        case 'polynomial_lasso':
+        case 'polynomial_elastic_net':
+            return {
+                Degree: result.polynomial?.degree,
+                Lambda: result.polynomial?.lambda,
+                ...(result.alpha !== undefined && { Alpha: result.polynomial?.alpha })
+            };
         default:
             return {};
     }

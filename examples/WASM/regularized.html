@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Regularized Regression — linreg-core WASM</title>
+  <style>
+    body { font-family: monospace; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+    h1   { font-size: 1.3rem; border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+    pre  { background: #f5f5f5; padding: 1rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Regularized Regression — linreg-core WASM</h1>
+  <p>Ridge, Lasso, and Elastic Net on collinear data. OLS shown for comparison.</p>
+  <pre id="output">Loading WASM…</pre>
+
+  <script type="module">
+    import init, {
+      ols_regression,
+      ridge_regression,
+      lasso_regression,
+      elastic_net_regression,
+    } from 'https://unpkg.com/linreg-core/linreg_core.js';
+    await init();
+
+    // Collinear dataset: x2 ≈ x1 + small noise
+    const y  = [2.1, 3.8, 5.5, 7.2, 9.0, 10.7, 12.4, 14.1, 15.8, 17.5];
+    const x1 = [1,   2,   3,   4,   5,   6,    7,    8,    9,    10];
+    const x2 = [1.1, 2.2, 2.9, 4.1, 5.0, 6.2,  6.8,  8.1,  9.2,  9.9];
+
+    const yJson    = JSON.stringify(y);
+    const xJson    = JSON.stringify([x1, x2]);
+    const namesJson = JSON.stringify(['Intercept', 'X1', 'X2']);
+
+    const ols   = JSON.parse(ols_regression(yJson, xJson, namesJson));
+    const ridge = JSON.parse(ridge_regression(yJson, xJson, namesJson, 1.0, true));
+    const lasso = JSON.parse(lasso_regression(yJson, xJson, namesJson, 0.5, true, 10000, 1e-7));
+    const enet  = JSON.parse(elastic_net_regression(yJson, xJson, namesJson, 0.5, 0.5, true, 10000, 1e-7));
+
+    console.log('ridge', ridge, 'lasso', lasso, 'enet', enet);
+
+    const f4 = v => (v != null ? v.toFixed(4) : '—');
+
+    // OLS: coefficients[0]=intercept, [1..]=predictors
+    // Ridge/Lasso/ENet: intercept separate, coefficients[0..]=predictors
+    const olsCoefs   = ols.coefficients;
+    const ridgeCoefs = [ridge.intercept, ...ridge.coefficients];
+    const lassoCoefs = [lasso.intercept, ...lasso.coefficients];
+    const enetCoefs  = [enet.intercept,  ...enet.coefficients];
+
+    const lines = [];
+    lines.push('── Coefficients ─────────────────────────────────────────────────────');
+    lines.push('Variable         OLS      Ridge(λ=1)  Lasso(λ=0.5)  ENet(λ=0.5,α=0.5)');
+    lines.push('─'.repeat(70));
+    ['Intercept', 'X1', 'X2'].forEach((name, i) => {
+      lines.push(
+        name.padEnd(16) +
+        f4(olsCoefs[i]).padStart(9)   + '  ' +
+        f4(ridgeCoefs[i]).padStart(10) + '  ' +
+        f4(lassoCoefs[i]).padStart(12) + '  ' +
+        f4(enetCoefs[i]).padStart(13)
+      );
+    });
+
+    lines.push('');
+    lines.push('── Model Fit ────────────────────────────────────────────────────────');
+    lines.push('Metric           OLS      Ridge       Lasso         ENet');
+    lines.push('─'.repeat(60));
+    lines.push(
+      'R²'.padEnd(16) +
+      f4(ols.r_squared).padStart(9)   + '  ' +
+      f4(ridge.r_squared).padStart(10) + '  ' +
+      f4(lasso.r_squared).padStart(12) + '  ' +
+      f4(enet.r_squared).padStart(13)
+    );
+    lines.push(
+      'MSE'.padEnd(16) +
+      f4(ols.mse).padStart(9)   + '  ' +
+      f4(ridge.mse).padStart(10) + '  ' +
+      f4(lasso.mse).padStart(12) + '  ' +
+      f4(enet.mse).padStart(13)
+    );
+
+    lines.push('');
+    lines.push('── Lasso / Elastic Net Sparsity ─────────────────────────────────────');
+    lines.push('  Lasso  non-zero: ' + lasso.n_nonzero + '  converged: ' + lasso.converged);
+    lines.push('  ENet   non-zero: ' + enet.n_nonzero  + '  converged: ' + enet.converged);
+    lines.push('');
+    lines.push('  Note: regularization shrinks collinear coefficients toward zero.');
+    lines.push('  Lasso can zero out redundant predictors entirely.');
+
+    document.getElementById('output').textContent = lines.join('\n');
+  </script>
+</body>
+</html>

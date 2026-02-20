@@ -45,10 +45,12 @@ mod durbin_watson;
 mod vif;
 mod wls;
 mod elastic_net;
+mod feature_importance;  // Feature importance validation tests
 mod harvey_collier;
 mod jarque_bera;
 mod loess;
 mod ols_by_dataset;
+mod polynomial;
 mod prediction_intervals;
 mod rainbow;
 mod regularized;

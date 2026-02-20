@@ -51,6 +51,7 @@ venv/
 env/
 ENV/
 venv_py*/
+verification/venv_validation/
 
 # Verification outputs (optional)
 # R_results.json

@@ -1159,23 +1159,33 @@ function getMethodColor(method, colors) {
 function computePredictionBandWasm(xData, yData, xMin, xMax) {
     if (!WasmRegression.isReady()) return null;
 
+    // Check if olsPredictionIntervals is available (may not be in cached version)
+    if (typeof WasmRegression.olsPredictionIntervals !== 'function') {
+        console.warn('[Charts] WasmRegression.olsPredictionIntervals not available. This may be due to browser caching. Please hard refresh (Ctrl+Shift+R).');
+        return null;
+    }
+
     const bandPoints = 50;
     const step = (xMax - xMin) / bandPoints;
     const gridX = Array.from({ length: bandPoints + 1 }, (_, i) => xMin + step * i);
 
-    const pi = JSON.parse(
-        WasmRegression.olsPredictionIntervals(yData, [xData], [gridX], 0.05)
-    );
+    try {
+        const piResult = WasmRegression.olsPredictionIntervals(yData, [xData], [gridX], 0.05);
+        const pi = JSON.parse(piResult);
 
-    if (pi.error) {
-        console.warn('WASM PI error:', pi.error);
+        if (pi.error) {
+            console.warn('WASM PI error:', pi.error);
+            return null;
+        }
+
+        return {
+            upper: gridX.map((x, i) => ({ x, y: pi.upper_bound[i] })),
+            lower: gridX.map((x, i) => ({ x, y: pi.lower_bound[i] }))
+        };
+    } catch (e) {
+        console.warn('[Charts] Failed to compute prediction intervals via WASM:', e);
         return null;
     }
-
-    return {
-        upper: gridX.map((x, i) => ({ x, y: pi.upper_bound[i] })),
-        lower: gridX.map((x, i) => ({ x, y: pi.lower_bound[i] }))
-    };
 }
 
 /**

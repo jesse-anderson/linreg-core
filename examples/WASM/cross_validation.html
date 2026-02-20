@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cross Validation — linreg-core WASM</title>
+  <style>
+    body { font-family: monospace; max-width: 780px; margin: 2rem auto; padding: 0 1rem; }
+    h1   { font-size: 1.3rem; border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+    pre  { background: #f5f5f5; padding: 1rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>K-Fold Cross Validation — linreg-core WASM</h1>
+  <p>5-fold CV comparing OLS, Ridge (λ=0.5), Lasso (λ=0.1), and Elastic Net (λ=0.2, α=0.5).</p>
+  <pre id="output">Loading WASM…</pre>
+
+  <script type="module">
+    import init, {
+      kfold_cv_ols,
+      kfold_cv_ridge,
+      kfold_cv_lasso,
+      kfold_cv_elastic_net,
+    } from 'https://unpkg.com/linreg-core/linreg_core.js';
+    await init();
+
+    // y = 1 + 2*x1 + 0.5*x2 + noise, n=20
+    const n  = 20;
+    const x1 = Array.from({length: n}, (_, i) => i + 1);
+    const x2 = x1.map(x => x * 0.8 + (Math.random() - 0.5));  // correlated with x1
+    const y  = x1.map((x, i) => 1 + 2 * x + 0.5 * x2[i] + (Math.random() * 2 - 1));
+
+    const yJson  = JSON.stringify(y);
+    const xJson  = JSON.stringify([x1, x2]);
+    const names  = JSON.stringify(['Intercept', 'X1', 'X2']);
+
+    // kfold_cv_ols:         (y, x, names, n_folds, shuffle_json, seed_json)
+    // kfold_cv_ridge:       (y, x, lambda, standardize:bool, n_folds, shuffle_json, seed_json)
+    // kfold_cv_lasso:       (y, x, lambda, standardize:bool, n_folds, shuffle_json, seed_json)
+    // kfold_cv_elastic_net: (y, x, lambda, alpha, standardize:bool, n_folds, shuffle_json, seed_json)
+    const ols  = JSON.parse(kfold_cv_ols(yJson, xJson, names, 5, 'true', '42'));
+    const rdg  = JSON.parse(kfold_cv_ridge(yJson, xJson, 0.5, true, 5, 'true', '42'));
+    const lso  = JSON.parse(kfold_cv_lasso(yJson, xJson, 0.1, true, 5, 'true', '42'));
+    const enet = JSON.parse(kfold_cv_elastic_net(yJson, xJson, 0.2, 0.5, true, 5, 'true', '42'));
+
+    console.log('ols', ols, 'ridge', rdg, 'lasso', lso, 'enet', enet);
+
+    const f4 = v => (v != null ? Number(v).toFixed(4) : '—');
+
+    const lines = [];
+    lines.push(`n=${ols.n_samples}  folds=${ols.n_folds}  shuffle=true  seed=42`);
+    lines.push('');
+
+    // ── Summary table ────────────────────────────────────────────────────────
+    lines.push('━━━ CV Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('Metric           OLS       Ridge(0.5)  Lasso(0.1)  ENet(0.2,0.5)');
+    lines.push('─'.repeat(68));
+
+    const metricRow = (label, fn) =>
+      label.padEnd(16) +
+      f4(fn(ols)).padStart(9)  + '  ' +
+      f4(fn(rdg)).padStart(10) + '  ' +
+      f4(fn(lso)).padStart(10) + '  ' +
+      f4(fn(enet)).padStart(13);
+
+    lines.push(metricRow('Mean RMSE',   r => r.mean_rmse));
+    lines.push(metricRow('Std RMSE',    r => r.std_rmse));
+    lines.push(metricRow('Mean MAE',    r => r.mean_mae));
+    lines.push(metricRow('Std MAE',     r => r.std_mae));
+    lines.push(metricRow('Mean R²',     r => r.mean_r_squared));
+    lines.push(metricRow('Std R²',      r => r.std_r_squared));
+    lines.push(metricRow('Train R²',    r => r.mean_train_r_squared));
+
+    // ── OLS fold detail ──────────────────────────────────────────────────────
+    lines.push('');
+    lines.push('━━━ OLS Fold Detail ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('Fold  Train  Test    RMSE      MAE       R²     Train R²');
+    lines.push('─'.repeat(58));
+    ols.fold_results.forEach(f => {
+      lines.push(
+        String(f.fold_index).padStart(4) + '  ' +
+        String(f.train_size).padStart(5) + '  ' +
+        String(f.test_size).padStart(4) + '  ' +
+        f4(f.rmse).padStart(8) + '  ' +
+        f4(f.mae).padStart(8) + '  ' +
+        f4(f.r_squared).padStart(7) + '  ' +
+        f4(f.train_r_squared).padStart(8)
+      );
+    });
+
+    // ── Coefficient stability ─────────────────────────────────────────────────
+    lines.push('');
+    lines.push('━━━ OLS Coefficient Stability Across Folds ━━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('Fold  Intercept       X1        X2');
+    lines.push('─'.repeat(44));
+    ols.fold_coefficients.forEach((coefs, i) => {
+      lines.push(
+        String(i + 1).padStart(4) + '  ' +
+        coefs.map(c => f4(c).padStart(10)).join('  ')
+      );
+    });
+
+    document.getElementById('output').textContent = lines.join('\n');
+  </script>
+</body>
+</html>

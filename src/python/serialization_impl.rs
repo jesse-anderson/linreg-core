@@ -133,7 +133,7 @@ fn load_model(py: Python, path: String) -> PyResult<PyObject> {
         ModelType::Lasso => "LassoResult",
         ModelType::ElasticNet => "ElasticNetResult",
         ModelType::LOESS => "LoessResult",
-        ModelType::WLS => "WlsResult",
+        ModelType::WLS => "WLSResult",
     };
 
     let result_class = module.getattr(class_name)?;

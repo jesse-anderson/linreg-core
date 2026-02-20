@@ -43,12 +43,24 @@ jobs:
       - run: wasm-pack build --release --target web
       # - run: wasm-pack test --node
 
+  ffi:
+    name: FFI Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --features ffi -- --test-threads=1
+
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
     concurrency:
       group: coverage-badge
-    needs: [test, wasm, docs, python]
+    needs: [test, wasm, ffi, docs, python]
     permissions:
       contents: write
     steps:

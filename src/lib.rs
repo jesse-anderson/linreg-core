@@ -18,6 +18,7 @@
 //! - **K-Fold Cross Validation** — Model evaluation for all regression types
 //! - **Prediction Intervals** — Point and interval predictions for all model types
 //! - **Diagnostic Tests** — 14 statistical tests for validating regression assumptions
+//! - **Feature Importance** — Standardized coefficients, SHAP, permutation importance, VIF ranking
 //! - **Model Serialization** — Save/load trained models to JSON
 //! - **WASM Support** — Same API works in browsers via WebAssembly
 //! - **Python Bindings** — PyO3 bindings available via `pip install linreg-core`
@@ -234,8 +235,10 @@ pub mod cross_validation;
 pub mod diagnostics;
 pub mod distributions;
 pub mod error;
+pub mod feature_importance;
 pub mod linalg;
 pub mod loess;
+pub mod polynomial;
 pub mod prediction_intervals;
 pub mod regularized;
 pub mod serialization;
@@ -251,6 +254,11 @@ pub mod python;
 // Module structure: src/wasm.rs - contains all wasm-bindgen exports
 #[cfg(feature = "wasm")]
 pub mod wasm;
+
+// Windows DLL / FFI bindings (only compiled when "ffi" feature is enabled)
+// Provides a handle-based stdcall API for VBA/Excel use.
+#[cfg(feature = "ffi")]
+pub mod ffi;
 
 // Unit tests are now in tests/unit/ directory
 // - error_tests.rs -> tests/unit/error_tests.rs
@@ -275,7 +283,17 @@ pub use cross_validation::{
     kfold_cv_ridge,
 };
 pub use loess::{loess_fit, LoessFit, LoessOptions};
+pub use polynomial::{polynomial_regression, predict as polynomial_predict, PolynomialFit, PolynomialOptions};
 pub use weighted_regression::{wls_regression, WlsFit};
+pub use feature_importance::{
+    PermutationImportanceOptions, PermutationImportanceOutput, ShapOutput,
+    StandardizedCoefficientsOutput, VifRankingOutput, permutation_importance_elastic_net,
+    permutation_importance_lasso, permutation_importance_loess, permutation_importance_ols,
+    permutation_importance_ols_named, permutation_importance_ridge, shap_values_elastic_net,
+    shap_values_lasso, shap_values_linear, shap_values_linear_named,
+    shap_values_polynomial, shap_values_ridge, standardized_coefficients,
+    standardized_coefficients_named, vif_ranking,
+};
 
 // Re-export core test functions with different names to avoid WASM conflicts
 pub use diagnostics::rainbow_test as rainbow_test_core;

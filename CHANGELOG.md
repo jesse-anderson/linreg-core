@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-02-19
+
+### Added
+- **Feature Importance Module** (`src/feature_importance/`)
+  - Standardized coefficients, SHAP values, VIF ranking, permutation importance
+  - 14 Python bindings via PyO3, 4 result classes with `ranking()`/`summary()`/`to_dict()` methods
+  - 30+ Python tests in `tests/python/test_feature_importance.py`
+- **Polynomial Regression Module** (`src/polynomial/`)
+  - `polynomial_regression()`, `polynomial_predict()` for any degree
+  - Centering/standardization for numerical stability
+  - Ridge/Lasso/Elastic Net polynomial variants
+  - Python bindings and 10+ tests
+- **FFI (C Foreign Function Interface)** (`src/ffi/`, `linreg_core.def`, `build.rs`)
+  - C-compatible exports for OLS, regularized models, diagnostics, CV, prediction intervals
+  - `VBA_Example/` with Excel VBA code
+  - FFI tests in `tests/ffi/`
+- **Python Result Classes Reorg** — Split `src/python/results.rs` into `regression.rs`, `diagnostics.rs`, `utils.rs`, `feature_importance.rs`
+
+### Changed
+- WASM: Added prediction interval UI and export augmented data functionality
+- Moved examples from `examples/` to `examples/{Python,Rust,WASM}/`
+- Updated VIF test scripts (R/Python) to handle edge cases
+
+### Fixed
+- VIF interpretation for VIF < 1 returns "Negative correlation (unusual)"
+- NaN handling in result class `ranking()` methods
+- Nightly issues.
+- Likely introduced issues by not moving this to separate rev increases. Quite busy lately.
+---
+
 ## [0.7.0] - 2026-02-18
 
 ### Added

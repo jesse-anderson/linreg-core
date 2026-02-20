@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LOESS — linreg-core WASM</title>
+  <style>
+    body { font-family: monospace; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+    h1   { font-size: 1.3rem; border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+    pre  { background: #f5f5f5; padding: 1rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>LOESS Regression — linreg-core WASM</h1>
+  <p>Locally estimated smoothing on a noisy sine wave. Compares span=0.3 vs span=0.75.</p>
+  <pre id="output">Loading WASM…</pre>
+
+  <script type="module">
+    import init, { loess_fit, loess_predict } from 'https://unpkg.com/linreg-core/linreg_core.js';
+    await init();
+
+    // Noisy sine wave: 20 points over [0, 2π]
+    const n = 20;
+    const x = Array.from({length: n}, (_, i) => (i / (n - 1)) * 2 * Math.PI);
+    const y = x.map(xi => Math.sin(xi) + (Math.random() * 0.4 - 0.2));  // sin + noise
+
+    const yJson = JSON.stringify(y);
+    const xJson = JSON.stringify([x]);
+
+    const narrow = JSON.parse(loess_fit(yJson, xJson, 0.3,  2, 0, 'direct'));
+    const wide   = JSON.parse(loess_fit(yJson, xJson, 0.75, 2, 0, 'direct'));
+
+    console.log('narrow', narrow, 'wide', wide);
+
+    const f4 = v => v.toFixed(4);
+
+    // Compute MSE from fitted values (LoessFit has no mse field)
+    const mse = (fitted) => fitted.reduce((s, v, i) => s + (v - y[i]) ** 2, 0) / n;
+    const mse_n = mse(narrow.fitted);
+    const mse_w = mse(wide.fitted);
+
+    const lines = [];
+    lines.push('── LOESS Fit Summary ────────────────────────────────────────────────');
+    lines.push('              span=0.3 (narrow)   span=0.75 (wide)');
+    lines.push('─'.repeat(52));
+    lines.push('MSE           ' + f4(mse_n).padStart(14) + '   ' + f4(mse_w).padStart(14));
+    lines.push('RMSE          ' + f4(Math.sqrt(mse_n)).padStart(14) + '   ' + f4(Math.sqrt(mse_w)).padStart(14));
+    lines.push('Observations  ' + String(narrow.fitted.length).padStart(14) +
+               '   ' + String(wide.fitted.length).padStart(14));
+
+    lines.push('');
+    lines.push('── Fitted Values (first 10 of ' + n + ') ─────────────────────────────────');
+    lines.push('     x        y (noisy)   sin(x)   fit(0.3)  fit(0.75)');
+    lines.push('─'.repeat(56));
+    const fitted_narrow = narrow.fitted;
+    const fitted_wide   = wide.fitted;
+    for (let i = 0; i < 10; i++) {
+      lines.push(
+        x[i].toFixed(3).padStart(7) + '  ' +
+        f4(y[i]).padStart(10) + '  ' +
+        Math.sin(x[i]).toFixed(4).padStart(7) + '  ' +
+        f4(fitted_narrow[i]).padStart(8) + '  ' +
+        f4(fitted_wide[i]).padStart(9)
+      );
+    }
+
+    lines.push('');
+    lines.push('── Prediction at new points ─────────────────────────────────────────');
+    const newX = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
+    const pred = JSON.parse(loess_predict(
+      JSON.stringify([newX]),
+      xJson,
+      yJson,
+      0.75, 2, 0, 'direct'
+    ));
+    console.log('pred', pred);
+    const predVals = pred.predictions ?? pred.fitted;
+    lines.push('  x       sin(x)   predicted');
+    lines.push('  ' + '─'.repeat(28));
+    newX.forEach((xi, i) => {
+      const pv = Array.isArray(predVals) ? predVals[i] : '—';
+      lines.push(
+        '  ' + xi.toFixed(2).padStart(5) + '  ' +
+        Math.sin(xi).toFixed(4).padStart(8) + '  ' +
+        (pv != null ? pv.toFixed(4) : '—').padStart(9)
+      );
+    });
+
+    document.getElementById('output').textContent = lines.join('\n');
+  </script>
+</body>
+</html>
