@@ -269,3 +269,388 @@ fn test_wasm_vif_ranking_error() {
 
     assert!(result.get("error").is_some(), "Should return error for invalid JSON");
 }
+
+// ============================================================================
+// SHAP Values for Regularized Models Tests
+// ============================================================================
+
+#[wasm_bindgen_test]
+fn test_wasm_shap_values_ridge() {
+    let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    let x2 = vec![2.0, 3.0, 4.0, 5.0, 6.0];
+    let y: Vec<f64> = x1.iter().zip(x2.iter()).map(|(a, b)| 2.0 * a + b + 1.0).collect();
+
+    let y_json = serde_json::to_string(&y).unwrap();
+    let x_vars_json = serde_json::to_string(&vec![x1, x2]).unwrap();
+    let names_json = serde_json::to_string(&vec!["Intercept", "X1", "X2"]).unwrap();
+
+    // Fit Ridge model
+    let fit_json = ridge_regression(&y_json, &x_vars_json, &names_json, 1.0, true);
+    let fit: serde_json::Value = serde_json::from_str(&fit_json).unwrap();
+
+    if let Some(error) = fit.get("error") {
+        panic!("Ridge regression failed: {:?}", error);
+    }
+
+    // Compute SHAP values
+    let result_json = shap_values_ridge(&x_vars_json, &fit_json);
+    let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+
+    if let Some(error) = result.get("error") {
+        panic!("shap_values_ridge failed: {:?}", error);
+    }
+
+    let mean_abs_shap = result
+        .get("mean_abs_shap")
+        .expect("Should have mean_abs_shap")
+        .as_array()
+        .expect("mean_abs_shap should be an array");
+
+    assert_eq!(mean_abs_shap.len(), 2, "Should have 2 SHAP values");
+
+    let shap_values = result
+        .get("shap_values")
+        .expect("Should have shap_values")
+        .as_array()
+        .expect("shap_values should be an array");
+
+    assert_eq!(shap_values.len(), 5, "Should have SHAP values for 5 observations");
+}
+
+#[wasm_bindgen_test]
+fn test_wasm_shap_values_lasso() {
+    let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    let x2 = vec![2.0, 3.0, 4.0, 5.0, 6.0];
+    let y: Vec<f64> = x1.iter().zip(x2.iter()).map(|(a, b)| 2.0 * a + b + 1.0).collect();
+
+    let y_json = serde_json::to_string(&y).unwrap();
+    let x_vars_json = serde_json::to_string(&vec![x1, x2]).unwrap();
+    let names_json = serde_json::to_string(&vec!["Intercept", "X1", "X2"]).unwrap();
+
+    // Fit Lasso model
+    let fit_json = lasso_regression(&y_json, &x_vars_json, &names_json, 0.1, true, 1000, 1e-7);
+    let fit: serde_json::Value = serde_json::from_str(&fit_json).unwrap();
+
+    if let Some(error) = fit.get("error") {
+        panic!("Lasso regression failed: {:?}", error);
+    }
+
+    // Compute SHAP values
+    let result_json = shap_values_lasso(&x_vars_json, &fit_json);
+    let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+
+    if let Some(error) = result.get("error") {
+        panic!("shap_values_lasso failed: {:?}", error);
+    }
+
+    let mean_abs_shap = result
+        .get("mean_abs_shap")
+        .expect("Should have mean_abs_shap")
+        .as_array()
+        .expect("mean_abs_shap should be an array");
+
+    assert_eq!(mean_abs_shap.len(), 2, "Should have 2 SHAP values");
+}
+
+#[wasm_bindgen_test]
+fn test_wasm_shap_values_elastic_net() {
+    let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    let x2 = vec![2.0, 3.0, 4.0, 5.0, 6.0];
+    let y: Vec<f64> = x1.iter().zip(x2.iter()).map(|(a, b)| 2.0 * a + b + 1.0).collect();
+
+    let y_json = serde_json::to_string(&y).unwrap();
+    let x_vars_json = serde_json::to_string(&vec![x1, x2]).unwrap();
+    let names_json = serde_json::to_string(&vec!["Intercept", "X1", "X2"]).unwrap();
+
+    // Fit Elastic Net model
+    let fit_json = elastic_net_regression(&y_json, &x_vars_json, &names_json, 0.1, 0.5, true, 1000, 1e-7);
+    let fit: serde_json::Value = serde_json::from_str(&fit_json).unwrap();
+
+    if let Some(error) = fit.get("error") {
+        panic!("Elastic Net regression failed: {:?}", error);
+    }
+
+    // Compute SHAP values
+    let result_json = shap_values_elastic_net(&x_vars_json, &fit_json);
+    let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+
+    if let Some(error) = result.get("error") {
+        panic!("shap_values_elastic_net failed: {:?}", error);
+    }
+
+    let mean_abs_shap = result
+        .get("mean_abs_shap")
+        .expect("Should have mean_abs_shap")
+        .as_array()
+        .expect("mean_abs_shap should be an array");
+
+    assert_eq!(mean_abs_shap.len(), 2, "Should have 2 SHAP values");
+}
+
+#[wasm_bindgen_test]
+fn test_wasm_shap_values_polynomial() {
+    let x = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    let y: Vec<f64> = x.iter().map(|&xi| 1.0 + 2.0 * xi + xi * xi).collect();
+
+    let y_json = serde_json::to_string(&y).unwrap();
+    let x_json = serde_json::to_string(&x).unwrap();
+
+    // Fit polynomial model
+    let fit_json = polynomial_regression_wasm(&y_json, &x_json, 2, true, false);
+    let fit: serde_json::Value = serde_json::from_str(&fit_json).unwrap();
+
+    if let Some(error) = fit.get("error") {
+        panic!("Polynomial regression failed: {:?}", error);
+    }
+
+    // Compute SHAP values
+    let result_json = shap_values_polynomial(&x_json, &fit_json);
+    let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+
+    if let Some(error) = result.get("error") {
+        panic!("shap_values_polynomial failed: {:?}", error);
+    }
+
+    let var_names = result
+        .get("variable_names")
+        .expect("Should have variable_names")
+        .as_array()
+        .expect("variable_names should be an array");
+
+    // Should have X¹ and X² for degree 2
+    assert_eq!(var_names.len(), 2, "Should have 2 variable names");
+
+    let shap_values = result
+        .get("shap_values")
+        .expect("Should have shap_values")
+        .as_array()
+        .expect("shap_values should be an array");
+
+    assert_eq!(shap_values.len(), 5, "Should have SHAP values for 5 observations");
+}
+
+// ============================================================================
+// Permutation Importance for Regularized Models Tests
+// ============================================================================
+
+#[wasm_bindgen_test]
+fn test_wasm_permutation_importance_ridge() {
+    let y = vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0];
+    let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+
+    let y_json = serde_json::to_string(&y).unwrap();
+    let x_vars_json = serde_json::to_string(&vec![x1.clone()]).unwrap();
+    let names_json = serde_json::to_string(&vec!["Intercept", "X1"]).unwrap();
+
+    // Fit Ridge model
+    let fit_json = ridge_regression(&y_json, &x_vars_json, &names_json, 1.0, true);
+    let fit: serde_json::Value = serde_json::from_str(&fit_json).unwrap();
+
+    if let Some(error) = fit.get("error") {
+        panic!("Ridge regression failed: {:?}", error);
+    }
+
+    // Compute permutation importance with CI
+    let result_json = permutation_importance_ridge(&y_json, &x_vars_json, &fit_json, 10, 42, true, 0.95);
+    let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+
+    if let Some(error) = result.get("error") {
+        panic!("permutation_importance_ridge failed: {:?}", error);
+    }
+
+    let importance = result
+        .get("importance")
+        .expect("Should have importance")
+        .as_array()
+        .expect("importance should be an array");
+
+    assert_eq!(importance.len(), 1, "Should have 1 importance score");
+
+    // Check confidence intervals are present
+    let interval_lower = result
+        .get("interval_lower")
+        .expect("Should have interval_lower")
+        .as_array()
+        .expect("interval_lower should be an array");
+
+    let interval_upper = result
+        .get("interval_upper")
+        .expect("Should have interval_upper")
+        .as_array()
+        .expect("interval_upper should be an array");
+
+    assert_eq!(interval_lower.len(), 1, "Should have 1 lower bound");
+    assert_eq!(interval_upper.len(), 1, "Should have 1 upper bound");
+}
+
+#[wasm_bindgen_test]
+fn test_wasm_permutation_importance_lasso() {
+    let y = vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0];
+    let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+
+    let y_json = serde_json::to_string(&y).unwrap();
+    let x_vars_json = serde_json::to_string(&vec![x1.clone()]).unwrap();
+    let names_json = serde_json::to_string(&vec!["Intercept", "X1"]).unwrap();
+
+    // Fit Lasso model
+    let fit_json = lasso_regression(&y_json, &x_vars_json, &names_json, 0.1, true, 1000, 1e-7);
+    let fit: serde_json::Value = serde_json::from_str(&fit_json).unwrap();
+
+    if let Some(error) = fit.get("error") {
+        panic!("Lasso regression failed: {:?}", error);
+    }
+
+    // Compute permutation importance with CI
+    let result_json = permutation_importance_lasso(&y_json, &x_vars_json, &fit_json, 10, 42, true, 0.95);
+    let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+
+    if let Some(error) = result.get("error") {
+        panic!("permutation_importance_lasso failed: {:?}", error);
+    }
+
+    let importance = result
+        .get("importance")
+        .expect("Should have importance")
+        .as_array()
+        .expect("importance should be an array");
+
+    assert_eq!(importance.len(), 1, "Should have 1 importance score");
+
+    // All values should be finite
+    for imp in importance {
+        assert!(
+            imp.as_f64().map(|v| v.is_finite()).unwrap_or(false),
+            "Importance values should be finite"
+        );
+    }
+}
+
+#[wasm_bindgen_test]
+fn test_wasm_permutation_importance_elastic_net() {
+    let y = vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0];
+    let x1 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+
+    let y_json = serde_json::to_string(&y).unwrap();
+    let x_vars_json = serde_json::to_string(&vec![x1.clone()]).unwrap();
+    let names_json = serde_json::to_string(&vec!["Intercept", "X1"]).unwrap();
+
+    // Fit Elastic Net model
+    let fit_json = elastic_net_regression(&y_json, &x_vars_json, &names_json, 0.1, 0.5, true, 1000, 1e-7);
+    let fit: serde_json::Value = serde_json::from_str(&fit_json).unwrap();
+
+    if let Some(error) = fit.get("error") {
+        panic!("Elastic Net regression failed: {:?}", error);
+    }
+
+    // Compute permutation importance with CI
+    let result_json = permutation_importance_elastic_net(&y_json, &x_vars_json, &fit_json, 10, 42, true, 0.95);
+    let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+
+    if let Some(error) = result.get("error") {
+        panic!("permutation_importance_elastic_net failed: {:?}", error);
+    }
+
+    let importance = result
+        .get("importance")
+        .expect("Should have importance")
+        .as_array()
+        .expect("importance should be an array");
+
+    assert_eq!(importance.len(), 1, "Should have 1 importance score");
+
+    let baseline = result
+        .get("baseline_score")
+        .expect("Should have baseline_score")
+        .as_f64()
+        .expect("baseline_score should be a number");
+
+    assert!(baseline >= 0.0 && baseline <= 1.0, "Baseline R² should be in [0, 1]");
+}
+
+#[wasm_bindgen_test]
+fn test_wasm_permutation_importance_loess() {
+    let x = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    let y = vec![2.5, 3.7, 4.2, 5.1, 6.3];
+
+    let y_json = serde_json::to_string(&y).unwrap();
+    let x_vars_json = serde_json::to_string(&vec![x]).unwrap();
+
+    // Compute LOESS permutation importance with few permutations for speed
+    let result_json = permutation_importance_loess(&y_json, &x_vars_json, 0.75, 1, 5, 42);
+    let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+
+    if let Some(error) = result.get("error") {
+        panic!("permutation_importance_loess failed: {:?}", error);
+    }
+
+    let importance = result
+        .get("importance")
+        .expect("Should have importance")
+        .as_array()
+        .expect("importance should be an array");
+
+    assert_eq!(importance.len(), 1, "Should have 1 importance score");
+
+    // LOESS importance should be non-negative
+    for imp in importance {
+        let val = imp.as_f64().unwrap();
+        assert!(val >= 0.0, "LOESS importance should be non-negative, got {}", val);
+    }
+}
+
+// ============================================================================
+// SHAP Error Handling Tests for Regularized Models
+// ============================================================================
+
+#[wasm_bindgen_test]
+fn test_wasm_shap_values_ridge_error() {
+    let invalid_json = "{not valid";
+    let fit_json = serde_json::to_string(&serde_json::json!({
+        "intercept": 1.0,
+        "coefficients": [0.5],
+        "lambda": 1.0,
+        "fitted_values": [1.0, 2.0],
+        "residuals": [0.5, 1.0],
+        "df": 1.0,
+        "r_squared": 0.95,
+        "adj_r_squared": 0.94,
+        "mse": 0.5,
+        "rmse": 0.7,
+        "mae": 0.6,
+        "log_likelihood": -1.0,
+        "aic": 2.0,
+        "bic": 3.0
+    })).unwrap();
+
+    let result_json = shap_values_ridge(invalid_json, &fit_json);
+    let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+
+    assert!(result.get("error").is_some(), "Should return error for invalid JSON");
+}
+
+#[wasm_bindgen_test]
+fn test_wasm_permutation_importance_ridge_error() {
+    let invalid_json = "{not valid";
+
+    let fit_json = serde_json::to_string(&serde_json::json!({
+        "intercept": 1.0,
+        "coefficients": [0.5],
+        "lambda": 1.0,
+        "fitted_values": [1.0, 2.0],
+        "residuals": [0.5, 1.0],
+        "df": 1.0,
+        "r_squared": 0.95,
+        "adj_r_squared": 0.94,
+        "mse": 0.5,
+        "rmse": 0.7,
+        "mae": 0.6,
+        "log_likelihood": -1.0,
+        "aic": 2.0,
+        "bic": 3.0
+    })).unwrap();
+
+    let result_json = permutation_importance_ridge(invalid_json, invalid_json, &fit_json, 10, 42, true, 0.95);
+    let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+
+    assert!(result.get("error").is_some(), "Should return error for invalid JSON");
+}

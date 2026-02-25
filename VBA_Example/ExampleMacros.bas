@@ -14,6 +14,8 @@ Option Explicit
 Private Const SH_OLS   As String = "OLS Example"
 Private Const SH_DIAG  As String = "Diagnostics"
 Private Const SH_REG   As String = "Regularized"
+Private Const SH_CV    As String = "Cross Validation"
+Private Const SH_POLY  As String = "Polynomial"
 Private Const SH_INSTR As String = "Instructions"
 
 ' -- Data location (OLS Example sheet) ----------------------------------------
@@ -131,6 +133,8 @@ Public Sub SetupWorkbook()
     SetupOLSSheet
     SetupDiagSheet
     SetupRegSheet
+    SetupCVSheet
+    SetupPolySheet
     SetupInstrSheet
 
     ' Land on the OLS sheet when done
@@ -211,11 +215,13 @@ Private Sub SetupOLSSheet()
     ws.Columns(3).ColumnWidth = 8
     ws.Columns(4).ColumnWidth = 7
     ws.Columns(5).ColumnWidth = 8
+    ws.Columns(6).ColumnWidth = 12  ' Weights column
 
-    ' Buttons in col F (leave col F narrow as spacer)
-    ws.Columns(6).ColumnWidth = 2
-    AddButton ws, "Run OLS",              "RunOLS",               ws.Cells(12, 7), 150, 28
-    AddButton ws, "Prediction Intervals", "RunPredictionIntervals", ws.Cells(14, 7), 150, 28
+    ' Buttons in col G (spacer before buttons)
+    AddButton ws, "Run OLS",              "RunOLS",               ws.Cells(12, 7), 140, 28
+    AddButton ws, "Prediction Intervals", "RunPredictionIntervals", ws.Cells(14, 7), 140, 28
+    AddButton ws, "VIF Test",             "RunVIF",               ws.Cells(16, 7), 140, 28
+    AddButton ws, "WLS (Weighted)",       "RunWLS",               ws.Cells(18, 7), 140, 28
 End Sub
 
 ' -- Diagnostics sheet ---------------------------------------------------------
@@ -288,6 +294,103 @@ Private Sub SetupRegSheet()
     ws.Columns(5).ColumnWidth = 14
 End Sub
 
+' -- Cross Validation sheet -------------------------------------------------
+Private Sub SetupCVSheet()
+    Dim ws As Worksheet
+    Set ws = GetOrCreateSheet(SH_CV)
+    ws.Cells.ClearContents
+    ws.Cells.ClearFormats
+    ws.Buttons.Delete
+
+    With ws.Cells(1, 1)
+        .Value = "LinregCore - K-Fold Cross Validation"
+        .Font.Bold = True
+        .Font.Size = 13
+    End With
+    ws.Cells(2, 1).Value = _
+        "K-Fold CV evaluates model performance by splitting data into folds, training on subsets, and testing on held-out folds."
+
+    ' CV options
+    ws.Cells(4, 1).Value = "Number of Folds:"
+    ws.Cells(4, 1).Font.Bold = True
+    ws.Cells(4, 2).Value = 5
+    ws.Cells(4, 2).Interior.Color = RGB(255, 255, 200)
+
+    ' Buttons in column H (after output data)
+    AddButton ws, "KFold OLS", "RunKFoldOLS", ws.Cells(6, 8), 140, 28
+    AddButton ws, "KFold Ridge", "RunKFoldRidge", ws.Cells(9, 8), 140, 28
+    AddButton ws, "KFold Lasso", "RunKFoldLasso", ws.Cells(12, 8), 140, 28
+    AddButton ws, "KFold Elastic Net", "RunKFoldElasticNet", ws.Cells(15, 8), 140, 28
+
+    ' Column widths
+    ws.Columns(1).ColumnWidth = 30
+    ws.Columns(2).ColumnWidth = 12
+    ws.Columns(3).ColumnWidth = 14
+End Sub
+
+' -- Polynomial sheet ---------------------------------------------------------
+Private Sub SetupPolySheet()
+    Dim ws As Worksheet
+    Set ws = GetOrCreateSheet(SH_POLY)
+    ws.Cells.ClearContents
+    ws.Cells.ClearFormats
+    ws.Buttons.Delete
+
+    With ws.Cells(1, 1)
+        .Value = "LinregCore - Polynomial Regression"
+        .Font.Bold = True
+        .Font.Size = 13
+    End With
+    ws.Cells(2, 1).Value = _
+        "Fit y = b0 + b1*x + b2*x^2 + ... + bd*x^d. Uses single predictor x from OLS sheet (hp)."
+
+    ' Create sample data: quadratic relationship y = 1 + 2*x + 0.5*x^2
+    Dim i As Long
+    Dim xVal As Double
+    ws.Cells(4, 1).Value = "x"
+    ws.Cells(4, 2).Value = "y"
+    StyleHeader ws, 4, 1, 2
+
+    For i = 1 To 20
+        xVal = i * 5  ' 5, 10, 15, ..., 100
+        ws.Cells(4 + i, 1).Value = xVal
+        ws.Cells(4 + i, 2).Value = 1 + 2 * xVal + 0.5 * xVal * xVal + (Rnd() - 0.5) * 50
+    Next i
+
+    ' Alternating row shading
+    For i = 1 To 20
+        If i Mod 2 = 0 Then
+            ws.Range(ws.Cells(4 + i, 1), ws.Cells(4 + i, 2)).Interior.Color = RGB(235, 241, 252)
+        End If
+    Next i
+
+    ws.Columns(1).ColumnWidth = 10
+    ws.Columns(2).ColumnWidth = 12
+
+    ' Options
+    ws.Cells(27, 1).Value = "Degree:"
+    ws.Cells(27, 1).Font.Bold = True
+    ws.Cells(27, 2).Value = 2
+    ws.Cells(27, 2).Interior.Color = RGB(255, 255, 200)
+
+    ws.Cells(28, 1).Value = "Center (recommended for degree >= 3):"
+    ws.Cells(28, 1).Font.Bold = True
+    ws.Cells(28, 2).Value = False
+    ws.Cells(28, 2).Interior.Color = RGB(255, 255, 200)
+
+    ' Wrap explanation to next line for readability
+    ws.Cells(29, 1).Value = "Reduces multicollinearity between x, x^2, x^3, etc."
+
+    ' Buttons
+    AddButton ws, "Fit Polynomial", "RunPolynomial", ws.Cells(32, 1), 140, 28
+    AddButton ws, "Fit Quadratic (deg=2)", "RunPolynomialQuad", ws.Cells(35, 1), 140, 28
+    AddButton ws, "Fit Cubic (deg=3)", "RunPolynomialCubic", ws.Cells(38, 1), 140, 28
+
+    ' Column widths for output area
+    ws.Columns(4).ColumnWidth = 11  ' Coefficient column
+    ws.Columns(1).ColumnWidth = 10   ' Ensure term column is wide enough
+End Sub
+
 ' -- Instructions sheet --------------------------------------------------------
 Private Sub SetupInstrSheet()
     Dim ws As Worksheet
@@ -340,6 +443,10 @@ Private Sub SetupInstrSheet()
     r = r + 1
     ws.Cells(r, 1).Value = "   Regularized    - Ridge, Lasso, Elastic Net (edit Lambda/Alpha, click button)"
     r = r + 1
+    ws.Cells(r, 1).Value = "   Cross Validation - K-Fold CV for OLS, Ridge, Lasso, Elastic Net"
+    r = r + 1
+    ws.Cells(r, 1).Value = "   Polynomial     - Fit polynomial curves (y = b0 + b1*x + b2*x^2 + ...)"
+    r = r + 1
     ws.Cells(r, 1).Value = "   Instructions   - this page"
     r = r + 2
 
@@ -356,7 +463,7 @@ Private Sub SetupInstrSheet()
     r = r + 1
     ws.Cells(r, 1).Value = "   p-Value       - two-tailed significance (< 0.05 is conventionally significant)"
     r = r + 1
-    ws.Cells(r, 1).Value = "   R-squared            - proportion of variance explained (0–1)"
+    ws.Cells(r, 1).Value = "   R-squared            - proportion of variance explained (0-1)"
     r = r + 1
     ws.Cells(r, 1).Value = "   Adj R-squared        - R-squared adjusted for number of predictors"
     r = r + 1
@@ -385,6 +492,28 @@ Private Sub SetupInstrSheet()
     ws.Cells(r, 1).Value = "   Alpha         - mixing parameter. 0 = pure Ridge. 1 = pure Lasso. 0.5 = Elastic Net."
     r = r + 1
     ws.Cells(r, 1).Value = "   Non-zero      - number of non-zero coefficients after Lasso/Elastic Net shrinkage."
+    r = r + 2
+
+    ws.Cells(r, 1).Value = "K-FOLD CROSS VALIDATION"
+    ws.Cells(r, 1).Font.Bold = True
+    r = r + 1
+    ws.Cells(r, 1).Value = "   nFolds        - number of folds (default 5). More folds = less bias per fold, slower."
+    r = r + 1
+    ws.Cells(r, 1).Value = "   Mean MSE/RMSE - average error across all folds (lower is better)."
+    r = r + 1
+    ws.Cells(r, 1).Value = "   Std MSE/RMSE  - standard deviation of error across folds (lower = more stable)."
+    r = r + 1
+    ws.Cells(r, 1).Value = "   Mean R-squared       - average R-squared across folds (higher is better)."
+    r = r + 2
+
+    ws.Cells(r, 1).Value = "POLYNOMIAL REGRESSION"
+    ws.Cells(r, 1).Font.Bold = True
+    r = r + 1
+    ws.Cells(r, 1).Value = "   Degree        - highest power of x (1=linear, 2=quadratic, 3=cubic, etc.)"
+    r = r + 1
+    ws.Cells(r, 1).Value = "   Center        - subtract mean of x before creating powers (recommended for degree >= 3)"
+    r = r + 1
+    ws.Cells(r, 1).Value = "                   Reduces multicollinearity between x, x^2, x^3, etc."
     r = r + 2
 
     ws.Cells(r, 1).Value = "LIBRARY INFORMATION"
@@ -450,6 +579,58 @@ Public Sub RunPredictionIntervals()
 
     On Error Resume Next
     If UBound(result, 1) > 0 Then StyleHeader ws, outRow, Y_COL, 4
+    On Error GoTo 0
+End Sub
+
+Public Sub RunVIF()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets(SH_OLS)
+
+    Dim result As Variant
+    result = LinReg_VIF(YRange(), XRange())
+
+    Dim outRow As Long
+    outRow = DATA_R2 + 10
+    With ws.Cells(outRow - 1, OLS_OUT_COL)
+        .Value = "VIF (Variance Inflation Factors)"
+        .Font.Bold = True
+    End With
+    PasteResult ws, result, outRow, OLS_OUT_COL
+
+    On Error Resume Next
+    If UBound(result, 1) > 0 Then StyleHeader ws, outRow, OLS_OUT_COL, 1
+    On Error GoTo 0
+End Sub
+
+Public Sub RunWLS()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets(SH_OLS)
+
+    ' Create simple weights: 1.0 for all observations (equal to OLS for demo)
+    ' In practice, users would edit these based on heteroscedasticity patterns
+    Dim weights As Range
+    Set weights = ws.Range(ws.Cells(DATA_R1, X_LAST + 1), ws.Cells(DATA_R2, X_LAST + 1))
+    weights.ClearContents
+    Dim i As Long
+    For i = 1 To weights.Count
+        weights.Cells(i, 1).Value = 1#
+    Next i
+    ws.Cells(DATA_R1 - 1, X_LAST + 1).Value = "Weights"
+    ws.Cells(DATA_R1 - 1, X_LAST + 1).Font.Bold = True
+
+    Dim result As Variant
+    result = LinReg_WLS(YRange(), XRange(), weights)
+
+    Dim outRow As Long
+    outRow = DATA_R2 + 15
+    With ws.Cells(outRow - 1, OLS_OUT_COL)
+        .Value = "WLS Results (weights = 1.0 for demo, edit column F for custom weights)"
+        .Font.Bold = True
+    End With
+    PasteResult ws, result, outRow, OLS_OUT_COL
+
+    On Error Resume Next
+    If UBound(result, 1) > 0 Then StyleHeader ws, outRow, OLS_OUT_COL, 5
     On Error GoTo 0
 End Sub
 
@@ -544,5 +725,186 @@ Public Sub RunElasticNet()
     PasteResult ws, result, 1, 4
     On Error Resume Next
     If UBound(result, 1) > 0 Then StyleHeader ws, 1, 4, 2
+    On Error GoTo 0
+End Sub
+
+' ==============================================================================
+' SECTION 8 - Cross Validation sheet button macros
+' ==============================================================================
+
+Private Function GetNFolds() As Long
+    GetNFolds = CLng(ThisWorkbook.Sheets(SH_CV).Range("B4").Value)
+End Function
+
+Private Sub WriteCVRow(ws As Worksheet, rowNum As Long, label As String, result As Variant)
+    ws.Cells(rowNum, 1).Value = label
+    If Not IsArray(result) Then
+        ws.Cells(rowNum, 2).Value = CStr(result)
+        Exit Sub
+    End If
+    If UBound(result) = 0 Then
+        ws.Cells(rowNum, 2).Value = "ERROR: " & CStr(result(0))
+        Exit Sub
+    End If
+    ' Result is 1x6: {nFolds, meanMSE, sdMSE, meanRMSE, sdRMSE, meanR2}
+    ws.Cells(rowNum, 2).Value = result(0)  ' nFolds
+    ws.Cells(rowNum, 3).Value = result(1)  ' meanMSE
+    ws.Cells(rowNum, 4).Value = result(2)  ' sdMSE
+    ws.Cells(rowNum, 5).Value = result(3)  ' meanRMSE
+    ws.Cells(rowNum, 6).Value = result(4)  ' sdRMSE
+    ws.Cells(rowNum, 7).Value = result(5)  ' meanR2
+End Sub
+
+Public Sub RunKFoldOLS()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets(SH_CV)
+
+    ws.Range("A9:G20").ClearContents
+    ws.Range("A9:G20").ClearFormats
+
+    ws.Cells(9, 1).Value = "Method"
+    ws.Cells(9, 2).Value = "nFolds"
+    ws.Cells(9, 3).Value = "Mean MSE"
+    ws.Cells(9, 4).Value = "Std MSE"
+    ws.Cells(9, 5).Value = "Mean RMSE"
+    ws.Cells(9, 6).Value = "Std RMSE"
+    ws.Cells(9, 7).Value = "Mean R-squared"
+    StyleHeader ws, 9, 1, 7
+
+    WriteCVRow ws, 10, "OLS", LinReg_KFoldOLS(YRange(), XRange(), GetNFolds)
+    MsgBox "Cross-validation complete.", vbInformation, "LinregCore"
+End Sub
+
+Public Sub RunKFoldRidge()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets(SH_CV)
+
+    ws.Range("A9:G20").ClearContents
+    ws.Range("A9:G20").ClearFormats
+
+    ws.Cells(9, 1).Value = "Method"
+    ws.Cells(9, 2).Value = "nFolds"
+    ws.Cells(9, 3).Value = "Mean MSE"
+    ws.Cells(9, 4).Value = "Std MSE"
+    ws.Cells(9, 5).Value = "Mean RMSE"
+    ws.Cells(9, 6).Value = "Std RMSE"
+    ws.Cells(9, 7).Value = "Mean R-squared"
+    StyleHeader ws, 9, 1, 7
+
+    WriteCVRow ws, 10, "Ridge (lambda=" & GetLambda() & ")", LinReg_KFoldRidge(YRange(), XRange(), GetLambda(), True, GetNFolds)
+    WriteCVRow ws, 11, "Ridge (lambda=0.1)", LinReg_KFoldRidge(YRange(), XRange(), 0.1, True, GetNFolds)
+    WriteCVRow ws, 12, "Ridge (lambda=0.01)", LinReg_KFoldRidge(YRange(), XRange(), 0.01, True, GetNFolds)
+    MsgBox "Cross-validation complete.", vbInformation, "LinregCore"
+End Sub
+
+Public Sub RunKFoldLasso()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets(SH_CV)
+
+    ws.Range("A9:G20").ClearContents
+    ws.Range("A9:G20").ClearFormats
+
+    ws.Cells(9, 1).Value = "Method"
+    ws.Cells(9, 2).Value = "nFolds"
+    ws.Cells(9, 3).Value = "Mean MSE"
+    ws.Cells(9, 4).Value = "Std MSE"
+    ws.Cells(9, 5).Value = "Mean RMSE"
+    ws.Cells(9, 6).Value = "Std RMSE"
+    ws.Cells(9, 7).Value = "Mean R-squared"
+    StyleHeader ws, 9, 1, 7
+
+    WriteCVRow ws, 10, "Lasso (lambda=" & GetLambda() & ")", LinReg_KFoldLasso(YRange(), XRange(), GetLambda(), True, GetNFolds)
+    WriteCVRow ws, 11, "Lasso (lambda=0.1)", LinReg_KFoldLasso(YRange(), XRange(), 0.1, True, GetNFolds)
+    MsgBox "Cross-validation complete.", vbInformation, "LinregCore"
+End Sub
+
+Public Sub RunKFoldElasticNet()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets(SH_CV)
+
+    ws.Range("A9:G20").ClearContents
+    ws.Range("A9:G20").ClearFormats
+
+    ws.Cells(9, 1).Value = "Method"
+    ws.Cells(9, 2).Value = "nFolds"
+    ws.Cells(9, 3).Value = "Mean MSE"
+    ws.Cells(9, 4).Value = "Std MSE"
+    ws.Cells(9, 5).Value = "Mean RMSE"
+    ws.Cells(9, 6).Value = "Std RMSE"
+    ws.Cells(9, 7).Value = "Mean R-squared"
+    StyleHeader ws, 9, 1, 7
+
+    WriteCVRow ws, 10, "Elastic Net", LinReg_KFoldElasticNet(YRange(), XRange(), GetLambda(), GetAlpha(), True, GetNFolds)
+    MsgBox "Cross-validation complete.", vbInformation, "LinregCore"
+End Sub
+
+' ==============================================================================
+' SECTION 9 - Polynomial sheet button macros
+' ==============================================================================
+
+Public Sub RunPolynomial()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets(SH_POLY)
+
+    Dim degree As Long
+    degree = CLng(ws.Range("B27").Value)
+
+    Dim center As Boolean
+    center = (ws.Range("B28").Value = True)
+
+    ' Data from polynomial sheet (rows 5-24)
+    Dim y As Range, x As Range
+    Set y = ws.Range(ws.Cells(5, 2), ws.Cells(24, 2))
+    Set x = ws.Range(ws.Cells(5, 1), ws.Cells(24, 1))
+
+    Dim result As Variant
+    result = LinReg_Polynomial(y, x, degree, center)
+
+    Dim outRow As Long
+    outRow = 30
+    PasteResult ws, result, outRow, 4
+
+    On Error Resume Next
+    If UBound(result, 1) > 0 Then StyleHeader ws, outRow, 4, 2
+    On Error GoTo 0
+End Sub
+
+Public Sub RunPolynomialQuad()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets(SH_POLY)
+
+    Dim y As Range, x As Range
+    Set y = ws.Range(ws.Cells(5, 2), ws.Cells(24, 2))
+    Set x = ws.Range(ws.Cells(5, 1), ws.Cells(24, 1))
+
+    Dim result As Variant
+    result = LinReg_Polynomial(y, x, 2, False)
+
+    Dim outRow As Long
+    outRow = 30
+    PasteResult ws, result, outRow, 4
+
+    On Error Resume Next
+    If UBound(result, 1) > 0 Then StyleHeader ws, outRow, 4, 2
+    On Error GoTo 0
+End Sub
+
+Public Sub RunPolynomialCubic()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets(SH_POLY)
+
+    Dim y As Range, x As Range
+    Set y = ws.Range(ws.Cells(5, 2), ws.Cells(24, 2))
+    Set x = ws.Range(ws.Cells(5, 1), ws.Cells(24, 1))
+
+    Dim result As Variant
+    result = LinReg_Polynomial(y, x, 3, True)  ' Center recommended for cubic
+
+    Dim outRow As Long
+    outRow = 30
+    PasteResult ws, result, outRow, 4
+
+    On Error Resume Next
+    If UBound(result, 1) > 0 Then StyleHeader ws, outRow, 4, 2
     On Error GoTo 0
 End Sub

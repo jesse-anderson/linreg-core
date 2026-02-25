@@ -333,11 +333,13 @@ pub fn shap_values_polynomial(
     let mut mean_abs_shap = vec![0.0; degree];
     let mut variable_names = Vec::with_capacity(degree);
 
-    // Create variable names: "X", "X²", "X³", ...
+    // Create variable names: "X¹", "X²", "X³", ...
     let superscripts = &['\u{2070}', '\u{00B9}', '\u{00B2}', '\u{00B3}', '\u{2074}', '\u{2075}', '\u{2076}', '\u{2077}', '\u{2078}', '\u{2079}'];
     for d in 0..degree {
-        let superscript = if d < superscripts.len() {
-            superscripts[d]
+        // Polynomial features are 1-indexed (X¹, X², X³...), so skip superscript 0
+        let idx = d + 1;
+        let superscript = if idx < superscripts.len() {
+            superscripts[idx]
         } else {
             '^'
         };

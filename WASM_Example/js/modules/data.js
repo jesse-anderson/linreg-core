@@ -653,32 +653,34 @@ export function getVariableData(varName) {
 /**
  * Get summary statistics for a variable
  * @param {string} varName - Variable name
- * @returns {Object} Summary statistics
+ * @returns {Promise<Object>} Summary statistics including five-number summary, mode, and std
  */
-export function getVariableSummary(varName) {
+export async function getVariableSummary(varName) {
     const data = getVariableData(varName).filter(v => typeof v === 'number' && !isNaN(v));
 
     if (data.length === 0) {
         return null;
     }
 
-    const sorted = [...data].sort((a, b) => a - b);
-    const n = data.length;
-    const sum = data.reduce((a, b) => a + b, 0);
-    const mean = sum / n;
-    const variance = data.reduce((acc, val) => acc + (val - mean) ** 2, 0) / (n - 1);
-    const std = Math.sqrt(variance);
+    // Use WASM Stats for calculations
+    const fiveNum = WasmRegression.Stats.fiveNumberSummary(data);
+    const mean = WasmRegression.Stats.mean(data);
+    const std = WasmRegression.Stats.std(data);
+    const modeResult = WasmRegression.Stats.mode(data);
 
     return {
-        count: n,
-        min: sorted[0],
-        max: sorted[n - 1],
+        count: data.length,
+        min: fiveNum.min,
+        max: fiveNum.max,
         mean: mean,
-        median: n % 2 === 0
-            ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2
-            : sorted[Math.floor(n / 2)],
+        median: fiveNum.median,
         std: std,
-        q1: sorted[Math.floor(n * 0.25)],
-        q3: sorted[Math.floor(n * 0.75)]
+        q1: fiveNum.q1,
+        q3: fiveNum.q3,
+        iqr: fiveNum.iqr,
+        range: fiveNum.max - fiveNum.min,
+        mode: modeResult ? modeResult.modes : null,
+        modeFrequency: modeResult ? modeResult.frequency : 0,
+        uniqueCount: modeResult ? modeResult.unique_count : 0
     };
 }

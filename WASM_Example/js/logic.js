@@ -59,7 +59,7 @@ import {
 } from './modules/ui.js';
 
 // Import chart functions
-import { updateCharts, exportChartsAsPNG, updateCorrelationHeatmap } from './modules/charts.js';
+import { updateCharts, exportChartsAsPNG, updateCorrelationHeatmap, updateSummaryStats } from './modules/charts.js';
 
 // Import regularized regression helpers
 import { formatMethodName } from './modules/regularized.js';
@@ -276,6 +276,9 @@ function handleDataLoaded(e) {
         if (titleSpan) titleSpan.textContent = `Correlation Matrix (${rowCount} obs)`;
     }
     updateCorrelationHeatmap();
+
+    // Update summary stats
+    updateSummaryStats();
 }
 
 // ============================================================================

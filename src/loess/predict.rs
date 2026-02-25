@@ -248,7 +248,7 @@ fn fit_at_point_general(
         1 + p + p + p * (p - 1) / 2
     };
 
-    // TODO: Experimental - Small span handling. With very small spans, k may be < n_poly_terms.
+    // Small span handling: With very small spans, k may be < n_poly_terms.
     // This check prevents the "unreachable" WASM panic, but the fitted values may be poor quality
     // when span is too small for the polynomial degree. Consider using a lower degree or
     // increasing span for better results.
@@ -259,10 +259,10 @@ fn fit_at_point_general(
         });
     }
 
-    // TODO: Experimental - Matrix construction for local WLS. Ensure local_x_data has exactly
-    // k * n_poly_terms elements before calling Matrix::new(). A mismatch will cause a panic
-    // in release mode ("unreachable" error in WASM). The loops above should guarantee this,
-    // but edge cases with empty neighbor lists after filtering should be considered.
+    // Matrix construction for local WLS: The local_x_data vector must have exactly
+    // k * n_poly_terms elements before calling Matrix::new(). The loops below guarantee this
+    // by pushing one set of polynomial terms for each neighbor. The capacity pre-allocation
+    // ensures no reallocation occurs during construction.
 
     let mut local_x_data = Vec::with_capacity(k * n_poly_terms);
     let mut local_y = Vec::with_capacity(k);

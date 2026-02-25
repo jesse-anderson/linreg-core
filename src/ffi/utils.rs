@@ -7,6 +7,13 @@ use std::slice;
 /// The buffer is always null-terminated if `out_len` > 0.
 /// Returns the number of bytes written (not including the null terminator),
 /// or -1 on invalid arguments.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `out_ptr` is valid for writing `out_len` u8 values
+/// - `out_ptr` is properly aligned for u8
+/// - The memory region will not be accessed by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_Version(out_ptr: *mut u8, out_len: i32) -> i32 {
     if out_ptr.is_null() || out_len <= 0 {
@@ -16,6 +23,8 @@ pub extern "system" fn LR_Version(out_ptr: *mut u8, out_len: i32) -> i32 {
     let bytes = version.as_bytes();
     let cap = (out_len as usize).saturating_sub(1);
     let count = bytes.len().min(cap);
+    // SAFETY: Caller has ensured `out_ptr` is valid for `count + 1` writes per safety contract.
+    // We write `count` bytes plus one null terminator.
     unsafe {
         let dst = slice::from_raw_parts_mut(out_ptr, count + 1);
         dst[..count].copy_from_slice(&bytes[..count]);

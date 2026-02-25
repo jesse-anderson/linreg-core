@@ -10,7 +10,7 @@
 [![Live Demo](https://img.shields.io/badge/demo-online-brightgreen)](https://jesse-anderson.net/linreg-core/)
 
 
-A lightweight, self-contained linear regression library written in Rust. Compiles to WebAssembly for browser use, Python bindings via PyO3, a native Windows DLL for Excel VBA, or runs as a native Rust crate.
+A lightweight, self-contained linear regression library written in Rust. Compiles to WebAssembly for browser use, Python bindings via PyO3, a native Windows DLL for Excel VBA, an Excel XLL add-in with 27 worksheet UDFs, or runs as a native Rust crate.
 
 **Key design principle:** All linear algebra and statistical distribution functions are implemented from scratch — no external math libraries required. This keeps binary sizes small and makes the crate highly portable.
 
@@ -26,6 +26,7 @@ A lightweight, self-contained linear regression library written in Rust. Compile
 | [WebAssembly Usage](#webassembly-usage) | Browser/JavaScript usage |
 | [Python Usage](#python-usage) | Python bindings via PyO3 |
 | [VBA / Excel Usage](#vba--excel-usage) | Excel VBA via native Windows DLL |
+| [Excel XLL Add-in](#excel-xll-add-in) | Native Excel worksheet UDFs |
 | [Feature Flags](#feature-flags) | Build configuration options |
 | [Validation](#validation) | Testing and verification |
 | [Implementation Notes](#implementation-notes) | Technical details |
@@ -1317,6 +1318,68 @@ cargo test --features ffi --test ffi_vba_tests
 
 ---
 
+## Excel XLL Add-in
+
+The library also compiles as a native Excel XLL add-in, exposing 27 worksheet UDFs directly in Excel. No VBA, no macros — just type `=LINREG.OLS(A1:A20, B1:E20)` in a cell.
+
+The XLL is built entirely in pure Rust with zero external dependencies. No Excel SDK linkage required.
+
+### Installation
+
+1. Build (or obtain) `linreg_core_xll_x64.xll`
+2. In Excel: File > Options > Add-ins > Manage: Excel Add-ins > Go
+3. Browse to the `.xll` file and check the box
+4. Type `=LINREG.VERSION()` in any cell to verify
+
+### Building from Source
+
+```bash
+cargo build --release --features xll --no-default-features
+cp target/release/linreg_core.dll XLL_Example/linreg_core_xll_x64.xll
+```
+
+### Available UDFs
+
+| Formula | Description |
+|---------|-------------|
+| `=LINREG.VERSION()` | Library version string |
+| `=LINREG.OLS(y, X)` | OLS regression — coefficient table + fit stats |
+| `=LINREG.WLS(y, X, weights)` | Weighted Least Squares |
+| `=LINREG.RIDGE(y, X, lambda, [standardize])` | Ridge regression |
+| `=LINREG.LASSO(y, X, lambda, [standardize])` | Lasso regression |
+| `=LINREG.ELASTICNET(y, X, lambda, alpha, [standardize])` | Elastic Net |
+| `=LINREG.POLYNOMIAL(y, x, [degree], [center])` | Polynomial regression |
+| `=LINREG.LAMBDAPATH(y, X, [n_lambda], [alpha])` | Lambda path generation |
+| `=LINREG.KFOLDOLS(y, X, [n_folds])` | K-Fold CV (OLS) |
+| `=LINREG.KFOLDRIDGE(y, X, lambda, [n_folds], [standardize])` | K-Fold CV (Ridge) |
+| `=LINREG.KFOLDLASSO(y, X, lambda, [n_folds], [standardize])` | K-Fold CV (Lasso) |
+| `=LINREG.KFOLDELASTICNET(y, X, lambda, alpha, [n_folds], [standardize])` | K-Fold CV (Elastic Net) |
+| `=LINREG.PREDICTIONINTERVALS(y, X, newX, [alpha])` | Prediction intervals |
+| `=LINREG.BREUSCHPAGAN(y, X)` | Breusch-Pagan heteroscedasticity test |
+| `=LINREG.WHITE(y, X)` | White heteroscedasticity test |
+| `=LINREG.JARQUEBERA(y, X)` | Jarque-Bera normality test |
+| `=LINREG.SHAPIROWILK(y, X)` | Shapiro-Wilk normality test |
+| `=LINREG.ANDERSONDARLING(y, X)` | Anderson-Darling normality test |
+| `=LINREG.HARVEYCOLLIER(y, X)` | Harvey-Collier linearity test |
+| `=LINREG.RAINBOW(y, X, [fraction])` | Rainbow linearity test |
+| `=LINREG.RESET(y, X)` | RESET specification test |
+| `=LINREG.DURBINWATSON(y, X)` | Durbin-Watson autocorrelation test |
+| `=LINREG.BREUSCHGODFREY(y, X, [lag_order])` | Breusch-Godfrey autocorrelation test |
+| `=LINREG.VIF(y, X)` | Variance Inflation Factors |
+| `=LINREG.COOKSDISTANCE(y, X)` | Cook's Distance |
+| `=LINREG.DFFITS(y, X)` | DFFITS influence measure |
+| `=LINREG.DFBETAS(y, X)` | DFBETAS influence measure |
+
+All UDFs return dynamic arrays that spill automatically in Excel 365. In older versions, use Ctrl+Shift+Enter (CSE). Each function includes per-argument help visible in the Function Wizard (fx button).
+
+### Running XLL Tests
+
+```bash
+cargo test --features xll --no-default-features --test xll_tests
+```
+
+---
+
 ## Feature Flags
 
 | Feature | Default | Description |
@@ -1324,6 +1387,7 @@ cargo test --features ffi --test ffi_vba_tests
 | `wasm` | Yes | Enables WASM bindings and browser support |
 | `python` | No | Enables Python bindings via PyO3 |
 | `ffi` | No | Enables Windows DLL bindings for VBA/Excel use |
+| `xll` | No | Enables Excel XLL add-in (27 worksheet UDFs) |
 | `validation` | No | Includes test data for validation tests |
 
 For native Rust without WASM overhead:

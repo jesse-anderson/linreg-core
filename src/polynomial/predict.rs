@@ -16,6 +16,12 @@ use crate::error::{Error, Result};
 ///
 /// Vector of predicted values with the same length as `x_new`.
 ///
+/// # Errors
+///
+/// Returns `Error::InvalidInput` if:
+/// - The model has inconsistent standardization state
+/// - The number of coefficients doesn't match the expected count for the degree
+///
 /// # Example
 ///
 /// ```

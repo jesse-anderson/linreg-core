@@ -6,6 +6,7 @@
 
 use crate::core::RegressionOutput;
 use crate::cross_validation::CVResult;
+use crate::polynomial::PolynomialFit;
 use crate::prediction_intervals::PredictionIntervalOutput;
 use crate::regularized::elastic_net::ElasticNetFit;
 use crate::regularized::lasso::LassoFit;
@@ -57,4 +58,6 @@ pub enum FitResult {
     },
     /// K-Fold cross-validation result.
     CV(CVResult),
+    /// Polynomial regression result.
+    Polynomial(PolynomialFit),
 }

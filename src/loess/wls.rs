@@ -89,6 +89,13 @@ pub fn weighted_least_squares(x: &Matrix, y: &[f64], weights: &[f64]) -> Result<
 ///
 /// `WlsDecomposition` containing coefficients, column scales, and either
 /// QR or SVD decomposition info for covariance computation.
+///
+/// # Errors
+///
+/// Returns `Error::SingularMatrix` if both QR and SVD decomposition fail to produce
+/// a valid solution.
+///
+/// Returns `Error::InvalidInput` if all weights are zero.
 pub fn weighted_least_squares_with_decomposition(
     x: &Matrix,
     y: &[f64],

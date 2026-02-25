@@ -130,6 +130,8 @@ Before publishing, verify versions match:
 | `pkg/package.json` | `"version": "x.y.z"` |
 | `WASM_Example\js\package.json` | `"version": "x.y.z"` |
 
+XLL and DLL versions are derived from `Cargo.toml` at compile time (`env!("CARGO_PKG_VERSION")`) — no separate version file to sync.
+
 ---
 
 ## Quick Reference
@@ -137,19 +139,27 @@ Before publishing, verify versions match:
 | Task | Command |
 |------|---------|
 | Rust test | `cargo test` |
+| Doc test | `cargo doc --all-features --no-deps` |
+| FFI test | `cargo test --features ffi --no-default-features --test ffi_vba_tests` |
+| XLL test | `cargo test --features xll --no-default-features --test xll_tests` |
 | WASM test | `wasm-pack test --node` |
 | Rust publish | `cargo publish` |
 | WASM build | `wasm-pack build --release --target web` |
 | npm publish | `cd pkg && npm publish --access public` |
 | activate venv | `test_venv\Scripts\activate.bat` |
 | Python build | `maturin build --release --features python` |
-|Python installl | `pip install --force-reinstall target/wheels/linreg_core-0.8.0-cp312-cp312-win_amd64.whl` |
+| Python install | `pip install --force-reinstall target/wheels/linreg_core-0.8.1-cp312-cp312-win_amd64.whl` |
 | Python test | `pytest tests/python/ -v` |
 | PyPI publish | `twine upload target/wheels/*.whl` |
 | DLL build (x64) | `cargo build --release --target x86_64-pc-windows-msvc --features ffi` |
 | DLL build (x86) | `cargo build --release --target i686-pc-windows-msvc --features ffi` |
+| DLL copy (x64) | `cp target/x86_64-pc-windows-msvc/release/linreg_core.dll VBA_Example/linreg_core_x64.dll` |
+| DLL copy (x86) | `cp target/i686-pc-windows-msvc/release/linreg_core.dll VBA_Example/linreg_core_x86.dll` |
 | DLL verify deps | `dumpbin /dependents VBA_Example/linreg_core_x64.dll` |
 | DLL verify exports | `dumpbin /exports VBA_Example/linreg_core_x86.dll \| findstr LR_` |
+| XLL build (x64) | `cargo build --release --features xll --no-default-features` |
+| XLL copy | `cp target/release/linreg_core.dll XLL_Example/linreg_core_xll_x64.xll` |
+| XLL verify exports | `dumpbin /exports XLL_Example/linreg_core_xll_x64.xll \| findstr xl` |
 
 ---
 
@@ -246,6 +256,79 @@ The `.def` file at the repo root (`linreg_core.def`) + `build.rs` handle this au
 
 Re-import `LinregCore.bas` over the existing module, or paste the new Declare statements and
 wrapper functions (Sections 8-12 of `LinregCore.bas`) into the existing module manually.
+
+---
+
+## 5. Excel XLL Add-in (Worksheet UDFs)
+
+Produces `linreg_core_xll_x64.xll` — an Excel add-in that exposes linreg-core functions
+directly as worksheet formulas (e.g., `=LINREG.VERSION()`, `=LINREG.OLS(A1:A20, B1:E20)`).
+
+### Build
+
+```bash
+cargo build --release --features xll --no-default-features
+```
+
+`--features xll` enables the XLL module. `--no-default-features` disables the default `wasm`
+feature (WASM and XLL are mutually exclusive build targets).
+
+### Copy output and rename to .xll
+
+```bash
+cp target/release/linreg_core.dll linreg_core_xll_x64.xll
+```
+
+**Important: Close Excel before copying.** The `.xll` file is locked while Excel has the
+add-in loaded. You must either close Excel or remove the add-in (File > Options > Add-ins >
+Manage Excel Add-ins > uncheck) before overwriting the file.
+
+### Verify exports
+
+```
+dumpbin /exports linreg_core_xll_x64.xll | findstr xl
+```
+
+**Expected exports:**
+- `xlAutoOpen` — registers all UDFs when the add-in loads
+- `xlAutoClose` — called when the add-in unloads
+- `xlAutoFree12` — memory management (Excel calls this to free DLL-allocated results)
+- `xl_linreg_version` — `=LINREG.VERSION()`
+- `xl_linreg_ols` — `=LINREG.OLS(y_range, x_range)`
+
+### Install in Excel
+
+1. File > Options > Add-ins > Manage: Excel Add-ins > Go
+2. Browse to the `.xll` file location
+3. Check the box and click OK
+4. Type `=LINREG.VERSION()` in any cell to verify
+
+### Architecture notes
+
+- **x64 only** for now (matches 64-bit Office — most common modern install)
+- **No external dependencies** — the XLL feature adds zero new crate dependencies
+- **No build.rs or C compilation needed** — the Excel12v trampoline is pure Rust
+  (resolves `MdCallBack12` at runtime via `GetProcAddress`)
+- XLL source lives in `src/xll/` behind `#[cfg(feature = "xll")]`, same pattern as
+  `ffi`, `wasm`, `python`
+
+### Key files
+
+| File | Purpose |
+|------|---------|
+| `src/xll/mod.rs` | xlAutoOpen, xlAutoClose, xlAutoFree12, UDF exports |
+| `src/xll/types.rs` | XLOPER12 `#[repr(C)]` struct/union + constants + constructors |
+| `src/xll/entrypoint.rs` | Excel12v trampoline (pure Rust, no SDK linkage) |
+| `src/xll/register.rs` | Reg struct for UDF registration via xlfRegister |
+| `src/xll/convert.rs` | Range-to-Vec conversion, array output builder |
+| `docs/xll_poc_todo.md` | Development plan, lessons learned, gotchas |
+
+### UDF coverage (current)
+
+| Excel Formula | Rust Export | Description |
+|---------------|-------------|-------------|
+| `=LINREG.VERSION()` | `xl_linreg_version` | Returns library version string |
+| `=LINREG.OLS(y, X)` | `xl_linreg_ols` | OLS regression — coefficient table + fit stats |
 
 ---
 

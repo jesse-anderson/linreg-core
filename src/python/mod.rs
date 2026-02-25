@@ -1,6 +1,42 @@
 // ============================================================================
 // Python Bindings Module for linreg-core
 // ============================================================================
+//! Python bindings for the linreg-core library.
+//!
+//! This module provides Python bindings using PyO3, exposing the full
+//! functionality of the linreg-core library to Python code.
+//!
+//! ## Features
+//!
+//! - **OLS Regression**: Ordinary least squares with comprehensive statistics
+//! - **Regularized Regression**: Ridge, Lasso, and Elastic Net
+//! - **LOESS Smoothing**: Locally estimated scatterplot smoothing
+//! - **Weighted Least Squares**: WLS for heteroscedastic data
+//! - **Polynomial Regression**: Polynomial fitting of any degree
+//! - **Diagnostic Tests**: 14+ tests for model assumptions (linearity, heteroscedasticity, normality, autocorrelation)
+//! - **Cross Validation**: K-fold CV for all regression types
+//! - **Prediction Intervals**: Confidence and prediction intervals
+//! - **Feature Importance**: Standardized coefficients, SHAP values, permutation importance, VIF
+//! - **Model Serialization**: Save and load trained models
+//!
+//! ## Usage
+//!
+//! ```python
+//! import linreg_core
+//!
+//! # OLS regression
+//! y = [2.5, 3.7, 4.2, 5.1, 6.3]
+//! x1 = [1.0, 2.0, 3.0, 4.0, 5.0]
+//! result = linreg_core.ols_regression(y, [x1])
+//! print(f"R²: {result.r_squared}")
+//! ```
+//!
+//! ## Module Structure
+//!
+//! - `error`: Custom exception types
+//! - `types`: Type conversion utilities
+//! - `results`: Result class definitions
+
 // This module provides Python bindings using PyO3 with native Python types.
 //
 // Module structure:

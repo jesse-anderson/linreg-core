@@ -1,15 +1,15 @@
 [package]
 name = "linreg-core"
-version = "0.8.0"
+version = "0.8.1"
 edition = "2021"
-description = "Lightweight linear regression (OLS, Ridge, Lasso, Elastic Net) with diagnostic tests. Pure Rust - no external math dependencies."
+description = "Lightweight regression library (OLS, Ridge, Lasso, Elastic Net, WLS, LOESS, Polynomial) with 14 diagnostic tests, cross validation, and prediction intervals. Pure Rust - no external math dependencies. WASM, Python, FFI, and Excel XLL bindings."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/jesse-anderson/linreg-core"
 homepage = "https://jesse-anderson.net/linreg-core/"
 documentation = "https://docs.rs/linreg-core"
 readme = "README.md"
 authors = ["Jesse Anderson"]
-keywords = ["regression", "statistics", "linear-regression", "ridge", "lasso"]
+keywords = ["regression", "statistics", "linear-regression", "diagnostics", "excel"]
 categories = ["science", "mathematics", "wasm"]
 exclude = [
     # Dev artifacts not needed for library publishing
@@ -62,6 +62,14 @@ exclude = [
     "pyproject.toml",
     "linreg_core.pyi",
     "src/python/",
+
+    # FFI/XLL bindings (platform-specific, not needed for library consumers)
+    "src/ffi/",
+    "src/xll/",
+    "VBA_Example/",
+    "XLL_Example/",
+    "*.xll",
+    "linreg_core.def",
 ]
 
 [package.metadata.docs.rs]
@@ -90,6 +98,8 @@ numpy = ["dep:numpy"]
 validation = []
 # Enable Windows DLL (FFI) bindings for VBA/Excel use
 ffi = []
+# Enable XLL add-in bindings for Excel (worksheet UDFs)
+xll = []
 
 [dependencies]
 # Core dependencies (always available)
@@ -108,6 +118,7 @@ getrandom = { version = "0.2", optional = true }
 # Python bindings (optional)
 pyo3 = { version = "0.22", features = ["serde", "extension-module"], optional = true }
 numpy = { version = "0.22", optional = true }
+
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
@@ -161,6 +172,14 @@ path = "examples/Rust/weighted_regression.rs"
 [[example]]
 name = "prediction_intervals"
 path = "examples/Rust/prediction_intervals.rs"
+
+[[example]]
+name = "polynomial_example"
+path = "examples/Rust/polynomial_example.rs"
+
+[[example]]
+name = "feature_importance_example"
+path = "examples/Rust/feature_importance_example.rs"
 
 [[bench]]
 name = "core"

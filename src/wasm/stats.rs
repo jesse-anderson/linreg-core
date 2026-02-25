@@ -222,3 +222,161 @@ pub fn stats_correlation(x_json: String, y_json: String) -> String {
 
     serde_json::to_string(&stats::correlation(&x, &y)).unwrap_or("null".to_string())
 }
+
+/// Computes the minimum value of a JSON array of f64 values.
+///
+/// # Arguments
+///
+/// * `data_json` - JSON string representing an array of f64 values
+///
+/// # Returns
+///
+/// JSON string with the minimum value, or "null" if input is invalid/empty
+#[wasm_bindgen]
+pub fn stats_min(data_json: String) -> String {
+    if check_domain().is_err() {
+        return "null".to_string();
+    }
+
+    let data: Vec<f64> = match serde_json::from_str(&data_json) {
+        Ok(d) => d,
+        Err(_) => return "null".to_string(),
+    };
+
+    serde_json::to_string(&stats::min(&data)).unwrap_or("null".to_string())
+}
+
+/// Computes the maximum value of a JSON array of f64 values.
+///
+/// # Arguments
+///
+/// * `data_json` - JSON string representing an array of f64 values
+///
+/// # Returns
+///
+/// JSON string with the maximum value, or "null" if input is invalid/empty
+#[wasm_bindgen]
+pub fn stats_max(data_json: String) -> String {
+    if check_domain().is_err() {
+        return "null".to_string();
+    }
+
+    let data: Vec<f64> = match serde_json::from_str(&data_json) {
+        Ok(d) => d,
+        Err(_) => return "null".to_string(),
+    };
+
+    serde_json::to_string(&stats::max(&data)).unwrap_or("null".to_string())
+}
+
+/// Computes the range (max - min) of a JSON array of f64 values.
+///
+/// # Arguments
+///
+/// * `data_json` - JSON string representing an array of f64 values
+///
+/// # Returns
+///
+/// JSON string with the range, or "null" if input is invalid/empty
+#[wasm_bindgen]
+pub fn stats_range(data_json: String) -> String {
+    if check_domain().is_err() {
+        return "null".to_string();
+    }
+
+    let data: Vec<f64> = match serde_json::from_str(&data_json) {
+        Ok(d) => d,
+        Err(_) => return "null".to_string(),
+    };
+
+    serde_json::to_string(&stats::range(&data)).unwrap_or("null".to_string())
+}
+
+/// Computes the mode(s) of a JSON array of f64 values.
+///
+/// Returns all values that appear most frequently (handles ties).
+///
+/// # Arguments
+///
+/// * `data_json` - JSON string representing an array of f64 values
+///
+/// # Returns
+///
+/// JSON string with mode result containing modes array, frequency, and unique count,
+/// or "null" if input is invalid/empty
+///
+/// # Example
+///
+/// ```javascript
+/// const result = JSON.parse(stats_mode("[1, 2, 2, 3, 4]"));
+/// console.log(result.modes);     // [2]
+/// console.log(result.frequency); // 2
+/// ```
+#[wasm_bindgen]
+pub fn stats_mode(data_json: String) -> String {
+    if check_domain().is_err() {
+        return crate::error::error_json("Domain check failed");
+    }
+
+    let data: Vec<f64> = match serde_json::from_str(&data_json) {
+        Ok(d) => d,
+        Err(e) => return crate::error::error_json(&format!("Invalid JSON: {}", e)),
+    };
+
+    match stats::mode(&data) {
+        Some(result) => serde_json::to_string(&result).unwrap_or_else(|_| crate::error::error_json("Serialization failed")),
+        None => crate::error::error_json("No mode (empty data or all NaN)"),
+    }
+}
+
+/// Computes the five-number summary of a JSON array of f64 values.
+///
+/// The five-number summary consists of: minimum, Q1 (25th percentile),
+/// median (50th percentile), Q3 (75th percentile), and maximum.
+///
+/// # Arguments
+///
+/// * `data_json` - JSON string representing an array of f64 values
+///
+/// # Returns
+///
+/// JSON string with the five-number summary (min, q1, median, q3, max),
+/// or error JSON if input is invalid/empty
+///
+/// # Example
+///
+/// ```javascript
+/// const result = JSON.parse(stats_five_number_summary("[1, 2, 3, 4, 5, 6, 7, 8, 9]"));
+/// console.log(result.min);    // 1
+/// console.log(result.q1);     // ~3
+/// console.log(result.median); // 5
+/// console.log(result.q3);     // ~7
+/// console.log(result.max);    // 9
+/// console.log(result.iqr);    // ~4 (calculated as q3 - q1)
+/// ```
+#[wasm_bindgen]
+pub fn stats_five_number_summary(data_json: String) -> String {
+    if check_domain().is_err() {
+        return crate::error::error_json("Domain check failed");
+    }
+
+    let data: Vec<f64> = match serde_json::from_str(&data_json) {
+        Ok(d) => d,
+        Err(e) => return crate::error::error_json(&format!("Invalid JSON: {}", e)),
+    };
+
+    match stats::five_number_summary(&data) {
+        Some(summary) => {
+            // Convert to a JSON object with iqr included
+            serde_json::json!({
+                "min": summary.min,
+                "q1": summary.q1,
+                "median": summary.median,
+                "q3": summary.q3,
+                "max": summary.max,
+                "iqr": summary.iqr()
+            }).to_string()
+        }
+        None => crate::error::error_json("Empty data"),
+    }
+}

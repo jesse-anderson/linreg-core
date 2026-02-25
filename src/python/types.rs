@@ -38,13 +38,17 @@ pub fn extract_f64_vec(obj: &Bound<PyAny>) -> PyResult<Vec<f64>> {
     {
         use numpy::{PyArray1, PyArrayMethods};
         if let Ok(array) = obj.downcast::<PyArray1<f64>>() {
+            // SAFETY: PyO3's as_slice() ensures the array is contiguous and the GIL is held.
+            // The returned slice is valid for the duration of the GIL scope.
             return Ok(unsafe { array.as_slice()? }.to_vec());
         }
         // Also try to handle integer arrays (i32 for Windows/32-bit, i64 for 64-bit)
         if let Ok(array) = obj.downcast::<PyArray1<i32>>() {
+            // SAFETY: PyO3's as_slice() ensures the array is contiguous and the GIL is held.
             return Ok(unsafe { array.as_slice()?.iter().map(|&x| x as f64).collect() });
         }
         if let Ok(array) = obj.downcast::<PyArray1<i64>>() {
+            // SAFETY: PyO3's as_slice() ensures the array is contiguous and the GIL is held.
             return Ok(unsafe { array.as_slice()?.iter().map(|&x| x as f64).collect() });
         }
     }
@@ -84,6 +88,7 @@ pub fn extract_f64_matrix(obj: &Bound<PyAny>) -> PyResult<Vec<Vec<f64>>> {
                 {
                     use numpy::{PyArray1, PyArrayMethods};
                     if let Ok(array) = item.downcast::<PyArray1<f64>>() {
+                        // SAFETY: PyO3's as_slice() ensures the array is contiguous and the GIL is held.
                         let row = unsafe { array.as_slice()? }.to_vec();
                         result.push(row);
                         continue;
@@ -126,6 +131,7 @@ pub fn extract_f64_matrix(obj: &Bound<PyAny>) -> PyResult<Vec<Vec<f64>>> {
         use numpy::{PyArray2, PyArrayMethods};
         // Try float64 arrays
         if let Ok(array) = obj.downcast::<PyArray2<f64>>() {
+            // SAFETY: PyO3's as_slice() ensures the array is contiguous and the GIL is held.
             let slice = unsafe { array.as_slice()? };
             let dims = array.dims();
             let nrows = dims[0];
@@ -140,6 +146,7 @@ pub fn extract_f64_matrix(obj: &Bound<PyAny>) -> PyResult<Vec<Vec<f64>>> {
         }
         // Try int32 arrays (Windows/32-bit default)
         if let Ok(array) = obj.downcast::<PyArray2<i32>>() {
+            // SAFETY: PyO3's as_slice() ensures the array is contiguous and the GIL is held.
             let slice = unsafe { array.as_slice()? };
             let dims = array.dims();
             let nrows = dims[0];
@@ -154,6 +161,7 @@ pub fn extract_f64_matrix(obj: &Bound<PyAny>) -> PyResult<Vec<Vec<f64>>> {
         }
         // Try int64 arrays (64-bit default)
         if let Ok(array) = obj.downcast::<PyArray2<i64>>() {
+            // SAFETY: PyO3's as_slice() ensures the array is contiguous and the GIL is held.
             let slice = unsafe { array.as_slice()? };
             let dims = array.dims();
             let nrows = dims[0];

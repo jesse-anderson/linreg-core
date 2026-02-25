@@ -2526,6 +2526,7 @@ export function initUI() {
     setupCollapsible('disclaimerToggle', 'disclaimerContent');
     setupCollapsible('helpToggle', 'helpContent');
     setupCollapsible('correlationToggle', 'correlationContent');
+    setupCollapsible('summaryStatsToggle', 'summaryStatsContent');
     setupCollapsible('residualsToggle', 'residualsContent');
     setupCollapsible('cvResultsToggle', 'cvResultsContent');
     setupCollapsible('licensesToggle', 'licensesContent');

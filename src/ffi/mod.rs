@@ -24,6 +24,7 @@
 pub mod cross_validation;
 pub mod diagnostics;
 pub mod ols;
+pub mod polynomial;
 pub mod prediction_intervals;
 pub mod regularized;
 pub mod store;

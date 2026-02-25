@@ -38,7 +38,11 @@ pub use cross_validation::{kfold_cv_elastic_net, kfold_cv_lasso, kfold_cv_ols, k
 pub use csv::parse_csv;
 pub use domain::check_domain;
 pub use feature_importance::{
-    feature_importance_ols, permutation_importance_ols, shap_values_linear,
+    feature_importance_ols,
+    permutation_importance_ols, permutation_importance_ridge, permutation_importance_lasso,
+    permutation_importance_elastic_net, permutation_importance_loess,
+    shap_values_linear, shap_values_ridge, shap_values_lasso, shap_values_elastic_net,
+    shap_values_polynomial,
     standardized_coefficients, vif_ranking,
 };
 pub use loess::{loess_fit, loess_predict};
@@ -58,8 +62,9 @@ pub use regularized::{
 };
 pub use serialization::{deserialize_model, get_model_metadata, serialize_model};
 pub use stats::{
-    get_normal_inverse, get_t_cdf, get_t_critical, stats_correlation, stats_mean, stats_median,
-    stats_quantile, stats_stddev, stats_variance,
+    get_normal_inverse, get_t_cdf, get_t_critical, stats_correlation, stats_five_number_summary,
+    stats_max, stats_mean, stats_median, stats_min, stats_mode, stats_quantile, stats_range,
+    stats_stddev, stats_variance,
 };
 
 // Re-export all diagnostic test functions

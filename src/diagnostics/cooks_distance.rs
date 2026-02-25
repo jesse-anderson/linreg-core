@@ -65,7 +65,7 @@ use crate::linalg::{vec_sub, Matrix};
 /// let result = cooks_distance_test(&y, &[x1])?;
 /// println!("Max Cook's distance: {:.4}", result.distances.iter().cloned().fold(0.0, f64::max));
 /// println!("Influential observations: {:?}", result.influential_1);
-/// # Ok::<(), linreg_core::error::Error>(())
+/// # Ok::<(), linreg_core::Error>(())
 /// ```
 pub fn cooks_distance_test(y: &[f64], x_vars: &[Vec<f64>]) -> Result<CooksDistanceResult> {
     let n = y.len();

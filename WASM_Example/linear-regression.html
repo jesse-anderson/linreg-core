@@ -168,6 +168,21 @@ X1,X2,Y
                             <!-- Populated dynamically -->
                         </div>
                     </div>
+
+                    <div class="collapsible-header collapsed" id="summaryStatsToggle" aria-expanded="false" role="button" tabindex="0">
+                        <span class="title">Summary Statistics (Five-Number Summary)</span>
+                        <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </div>
+                    <div class="collapsible-content collapsed" id="summaryStatsContent">
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">
+                            Five-number summary (min, Q1, median, Q3, max) and mode for each numeric variable. The IQR (interquartile range) shows the spread of the middle 50% of data.
+                        </p>
+                        <div id="summaryStatsContainer" style="overflow-x: auto; padding-bottom: 12px;">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
                 </div>
             </div>
 

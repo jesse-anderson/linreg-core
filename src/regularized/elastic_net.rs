@@ -470,6 +470,19 @@ pub fn elastic_net_path(
 /// println!("R²: {}", fit.r_squared);
 /// # Ok::<(), linreg_core::Error>(())
 /// ```
+///
+/// # Errors
+///
+/// Returns `Error::InvalidInput` if:
+/// - `lambda` is negative
+/// - `alpha` is not in [0, 1]
+///
+/// Returns `Error::InsufficientData` if `x.rows() <= x.cols()`.
+/// Returns `Error::SingularMatrix` if the design matrix is singular.
+///
+/// # Panics
+///
+/// Panics if `x.cols()` is 0 (no predictors including intercept).
 pub fn elastic_net_fit(x: &Matrix, y: &[f64], options: &ElasticNetOptions) -> Result<ElasticNetFit> {
     if options.lambda < 0.0 {
         return Err(Error::InvalidInput("Lambda must be non-negative".into()));

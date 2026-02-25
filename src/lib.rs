@@ -262,6 +262,11 @@ pub mod wasm;
 #[cfg(feature = "ffi")]
 pub mod ffi;
 
+// XLL add-in bindings (only compiled when "xll" feature is enabled)
+// Exposes linreg-core functions as Excel worksheet UDFs via xladd.
+#[cfg(feature = "xll")]
+pub mod xll;
+
 // Unit tests are now in tests/unit/ directory
 // - error_tests.rs -> tests/unit/error_tests.rs
 // - core_tests.rs -> tests/unit/core_tests.rs
@@ -302,3 +307,4 @@ pub use diagnostics::rainbow_test as rainbow_test_core;
 pub use diagnostics::white_test as white_test_core;
 
 pub use error::{error_json, error_to_json, Error, Result};
+pub use stats::{correlation, max, mean, median, min, mode, quantile, range, stddev, sum, variance, FiveNumberSummary, ModeResult};

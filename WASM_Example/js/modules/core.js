@@ -33,6 +33,11 @@ import init, {
     stats_median,
     stats_quantile,
     stats_correlation,
+    stats_min,
+    stats_max,
+    stats_range,
+    stats_mode,
+    stats_five_number_summary,
     loess_fit,
     loess_predict,
     serialize_model,
@@ -1387,6 +1392,109 @@ export const Stats = {
             return 0; // Fallback
         }
         return get_normal_inverse(p);
+    },
+
+    /**
+     * Calculate minimum using WASM
+     */
+    min: (data) => {
+        if (!wasmReady || typeof stats_min !== 'function') {
+            console.warn("WASM stats_min not ready, using JS fallback");
+            if (!data || data.length === 0) return NaN;
+            return Math.min(...data);
+        }
+        const result = stats_min(JSON.stringify(data));
+        return JSON.parse(result);
+    },
+
+    /**
+     * Calculate maximum using WASM
+     */
+    max: (data) => {
+        if (!wasmReady || typeof stats_max !== 'function') {
+            console.warn("WASM stats_max not ready, using JS fallback");
+            if (!data || data.length === 0) return NaN;
+            return Math.max(...data);
+        }
+        const result = stats_max(JSON.stringify(data));
+        return JSON.parse(result);
+    },
+
+    /**
+     * Calculate range (max - min) using WASM
+     */
+    range: (data) => {
+        if (!wasmReady || typeof stats_range !== 'function') {
+            console.warn("WASM stats_range not ready, using JS fallback");
+            if (!data || data.length === 0) return NaN;
+            return Stats.max(data) - Stats.min(data);
+        }
+        const result = stats_range(JSON.stringify(data));
+        return JSON.parse(result);
+    },
+
+    /**
+     * Calculate mode(s) using WASM
+     * Returns the value(s) that appear most frequently (handles ties)
+     * @returns {Object} { modes: number[], frequency: number, unique_count: number }
+     */
+    mode: (data) => {
+        if (!wasmReady || typeof stats_mode !== 'function') {
+            console.warn("WASM stats_mode not ready, using JS fallback");
+            if (!data || data.length === 0) return null;
+            // Count frequencies
+            const filtered = data.filter(v => typeof v === 'number' && !Number.isNaN(v));
+            if (filtered.length === 0) return null;
+
+            const frequencies = new Map();
+            for (const value of filtered) {
+                frequencies.set(value, (frequencies.get(value) || 0) + 1);
+            }
+
+            const maxFreq = Math.max(...frequencies.values());
+            const modes = [...frequencies.entries()]
+                .filter(([_, freq]) => freq === maxFreq)
+                .map(([value, _]) => value)
+                .sort((a, b) => a - b);
+
+            return {
+                modes,
+                frequency: maxFreq,
+                unique_count: frequencies.size
+            };
+        }
+        const result = stats_mode(JSON.stringify(data));
+        return JSON.parse(result);
+    },
+
+    /**
+     * Calculate five-number summary using WASM
+     * Returns min, Q1, median, Q3, max, and IQR
+     * @returns {Object} { min: number, q1: number, median: number, q3: number, max: number, iqr: number }
+     */
+    fiveNumberSummary: (data) => {
+        if (!wasmReady || typeof stats_five_number_summary !== 'function') {
+            console.warn("WASM stats_five_number_summary not ready, using JS fallback");
+            if (!data || data.length === 0) return null;
+
+            const sorted = [...data].sort((a, b) => a - b);
+            const minVal = sorted[0];
+            const maxVal = sorted[sorted.length - 1];
+            const medianVal = Stats.median(data);
+            const q1 = Stats.quantile(data, 0.25);
+            const q3 = Stats.quantile(data, 0.75);
+
+            return {
+                min: minVal,
+                q1,
+                median: medianVal,
+                q3,
+                max: maxVal,
+                iqr: q3 - q1
+            };
+        }
+        const result = stats_five_number_summary(JSON.stringify(data));
+        return JSON.parse(result);
     },
 
     /**

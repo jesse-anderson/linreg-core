@@ -6,10 +6,22 @@
 use crate::core::RegressionOutput;
 use crate::error::Result;
 use crate::feature_importance::{
-    permutation_importance_ols_named, shap_values_linear_named, standardized_coefficients_named,
+    permutation_importance_elastic_net as core_permutation_importance_elastic_net,
+    permutation_importance_lasso as core_permutation_importance_lasso,
+    permutation_importance_loess as core_permutation_importance_loess,
+    permutation_importance_ols_named,
+    permutation_importance_ridge as core_permutation_importance_ridge,
+    shap_values_elastic_net as core_shap_values_elastic_net,
+    shap_values_lasso as core_shap_values_lasso,
+    shap_values_linear_named,
+    shap_values_polynomial as core_shap_values_polynomial,
+    shap_values_ridge as core_shap_values_ridge,
+    standardized_coefficients_named,
     vif_ranking as core_vif_ranking, PermutationImportanceOptions, PermutationImportanceOutput,
     ShapOutput, StandardizedCoefficientsOutput, VifRankingOutput,
 };
+use crate::polynomial::PolynomialFit;
+use crate::regularized::{ElasticNetFit, LassoFit, RidgeFit};
 use wasm_bindgen::prelude::*;
 
 /// Computes standardized coefficients for feature importance.
@@ -291,6 +303,441 @@ pub fn feature_importance_ols(
             "permutation_importance": perm_importance,
             "vif_ranking": vif_rank,
         }))
+    })();
+
+    match result {
+        Ok(output) => serde_json::to_string(&output).unwrap_or_else(|_| crate::error::error_json("Serialization failed")),
+        Err(e) => crate::error::error_json(&e.to_string()),
+    }
+}
+
+/// Computes SHAP (SHapley Additive exPlanations) values for Ridge regression.
+///
+/// # Arguments
+///
+/// * `x_json` - JSON array of predictor arrays (each array is a column)
+/// * `fit_json` - JSON string of Ridge fit result
+///
+/// # Returns
+///
+/// JSON string of [`ShapOutput`]
+///
+/// # Example
+///
+/// ```javascript
+/// const fit = JSON.parse(ridge_regression(...));
+/// const result = JSON.parse(shap_values_ridge(
+///     JSON.stringify([[1,2,3], [2,4,6]]),
+///     JSON.stringify(fit)
+/// ));
+/// console.log(result.mean_abs_shap);
+/// ```
+#[wasm_bindgen]
+pub fn shap_values_ridge(
+    x_json: &str,
+    fit_json: &str,
+) -> String {
+    let result: Result<ShapOutput> = (|| {
+        let x_vars: Vec<Vec<f64>> = serde_json::from_str(x_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid x_json: {}", e)))?;
+        let fit: RidgeFit = serde_json::from_str(fit_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid fit_json: {}", e)))?;
+
+        core_shap_values_ridge(&x_vars, &fit)
+    })();
+
+    match result {
+        Ok(output) => serde_json::to_string(&output).unwrap_or_else(|_| crate::error::error_json("Serialization failed")),
+        Err(e) => crate::error::error_json(&e.to_string()),
+    }
+}
+
+/// Computes SHAP (SHapley Additive exPlanations) values for Lasso regression.
+///
+/// # Arguments
+///
+/// * `x_json` - JSON array of predictor arrays (each array is a column)
+/// * `fit_json` - JSON string of Lasso fit result
+///
+/// # Returns
+///
+/// JSON string of [`ShapOutput`]
+///
+/// # Example
+///
+/// ```javascript
+/// const fit = JSON.parse(lasso_regression(...));
+/// const result = JSON.parse(shap_values_lasso(
+///     JSON.stringify([[1,2,3], [2,4,6]]),
+///     JSON.stringify(fit)
+/// ));
+/// console.log(result.mean_abs_shap);
+/// ```
+#[wasm_bindgen]
+pub fn shap_values_lasso(
+    x_json: &str,
+    fit_json: &str,
+) -> String {
+    let result: Result<ShapOutput> = (|| {
+        let x_vars: Vec<Vec<f64>> = serde_json::from_str(x_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid x_json: {}", e)))?;
+        let fit: LassoFit = serde_json::from_str(fit_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid fit_json: {}", e)))?;
+
+        core_shap_values_lasso(&x_vars, &fit)
+    })();
+
+    match result {
+        Ok(output) => serde_json::to_string(&output).unwrap_or_else(|_| crate::error::error_json("Serialization failed")),
+        Err(e) => crate::error::error_json(&e.to_string()),
+    }
+}
+
+/// Computes SHAP (SHapley Additive exPlanations) values for Elastic Net regression.
+///
+/// # Arguments
+///
+/// * `x_json` - JSON array of predictor arrays (each array is a column)
+/// * `fit_json` - JSON string of Elastic Net fit result
+///
+/// # Returns
+///
+/// JSON string of [`ShapOutput`]
+///
+/// # Example
+///
+/// ```javascript
+/// const fit = JSON.parse(elastic_net_regression(...));
+/// const result = JSON.parse(shap_values_elastic_net(
+///     JSON.stringify([[1,2,3], [2,4,6]]),
+///     JSON.stringify(fit)
+/// ));
+/// console.log(result.mean_abs_shap);
+/// ```
+#[wasm_bindgen]
+pub fn shap_values_elastic_net(
+    x_json: &str,
+    fit_json: &str,
+) -> String {
+    let result: Result<ShapOutput> = (|| {
+        let x_vars: Vec<Vec<f64>> = serde_json::from_str(x_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid x_json: {}", e)))?;
+        let fit: ElasticNetFit = serde_json::from_str(fit_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid fit_json: {}", e)))?;
+
+        core_shap_values_elastic_net(&x_vars, &fit)
+    })();
+
+    match result {
+        Ok(output) => serde_json::to_string(&output).unwrap_or_else(|_| crate::error::error_json("Serialization failed")),
+        Err(e) => crate::error::error_json(&e.to_string()),
+    }
+}
+
+/// Computes SHAP (SHapley Additive exPlanations) values for polynomial regression.
+///
+/// # Arguments
+///
+/// * `x_json` - JSON array of predictor values (single variable)
+/// * `fit_json` - JSON string of Polynomial fit result
+///
+/// # Returns
+///
+/// JSON string of [`ShapOutput`]
+///
+/// # Example
+///
+/// ```javascript
+/// const fit = JSON.parse(polynomial_regression_wasm(...));
+/// const result = JSON.parse(shap_values_polynomial(
+///     JSON.stringify([1, 2, 3, 4, 5]),
+///     JSON.stringify(fit)
+/// ));
+/// console.log(result.variable_names); // ["X¹", "X²", ...]
+/// ```
+#[wasm_bindgen]
+pub fn shap_values_polynomial(
+    x_json: &str,
+    fit_json: &str,
+) -> String {
+    let result: Result<ShapOutput> = (|| {
+        let x: Vec<f64> = serde_json::from_str(x_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid x_json: {}", e)))?;
+        let fit: PolynomialFit = serde_json::from_str(fit_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid fit_json: {}", e)))?;
+
+        core_shap_values_polynomial(&x, &fit)
+    })();
+
+    match result {
+        Ok(output) => serde_json::to_string(&output).unwrap_or_else(|_| crate::error::error_json("Serialization failed")),
+        Err(e) => crate::error::error_json(&e.to_string()),
+    }
+}
+
+/// Computes permutation importance for Ridge regression.
+///
+/// # Arguments
+///
+/// * `y_json` - JSON array of response values
+/// * `x_json` - JSON array of predictor arrays (each array is a column)
+/// * `fit_json` - JSON string of Ridge fit result
+/// * `n_permutations` - Number of permutation iterations
+/// * `seed` - Random seed (use 0 for no seed)
+/// * `compute_intervals` - Whether to compute confidence intervals
+/// * `interval_confidence` - Confidence level for intervals (0-1)
+///
+/// # Returns
+///
+/// JSON string of [`PermutationImportanceOutput`]
+///
+/// # Example
+///
+/// ```javascript
+/// const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+/// const x = [[1,2,3,4,5], [2,4,5,4,3]];
+/// const fit = JSON.parse(ridge_regression(...));
+///
+/// const result = JSON.parse(permutation_importance_ridge(
+///     JSON.stringify(y),
+///     JSON.stringify(x),
+///     JSON.stringify(fit),
+///     50,   // n_permutations
+///     42,   // seed
+///     true, // compute_intervals
+///     0.95  // interval_confidence
+/// ));
+/// console.log(result.importance);
+/// ```
+#[wasm_bindgen]
+pub fn permutation_importance_ridge(
+    y_json: &str,
+    x_json: &str,
+    fit_json: &str,
+    n_permutations: usize,
+    seed: u64,
+    compute_intervals: bool,
+    interval_confidence: f64,
+) -> String {
+    let result: Result<PermutationImportanceOutput> = (|| {
+        let y: Vec<f64> = serde_json::from_str(y_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid y_json: {}", e)))?;
+        let x_vars: Vec<Vec<f64>> = serde_json::from_str(x_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid x_json: {}", e)))?;
+        let fit: RidgeFit = serde_json::from_str(fit_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid fit_json: {}", e)))?;
+
+        let options = PermutationImportanceOptions {
+            n_permutations,
+            seed: if seed == 0 { None } else { Some(seed) },
+            compute_intervals,
+            interval_confidence,
+        };
+
+        core_permutation_importance_ridge(&y, &x_vars, &fit, &options)
+    })();
+
+    match result {
+        Ok(output) => serde_json::to_string(&output).unwrap_or_else(|_| crate::error::error_json("Serialization failed")),
+        Err(e) => crate::error::error_json(&e.to_string()),
+    }
+}
+
+/// Computes permutation importance for Lasso regression.
+///
+/// # Arguments
+///
+/// * `y_json` - JSON array of response values
+/// * `x_json` - JSON array of predictor arrays (each array is a column)
+/// * `fit_json` - JSON string of Lasso fit result
+/// * `n_permutations` - Number of permutation iterations
+/// * `seed` - Random seed (use 0 for no seed)
+/// * `compute_intervals` - Whether to compute confidence intervals
+/// * `interval_confidence` - Confidence level for intervals (0-1)
+///
+/// # Returns
+///
+/// JSON string of [`PermutationImportanceOutput`]
+///
+/// # Example
+///
+/// ```javascript
+/// const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+/// const x = [[1,2,3,4,5], [2,4,5,4,3]];
+/// const fit = JSON.parse(lasso_regression(...));
+///
+/// const result = JSON.parse(permutation_importance_lasso(
+///     JSON.stringify(y),
+///     JSON.stringify(x),
+///     JSON.stringify(fit),
+///     50,   // n_permutations
+///     42,   // seed
+///     true, // compute_intervals
+///     0.95  // interval_confidence
+/// ));
+/// console.log(result.importance);
+/// ```
+#[wasm_bindgen]
+pub fn permutation_importance_lasso(
+    y_json: &str,
+    x_json: &str,
+    fit_json: &str,
+    n_permutations: usize,
+    seed: u64,
+    compute_intervals: bool,
+    interval_confidence: f64,
+) -> String {
+    let result: Result<PermutationImportanceOutput> = (|| {
+        let y: Vec<f64> = serde_json::from_str(y_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid y_json: {}", e)))?;
+        let x_vars: Vec<Vec<f64>> = serde_json::from_str(x_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid x_json: {}", e)))?;
+        let fit: LassoFit = serde_json::from_str(fit_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid fit_json: {}", e)))?;
+
+        let options = PermutationImportanceOptions {
+            n_permutations,
+            seed: if seed == 0 { None } else { Some(seed) },
+            compute_intervals,
+            interval_confidence,
+        };
+
+        core_permutation_importance_lasso(&y, &x_vars, &fit, &options)
+    })();
+
+    match result {
+        Ok(output) => serde_json::to_string(&output).unwrap_or_else(|_| crate::error::error_json("Serialization failed")),
+        Err(e) => crate::error::error_json(&e.to_string()),
+    }
+}
+
+/// Computes permutation importance for Elastic Net regression.
+///
+/// # Arguments
+///
+/// * `y_json` - JSON array of response values
+/// * `x_json` - JSON array of predictor arrays (each array is a column)
+/// * `fit_json` - JSON string of Elastic Net fit result
+/// * `n_permutations` - Number of permutation iterations
+/// * `seed` - Random seed (use 0 for no seed)
+/// * `compute_intervals` - Whether to compute confidence intervals
+/// * `interval_confidence` - Confidence level for intervals (0-1)
+///
+/// # Returns
+///
+/// JSON string of [`PermutationImportanceOutput`]
+///
+/// # Example
+///
+/// ```javascript
+/// const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+/// const x = [[1,2,3,4,5], [2,4,5,4,3]];
+/// const fit = JSON.parse(elastic_net_regression(...));
+///
+/// const result = JSON.parse(permutation_importance_elastic_net(
+///     JSON.stringify(y),
+///     JSON.stringify(x),
+///     JSON.stringify(fit),
+///     50,   // n_permutations
+///     42,   // seed
+///     true, // compute_intervals
+///     0.95  // interval_confidence
+/// ));
+/// console.log(result.importance);
+/// ```
+#[wasm_bindgen]
+pub fn permutation_importance_elastic_net(
+    y_json: &str,
+    x_json: &str,
+    fit_json: &str,
+    n_permutations: usize,
+    seed: u64,
+    compute_intervals: bool,
+    interval_confidence: f64,
+) -> String {
+    let result: Result<PermutationImportanceOutput> = (|| {
+        let y: Vec<f64> = serde_json::from_str(y_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid y_json: {}", e)))?;
+        let x_vars: Vec<Vec<f64>> = serde_json::from_str(x_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid x_json: {}", e)))?;
+        let fit: ElasticNetFit = serde_json::from_str(fit_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid fit_json: {}", e)))?;
+
+        let options = PermutationImportanceOptions {
+            n_permutations,
+            seed: if seed == 0 { None } else { Some(seed) },
+            compute_intervals,
+            interval_confidence,
+        };
+
+        core_permutation_importance_elastic_net(&y, &x_vars, &fit, &options)
+    })();
+
+    match result {
+        Ok(output) => serde_json::to_string(&output).unwrap_or_else(|_| crate::error::error_json("Serialization failed")),
+        Err(e) => crate::error::error_json(&e.to_string()),
+    }
+}
+
+/// Computes permutation importance for LOESS regression.
+///
+/// # Arguments
+///
+/// * `y_json` - JSON array of response values
+/// * `x_json` - JSON array of predictor arrays (each array is a column)
+/// * `span` - Span parameter used in original fit
+/// * `degree` - Degree of polynomial used in original fit
+/// * `n_permutations` - Number of permutation iterations
+/// * `seed` - Random seed (use 0 for no seed)
+///
+/// # Returns
+///
+/// JSON string of [`PermutationImportanceOutput`]
+///
+/// # Note
+///
+/// This is computationally expensive as it re-fits the LOESS model
+/// for each permutation of each feature.
+///
+/// # Example
+///
+/// ```javascript
+/// const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+/// const x = [[1,2,3,4,5]];
+///
+/// const result = JSON.parse(permutation_importance_loess(
+///     JSON.stringify(y),
+///     JSON.stringify(x),
+///     0.75, // span
+///     1,    // degree
+///     20,   // n_permutations (fewer for LOESS since it's slow)
+///     42    // seed
+/// ));
+/// console.log(result.importance);
+/// ```
+#[wasm_bindgen]
+pub fn permutation_importance_loess(
+    y_json: &str,
+    x_json: &str,
+    span: f64,
+    degree: usize,
+    n_permutations: usize,
+    seed: u64,
+) -> String {
+    let result: Result<PermutationImportanceOutput> = (|| {
+        let y: Vec<f64> = serde_json::from_str(y_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid y_json: {}", e)))?;
+        let x_vars: Vec<Vec<f64>> = serde_json::from_str(x_json)
+            .map_err(|e| crate::error::Error::InvalidInput(format!("Invalid x_json: {}", e)))?;
+
+        let options = PermutationImportanceOptions {
+            n_permutations,
+            seed: if seed == 0 { None } else { Some(seed) },
+            compute_intervals: false,
+            interval_confidence: 0.95,
+        };
+
+        core_permutation_importance_loess(&y, &x_vars, span, degree, &options)
     })();
 
     match result {

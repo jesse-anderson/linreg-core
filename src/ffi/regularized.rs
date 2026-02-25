@@ -36,6 +36,8 @@ fn build_design_matrix(x_flat: &[f64], n: usize, p: usize) -> Matrix {
 
 /// Fit a Ridge regression model.
 ///
+/// # Arguments
+///
 /// - `y_ptr`       – pointer to n response values
 /// - `n`           – number of observations
 /// - `x_ptr`       – flat row-major predictor matrix (n × p, no intercept column)
@@ -43,7 +45,17 @@ fn build_design_matrix(x_flat: &[f64], n: usize, p: usize) -> Matrix {
 /// - `lambda`      – L2 regularisation strength (>= 0)
 /// - `standardize` – 1 = standardize predictors before fitting, 0 = do not
 ///
-/// Returns a handle >= 1, or 0 on error.
+/// # Returns
+///
+/// A handle >= 1, or 0 on error.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_Ridge(
     y_ptr: *const f64,
@@ -83,10 +95,28 @@ pub extern "system" fn LR_Ridge(
 
 /// Fit a Lasso regression model.
 ///
-/// - `max_iter` – maximum coordinate descent iterations
-/// - `tol`      – convergence tolerance
+/// # Arguments
 ///
-/// Returns a handle >= 1, or 0 on error.
+/// - `y_ptr`       – pointer to n response values
+/// - `n`           – number of observations
+/// - `x_ptr`       – flat row-major predictor matrix (n × p, no intercept column)
+/// - `p`           – number of predictors
+/// - `lambda`      – L1 regularisation strength (>= 0)
+/// - `standardize` – 1 = standardize predictors before fitting, 0 = do not
+/// - `max_iter`    – maximum coordinate descent iterations
+/// - `tol`         – convergence tolerance
+///
+/// # Returns
+///
+/// A handle >= 1, or 0 on error.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 #[allow(clippy::too_many_arguments)]
 pub extern "system" fn LR_Lasso(
@@ -131,9 +161,29 @@ pub extern "system" fn LR_Lasso(
 
 /// Fit an Elastic Net regression model.
 ///
-/// - `alpha` – mixing parameter (0 = Ridge, 1 = Lasso)
+/// # Arguments
 ///
-/// Returns a handle >= 1, or 0 on error.
+/// - `y_ptr`       – pointer to n response values
+/// - `n`           – number of observations
+/// - `x_ptr`       – flat row-major predictor matrix (n × p, no intercept column)
+/// - `p`           – number of predictors
+/// - `lambda`      – regularisation strength (>= 0)
+/// - `alpha`       – mixing parameter (0 = Ridge, 1 = Lasso)
+/// - `standardize` – 1 = standardize predictors before fitting, 0 = do not
+/// - `max_iter`    – maximum coordinate descent iterations
+/// - `tol`         – convergence tolerance
+///
+/// # Returns
+///
+/// A handle >= 1, or 0 on error.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 #[allow(clippy::too_many_arguments)]
 pub extern "system" fn LR_ElasticNet(
@@ -229,6 +279,8 @@ pub extern "system" fn LR_GetConverged(handle: usize) -> i32 {
 
 /// Fit a Weighted Least Squares regression model.
 ///
+/// # Arguments
+///
 /// - `y_ptr`  – pointer to n response values
 /// - `n`      – number of observations
 /// - `x_ptr`  – flat row-major predictor matrix (n × p, no intercept column)
@@ -238,7 +290,18 @@ pub extern "system" fn LR_GetConverged(handle: usize) -> i32 {
 /// All scalar and vector getters from OLS (`LR_GetRSquared`, `LR_GetCoefficients`,
 /// `LR_GetResiduals`, `LR_GetFStatistic`, etc.) work on the returned handle.
 ///
-/// Returns a handle >= 1, or 0 on error.
+/// # Returns
+///
+/// A handle >= 1, or 0 on error.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - `w_ptr` is valid for reading `n` f64 values
+/// - All pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_WLS(
     y_ptr: *const f64,
@@ -278,6 +341,8 @@ pub extern "system" fn LR_WLS(
 
 /// Generate a glmnet-style lambda sequence for regularized regression.
 ///
+/// # Arguments
+///
 /// - `y_ptr`            – pointer to n response values
 /// - `n`                – number of observations
 /// - `x_ptr`            – flat row-major predictor matrix (n × p, no intercept column)
@@ -286,9 +351,19 @@ pub extern "system" fn LR_WLS(
 /// - `lambda_min_ratio` – ratio of min to max lambda (e.g. 0.01); pass 0.0 for auto
 /// - `alpha`            – elastic-net mixing parameter (0 = ridge, 1 = lasso)
 ///
-/// Returns a handle to a `Vector` of descending lambda values.
+/// # Returns
+///
+/// A handle to a `Vector` of descending lambda values.
 /// Use `LR_GetVectorLength` and `LR_GetVector` to read the sequence.
 /// Returns 0 on error.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_LambdaPath(
     y_ptr: *const f64,

@@ -16,6 +16,15 @@ use crate::cross_validation::{
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 
+/// Unpack raw FFI pointers into Rust-owned vectors.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 unsafe fn unpack(
     y_ptr: *const f64,
     n: i32,
@@ -27,6 +36,7 @@ unsafe fn unpack(
     }
     let n = n as usize;
     let p = p as usize;
+    // SAFETY: Caller has ensured pointers are valid per safety contract
     let y = slice::from_raw_parts(y_ptr, n).to_vec();
     let x_flat = slice::from_raw_parts(x_ptr, n * p);
     let mut x_vars: Vec<Vec<f64>> = vec![Vec::with_capacity(n); p];
@@ -42,13 +52,25 @@ unsafe fn unpack(
 
 /// K-Fold Cross Validation for OLS regression.
 ///
+/// # Arguments
+///
 /// - `y_ptr`   – pointer to n response values
 /// - `n`       – number of observations
 /// - `x_ptr`   – flat row-major predictor matrix (n × p, no intercept column)
 /// - `p`       – number of predictors
 /// - `n_folds` – number of folds (>= 2)
 ///
-/// Returns a handle.  Use `LR_GetCV*` getters to retrieve aggregate metrics.
+/// # Returns
+///
+/// A handle.  Use `LR_GetCV*` getters to retrieve aggregate metrics.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_KFoldOLS(
     y_ptr: *const f64,
@@ -57,6 +79,7 @@ pub extern "system" fn LR_KFoldOLS(
     p: i32,
     n_folds: i32,
 ) -> usize {
+    // SAFETY: Caller has ensured pointers are valid per LR_KFoldOLS safety contract
     let (y, x_vars) = match unsafe { unpack(y_ptr, n, x_ptr, p) } {
         Some(v) => v,
         None => {
@@ -78,9 +101,23 @@ pub extern "system" fn LR_KFoldOLS(
 
 /// K-Fold Cross Validation for Ridge regression.
 ///
+/// # Arguments
+///
+/// - `y_ptr`       – pointer to n response values
+/// - `n`           – number of observations
+/// - `x_ptr`       – flat row-major predictor matrix (n × p, no intercept column)
+/// - `p`           – number of predictors
 /// - `lambda`      – L2 regularisation strength
 /// - `standardize` – 1 = standardize predictors, 0 = do not
 /// - `n_folds`     – number of folds
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_KFoldRidge(
     y_ptr: *const f64,
@@ -91,6 +128,7 @@ pub extern "system" fn LR_KFoldRidge(
     standardize: i32,
     n_folds: i32,
 ) -> usize {
+    // SAFETY: Caller has ensured pointers are valid per LR_KFoldOLS safety contract
     let (y, x_vars) = match unsafe { unpack(y_ptr, n, x_ptr, p) } {
         Some(v) => v,
         None => {
@@ -107,9 +145,23 @@ pub extern "system" fn LR_KFoldRidge(
 
 /// K-Fold Cross Validation for Lasso regression.
 ///
+/// # Arguments
+///
+/// - `y_ptr`       – pointer to n response values
+/// - `n`           – number of observations
+/// - `x_ptr`       – flat row-major predictor matrix (n × p, no intercept column)
+/// - `p`           – number of predictors
 /// - `lambda`      – L1 regularisation strength
 /// - `standardize` – 1 = standardize predictors, 0 = do not
 /// - `n_folds`     – number of folds
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_KFoldLasso(
     y_ptr: *const f64,
@@ -120,6 +172,7 @@ pub extern "system" fn LR_KFoldLasso(
     standardize: i32,
     n_folds: i32,
 ) -> usize {
+    // SAFETY: Caller has ensured pointers are valid per LR_KFoldOLS safety contract
     let (y, x_vars) = match unsafe { unpack(y_ptr, n, x_ptr, p) } {
         Some(v) => v,
         None => {
@@ -136,10 +189,24 @@ pub extern "system" fn LR_KFoldLasso(
 
 /// K-Fold Cross Validation for Elastic Net regression.
 ///
+/// # Arguments
+///
+/// - `y_ptr`       – pointer to n response values
+/// - `n`           – number of observations
+/// - `x_ptr`       – flat row-major predictor matrix (n × p, no intercept column)
+/// - `p`           – number of predictors
 /// - `lambda`      – regularisation strength
 /// - `alpha`       – mixing parameter (0 = Ridge, 1 = Lasso)
 /// - `standardize` – 1 = standardize predictors, 0 = do not
 /// - `n_folds`     – number of folds
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 #[allow(clippy::too_many_arguments)]
 pub extern "system" fn LR_KFoldElasticNet(
@@ -152,6 +219,7 @@ pub extern "system" fn LR_KFoldElasticNet(
     standardize: i32,
     n_folds: i32,
 ) -> usize {
+    // SAFETY: Caller has ensured pointers are valid per LR_KFoldOLS safety contract
     let (y, x_vars) = match unsafe { unpack(y_ptr, n, x_ptr, p) } {
         Some(v) => v,
         None => {

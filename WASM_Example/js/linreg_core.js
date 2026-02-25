@@ -1383,6 +1383,194 @@ export function parse_csv(content) {
 }
 
 /**
+ * Computes permutation importance for Elastic Net regression.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `fit_json` - JSON string of Elastic Net fit result
+ * * `n_permutations` - Number of permutation iterations
+ * * `seed` - Random seed (use 0 for no seed)
+ * * `compute_intervals` - Whether to compute confidence intervals
+ * * `interval_confidence` - Confidence level for intervals (0-1)
+ *
+ * # Returns
+ *
+ * JSON string of [`PermutationImportanceOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+ * const x = [[1,2,3,4,5], [2,4,5,4,3]];
+ * const fit = JSON.parse(elastic_net_regression(...));
+ *
+ * const result = JSON.parse(permutation_importance_elastic_net(
+ *     JSON.stringify(y),
+ *     JSON.stringify(x),
+ *     JSON.stringify(fit),
+ *     50,   // n_permutations
+ *     42,   // seed
+ *     true, // compute_intervals
+ *     0.95  // interval_confidence
+ * ));
+ * console.log(result.importance);
+ * ```
+ * @param {string} y_json
+ * @param {string} x_json
+ * @param {string} fit_json
+ * @param {number} n_permutations
+ * @param {bigint} seed
+ * @param {boolean} compute_intervals
+ * @param {number} interval_confidence
+ * @returns {string}
+ */
+export function permutation_importance_elastic_net(y_json, x_json, fit_json, n_permutations, seed, compute_intervals, interval_confidence) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(fit_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.permutation_importance_elastic_net(ptr0, len0, ptr1, len1, ptr2, len2, n_permutations, seed, compute_intervals, interval_confidence);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Computes permutation importance for Lasso regression.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `fit_json` - JSON string of Lasso fit result
+ * * `n_permutations` - Number of permutation iterations
+ * * `seed` - Random seed (use 0 for no seed)
+ * * `compute_intervals` - Whether to compute confidence intervals
+ * * `interval_confidence` - Confidence level for intervals (0-1)
+ *
+ * # Returns
+ *
+ * JSON string of [`PermutationImportanceOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+ * const x = [[1,2,3,4,5], [2,4,5,4,3]];
+ * const fit = JSON.parse(lasso_regression(...));
+ *
+ * const result = JSON.parse(permutation_importance_lasso(
+ *     JSON.stringify(y),
+ *     JSON.stringify(x),
+ *     JSON.stringify(fit),
+ *     50,   // n_permutations
+ *     42,   // seed
+ *     true, // compute_intervals
+ *     0.95  // interval_confidence
+ * ));
+ * console.log(result.importance);
+ * ```
+ * @param {string} y_json
+ * @param {string} x_json
+ * @param {string} fit_json
+ * @param {number} n_permutations
+ * @param {bigint} seed
+ * @param {boolean} compute_intervals
+ * @param {number} interval_confidence
+ * @returns {string}
+ */
+export function permutation_importance_lasso(y_json, x_json, fit_json, n_permutations, seed, compute_intervals, interval_confidence) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(fit_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.permutation_importance_lasso(ptr0, len0, ptr1, len1, ptr2, len2, n_permutations, seed, compute_intervals, interval_confidence);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Computes permutation importance for LOESS regression.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `span` - Span parameter used in original fit
+ * * `degree` - Degree of polynomial used in original fit
+ * * `n_permutations` - Number of permutation iterations
+ * * `seed` - Random seed (use 0 for no seed)
+ *
+ * # Returns
+ *
+ * JSON string of [`PermutationImportanceOutput`]
+ *
+ * # Note
+ *
+ * This is computationally expensive as it re-fits the LOESS model
+ * for each permutation of each feature.
+ *
+ * # Example
+ *
+ * ```javascript
+ * const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+ * const x = [[1,2,3,4,5]];
+ *
+ * const result = JSON.parse(permutation_importance_loess(
+ *     JSON.stringify(y),
+ *     JSON.stringify(x),
+ *     0.75, // span
+ *     1,    // degree
+ *     20,   // n_permutations (fewer for LOESS since it's slow)
+ *     42    // seed
+ * ));
+ * console.log(result.importance);
+ * ```
+ * @param {string} y_json
+ * @param {string} x_json
+ * @param {number} span
+ * @param {number} degree
+ * @param {number} n_permutations
+ * @param {bigint} seed
+ * @returns {string}
+ */
+export function permutation_importance_loess(y_json, x_json, span, degree, n_permutations, seed) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.permutation_importance_loess(ptr0, len0, ptr1, len1, span, degree, n_permutations, seed);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * Computes permutation importance for OLS regression.
  *
  * # Arguments
@@ -1440,6 +1628,69 @@ export function permutation_importance_ols(y_json, x_json, fit_json, n_permutati
 }
 
 /**
+ * Computes permutation importance for Ridge regression.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `fit_json` - JSON string of Ridge fit result
+ * * `n_permutations` - Number of permutation iterations
+ * * `seed` - Random seed (use 0 for no seed)
+ * * `compute_intervals` - Whether to compute confidence intervals
+ * * `interval_confidence` - Confidence level for intervals (0-1)
+ *
+ * # Returns
+ *
+ * JSON string of [`PermutationImportanceOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+ * const x = [[1,2,3,4,5], [2,4,5,4,3]];
+ * const fit = JSON.parse(ridge_regression(...));
+ *
+ * const result = JSON.parse(permutation_importance_ridge(
+ *     JSON.stringify(y),
+ *     JSON.stringify(x),
+ *     JSON.stringify(fit),
+ *     50,   // n_permutations
+ *     42,   // seed
+ *     true, // compute_intervals
+ *     0.95  // interval_confidence
+ * ));
+ * console.log(result.importance);
+ * ```
+ * @param {string} y_json
+ * @param {string} x_json
+ * @param {string} fit_json
+ * @param {number} n_permutations
+ * @param {bigint} seed
+ * @param {boolean} compute_intervals
+ * @param {number} interval_confidence
+ * @returns {string}
+ */
+export function permutation_importance_ridge(y_json, x_json, fit_json, n_permutations, seed, compute_intervals, interval_confidence) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(y_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(fit_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.permutation_importance_ridge(ptr0, len0, ptr1, len1, ptr2, len2, n_permutations, seed, compute_intervals, interval_confidence);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * Fit polynomial Elastic Net regression via WASM.
  *
  * Elastic Net combines L1 and L2 penalties, balancing variable selection
@@ -1457,7 +1708,7 @@ export function permutation_importance_ols(y_json, x_json, fit_json, n_permutati
  *
  * # Returns
  *
- * JSON string of the [`ElasticNetFit`] result, which includes:
+ * JSON string of the ElasticNetFit result, which includes:
  * - `intercept`, `coefficients`
  * - `fitted_values`, `residuals`
  * - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`
@@ -1506,7 +1757,7 @@ export function polynomial_elastic_net_wasm(y_json, x_json, degree, lambda, alph
  *
  * # Returns
  *
- * JSON string of the [`LassoFit`] result, which includes:
+ * JSON string of the LassoFit result, which includes:
  * - `intercept`, `coefficients`
  * - `fitted_values`, `residuals`
  * - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`
@@ -1637,7 +1888,7 @@ export function polynomial_regression_wasm(y_json, x_json, degree, center, stand
  *
  * # Returns
  *
- * JSON string of the [`RidgeFit`] result, which includes:
+ * JSON string of the RidgeFit result, which includes:
  * - `intercept`, `coefficients`
  * - `fitted_values`, `residuals`
  * - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`
@@ -1997,6 +2248,92 @@ export function serialize_model(model_json, model_type, name) {
 }
 
 /**
+ * Computes SHAP (SHapley Additive exPlanations) values for Elastic Net regression.
+ *
+ * # Arguments
+ *
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `fit_json` - JSON string of Elastic Net fit result
+ *
+ * # Returns
+ *
+ * JSON string of [`ShapOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const fit = JSON.parse(elastic_net_regression(...));
+ * const result = JSON.parse(shap_values_elastic_net(
+ *     JSON.stringify([[1,2,3], [2,4,6]]),
+ *     JSON.stringify(fit)
+ * ));
+ * console.log(result.mean_abs_shap);
+ * ```
+ * @param {string} x_json
+ * @param {string} fit_json
+ * @returns {string}
+ */
+export function shap_values_elastic_net(x_json, fit_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(fit_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.shap_values_elastic_net(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Computes SHAP (SHapley Additive exPlanations) values for Lasso regression.
+ *
+ * # Arguments
+ *
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `fit_json` - JSON string of Lasso fit result
+ *
+ * # Returns
+ *
+ * JSON string of [`ShapOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const fit = JSON.parse(lasso_regression(...));
+ * const result = JSON.parse(shap_values_lasso(
+ *     JSON.stringify([[1,2,3], [2,4,6]]),
+ *     JSON.stringify(fit)
+ * ));
+ * console.log(result.mean_abs_shap);
+ * ```
+ * @param {string} x_json
+ * @param {string} fit_json
+ * @returns {string}
+ */
+export function shap_values_lasso(x_json, fit_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(fit_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.shap_values_lasso(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * Computes SHAP (SHapley Additive exPlanations) values for linear models.
  *
  * # Arguments
@@ -2041,6 +2378,92 @@ export function shap_values_linear(x_json, coefficients_json, variable_names_jso
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
         wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Computes SHAP (SHapley Additive exPlanations) values for polynomial regression.
+ *
+ * # Arguments
+ *
+ * * `x_json` - JSON array of predictor values (single variable)
+ * * `fit_json` - JSON string of Polynomial fit result
+ *
+ * # Returns
+ *
+ * JSON string of [`ShapOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const fit = JSON.parse(polynomial_regression_wasm(...));
+ * const result = JSON.parse(shap_values_polynomial(
+ *     JSON.stringify([1, 2, 3, 4, 5]),
+ *     JSON.stringify(fit)
+ * ));
+ * console.log(result.variable_names); // ["X¹", "X²", ...]
+ * ```
+ * @param {string} x_json
+ * @param {string} fit_json
+ * @returns {string}
+ */
+export function shap_values_polynomial(x_json, fit_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(fit_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.shap_values_polynomial(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Computes SHAP (SHapley Additive exPlanations) values for Ridge regression.
+ *
+ * # Arguments
+ *
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `fit_json` - JSON string of Ridge fit result
+ *
+ * # Returns
+ *
+ * JSON string of [`ShapOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const fit = JSON.parse(ridge_regression(...));
+ * const result = JSON.parse(shap_values_ridge(
+ *     JSON.stringify([[1,2,3], [2,4,6]]),
+ *     JSON.stringify(fit)
+ * ));
+ * console.log(result.mean_abs_shap);
+ * ```
+ * @param {string} x_json
+ * @param {string} fit_json
+ * @returns {string}
+ */
+export function shap_values_ridge(x_json, fit_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(x_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(fit_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.shap_values_ridge(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
     }
 }
 
@@ -2168,6 +2591,78 @@ export function stats_correlation(x_json, y_json) {
 }
 
 /**
+ * Computes the five-number summary of a JSON array of f64 values.
+ *
+ * The five-number summary consists of: minimum, Q1 (25th percentile),
+ * median (50th percentile), Q3 (75th percentile), and maximum.
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with the five-number summary (min, q1, median, q3, max),
+ * or error JSON if input is invalid/empty
+ *
+ * # Example
+ *
+ * ```javascript
+ * const result = JSON.parse(stats_five_number_summary("[1, 2, 3, 4, 5, 6, 7, 8, 9]"));
+ * console.log(result.min);    // 1
+ * console.log(result.q1);     // ~3
+ * console.log(result.median); // 5
+ * console.log(result.q3);     // ~7
+ * console.log(result.max);    // 9
+ * console.log(result.iqr);    // ~4 (calculated as q3 - q1)
+ * ```
+ * @param {string} data_json
+ * @returns {string}
+ */
+export function stats_five_number_summary(data_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(data_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.stats_five_number_summary(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Computes the maximum value of a JSON array of f64 values.
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with the maximum value, or "null" if input is invalid/empty
+ * @param {string} data_json
+ * @returns {string}
+ */
+export function stats_max(data_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(data_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.stats_max(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
  * Computes the arithmetic mean of a JSON array of f64 values.
  *
  * # Arguments
@@ -2224,6 +2719,73 @@ export function stats_median(data_json) {
 }
 
 /**
+ * Computes the minimum value of a JSON array of f64 values.
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with the minimum value, or "null" if input is invalid/empty
+ * @param {string} data_json
+ * @returns {string}
+ */
+export function stats_min(data_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(data_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.stats_min(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Computes the mode(s) of a JSON array of f64 values.
+ *
+ * Returns all values that appear most frequently (handles ties).
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with mode result containing modes array, frequency, and unique count,
+ * or "null" if input is invalid/empty
+ *
+ * # Example
+ *
+ * ```javascript
+ * const result = JSON.parse(stats_mode("[1, 2, 2, 3, 4]"));
+ * console.log(result.modes);     // [2]
+ * console.log(result.frequency); // 2
+ * ```
+ * @param {string} data_json
+ * @returns {string}
+ */
+export function stats_mode(data_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(data_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.stats_mode(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
  * Computes a quantile of a JSON array of f64 values.
  *
  * # Arguments
@@ -2245,6 +2807,34 @@ export function stats_quantile(data_json, q) {
         const ptr0 = passStringToWasm0(data_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.stats_quantile(ptr0, len0, q);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Computes the range (max - min) of a JSON array of f64 values.
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with the range, or "null" if input is invalid/empty
+ * @param {string} data_json
+ * @returns {string}
+ */
+export function stats_range(data_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(data_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.stats_range(ptr0, len0);
         deferred2_0 = ret[0];
         deferred2_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);

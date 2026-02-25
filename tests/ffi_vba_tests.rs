@@ -30,7 +30,7 @@ pub use vba::common::{
 
 // Re-export other modules
 #[cfg(feature = "ffi")]
-pub use vba::{cross_validation, diagnostics, ols, prediction_intervals, regularized, utilities};
+pub use vba::{cross_validation, diagnostics, ols, polynomial, prediction_intervals, regularized, utilities};
 
 // ============================================================================
 // Integration Tests

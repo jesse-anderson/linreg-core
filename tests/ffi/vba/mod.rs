@@ -13,6 +13,7 @@
 // - `diagnostics.rs` - Diagnostic test FFI tests
 // - `prediction_intervals.rs` - Prediction interval FFI tests
 // - `cross_validation.rs` - Cross-validation FFI tests
+// - `polynomial.rs` - Polynomial regression FFI tests
 // - `utilities.rs` - Utility function tests (version, init, error handling)
 
 // Only compile these tests when the FFI feature is enabled
@@ -22,6 +23,7 @@ pub mod common;
 pub mod cross_validation;
 pub mod diagnostics;
 pub mod ols;
+pub mod polynomial;
 pub mod prediction_intervals;
 pub mod regularized;
 pub mod utilities;

@@ -120,7 +120,10 @@ fn r_squared(y: &[f64], predictions: &[f64]) -> f64 {
     1.0 - ss_res / ss_tot
 }
 
-/// Makes predictions using OLS coefficients.
+// DEAD CODE: This function is not used anywhere in the library.
+// TODO: Remove in next breaking release (0.9.0 or later)
+// Makes predictions using OLS coefficients.
+#[allow(dead_code)]
 fn predict_ols(x: &Matrix, coefficients: &[f64]) -> Vec<f64> {
     let n = x.rows;
     let p = x.cols;

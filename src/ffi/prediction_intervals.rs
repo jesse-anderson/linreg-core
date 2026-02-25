@@ -24,6 +24,14 @@ use super::types::FitResult;
 
 // ── Helper: copy a Vec<f64> from a PredictionIntervalOutput field ─────────────
 
+/// Copy a Vec<f64> from a PredictionIntervalOutput field to a caller buffer.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `out_ptr` is valid for writing `count` f64 values, where `count = src.len().min(out_len as usize)`
+/// - `out_ptr` is properly aligned for f64
+/// - The memory region will not be accessed by any other thread during this call
 unsafe fn copy_pi_field(
     handle: usize,
     selector: impl Fn(&crate::prediction_intervals::PredictionIntervalOutput) -> &Vec<f64>,
@@ -37,6 +45,7 @@ unsafe fn copy_pi_field(
         FitResult::PredictionInterval(pi) => {
             let src = selector(pi);
             let count = src.len().min(out_len as usize);
+            // SAFETY: Caller has ensured `out_ptr` is valid for `count` writes per safety contract
             let dst = unsafe { slice::from_raw_parts_mut(out_ptr, count) };
             dst.copy_from_slice(&src[..count]);
             count as i32
@@ -50,6 +59,8 @@ unsafe fn copy_pi_field(
 
 /// Compute OLS prediction intervals for new observations.
 ///
+/// # Arguments
+///
 /// - `y_ptr`      – training response values (n)
 /// - `n`          – number of training observations
 /// - `x_ptr`      – flat row-major training predictors (n × p, no intercept)
@@ -58,7 +69,18 @@ unsafe fn copy_pi_field(
 /// - `n_new`      – number of new observations to predict
 /// - `alpha`      – significance level (e.g. 0.05 for 95% intervals)
 ///
-/// Returns a handle >= 1, or 0 on error.
+/// # Returns
+///
+/// A handle >= 1, or 0 on error.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - `new_x_ptr` is valid for reading `n_new * p` f64 values
+/// - All pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 #[allow(clippy::too_many_arguments)]
 pub extern "system" fn LR_PredictionIntervals(
@@ -114,6 +136,13 @@ pub extern "system" fn LR_PredictionIntervals(
 
 /// Copy point predictions into the caller's buffer.
 /// Returns the number of values written, or -1 on error.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `out_ptr` is valid for writing `out_len` f64 values
+/// - `out_ptr` is properly aligned for f64
+/// - The memory region will not be accessed by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_GetPredicted(
     handle: usize,
@@ -124,6 +153,13 @@ pub extern "system" fn LR_GetPredicted(
 }
 
 /// Copy lower interval bounds into the caller's buffer.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `out_ptr` is valid for writing `out_len` f64 values
+/// - `out_ptr` is properly aligned for f64
+/// - The memory region will not be accessed by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_GetLowerBound(
     handle: usize,
@@ -134,6 +170,13 @@ pub extern "system" fn LR_GetLowerBound(
 }
 
 /// Copy upper interval bounds into the caller's buffer.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `out_ptr` is valid for writing `out_len` f64 values
+/// - `out_ptr` is properly aligned for f64
+/// - The memory region will not be accessed by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_GetUpperBound(
     handle: usize,
@@ -144,6 +187,13 @@ pub extern "system" fn LR_GetUpperBound(
 }
 
 /// Copy prediction standard errors into the caller's buffer.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `out_ptr` is valid for writing `out_len` f64 values
+/// - `out_ptr` is properly aligned for f64
+/// - The memory region will not be accessed by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_GetSEPred(
     handle: usize,

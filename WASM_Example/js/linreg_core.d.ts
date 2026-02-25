@@ -768,6 +768,122 @@ export function ols_regression(y_json: string, x_vars_json: string, variable_nam
 export function parse_csv(content: string): string;
 
 /**
+ * Computes permutation importance for Elastic Net regression.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `fit_json` - JSON string of Elastic Net fit result
+ * * `n_permutations` - Number of permutation iterations
+ * * `seed` - Random seed (use 0 for no seed)
+ * * `compute_intervals` - Whether to compute confidence intervals
+ * * `interval_confidence` - Confidence level for intervals (0-1)
+ *
+ * # Returns
+ *
+ * JSON string of [`PermutationImportanceOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+ * const x = [[1,2,3,4,5], [2,4,5,4,3]];
+ * const fit = JSON.parse(elastic_net_regression(...));
+ *
+ * const result = JSON.parse(permutation_importance_elastic_net(
+ *     JSON.stringify(y),
+ *     JSON.stringify(x),
+ *     JSON.stringify(fit),
+ *     50,   // n_permutations
+ *     42,   // seed
+ *     true, // compute_intervals
+ *     0.95  // interval_confidence
+ * ));
+ * console.log(result.importance);
+ * ```
+ */
+export function permutation_importance_elastic_net(y_json: string, x_json: string, fit_json: string, n_permutations: number, seed: bigint, compute_intervals: boolean, interval_confidence: number): string;
+
+/**
+ * Computes permutation importance for Lasso regression.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `fit_json` - JSON string of Lasso fit result
+ * * `n_permutations` - Number of permutation iterations
+ * * `seed` - Random seed (use 0 for no seed)
+ * * `compute_intervals` - Whether to compute confidence intervals
+ * * `interval_confidence` - Confidence level for intervals (0-1)
+ *
+ * # Returns
+ *
+ * JSON string of [`PermutationImportanceOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+ * const x = [[1,2,3,4,5], [2,4,5,4,3]];
+ * const fit = JSON.parse(lasso_regression(...));
+ *
+ * const result = JSON.parse(permutation_importance_lasso(
+ *     JSON.stringify(y),
+ *     JSON.stringify(x),
+ *     JSON.stringify(fit),
+ *     50,   // n_permutations
+ *     42,   // seed
+ *     true, // compute_intervals
+ *     0.95  // interval_confidence
+ * ));
+ * console.log(result.importance);
+ * ```
+ */
+export function permutation_importance_lasso(y_json: string, x_json: string, fit_json: string, n_permutations: number, seed: bigint, compute_intervals: boolean, interval_confidence: number): string;
+
+/**
+ * Computes permutation importance for LOESS regression.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `span` - Span parameter used in original fit
+ * * `degree` - Degree of polynomial used in original fit
+ * * `n_permutations` - Number of permutation iterations
+ * * `seed` - Random seed (use 0 for no seed)
+ *
+ * # Returns
+ *
+ * JSON string of [`PermutationImportanceOutput`]
+ *
+ * # Note
+ *
+ * This is computationally expensive as it re-fits the LOESS model
+ * for each permutation of each feature.
+ *
+ * # Example
+ *
+ * ```javascript
+ * const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+ * const x = [[1,2,3,4,5]];
+ *
+ * const result = JSON.parse(permutation_importance_loess(
+ *     JSON.stringify(y),
+ *     JSON.stringify(x),
+ *     0.75, // span
+ *     1,    // degree
+ *     20,   // n_permutations (fewer for LOESS since it's slow)
+ *     42    // seed
+ * ));
+ * console.log(result.importance);
+ * ```
+ */
+export function permutation_importance_loess(y_json: string, x_json: string, span: number, degree: number, n_permutations: number, seed: bigint): string;
+
+/**
  * Computes permutation importance for OLS regression.
  *
  * # Arguments
@@ -802,6 +918,44 @@ export function parse_csv(content: string): string;
 export function permutation_importance_ols(y_json: string, x_json: string, fit_json: string, n_permutations: number, seed: bigint): string;
 
 /**
+ * Computes permutation importance for Ridge regression.
+ *
+ * # Arguments
+ *
+ * * `y_json` - JSON array of response values
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `fit_json` - JSON string of Ridge fit result
+ * * `n_permutations` - Number of permutation iterations
+ * * `seed` - Random seed (use 0 for no seed)
+ * * `compute_intervals` - Whether to compute confidence intervals
+ * * `interval_confidence` - Confidence level for intervals (0-1)
+ *
+ * # Returns
+ *
+ * JSON string of [`PermutationImportanceOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const y = [2.5, 3.7, 4.2, 5.1, 6.3];
+ * const x = [[1,2,3,4,5], [2,4,5,4,3]];
+ * const fit = JSON.parse(ridge_regression(...));
+ *
+ * const result = JSON.parse(permutation_importance_ridge(
+ *     JSON.stringify(y),
+ *     JSON.stringify(x),
+ *     JSON.stringify(fit),
+ *     50,   // n_permutations
+ *     42,   // seed
+ *     true, // compute_intervals
+ *     0.95  // interval_confidence
+ * ));
+ * console.log(result.importance);
+ * ```
+ */
+export function permutation_importance_ridge(y_json: string, x_json: string, fit_json: string, n_permutations: number, seed: bigint, compute_intervals: boolean, interval_confidence: number): string;
+
+/**
  * Fit polynomial Elastic Net regression via WASM.
  *
  * Elastic Net combines L1 and L2 penalties, balancing variable selection
@@ -819,7 +973,7 @@ export function permutation_importance_ols(y_json: string, x_json: string, fit_j
  *
  * # Returns
  *
- * JSON string of the [`ElasticNetFit`] result, which includes:
+ * JSON string of the ElasticNetFit result, which includes:
  * - `intercept`, `coefficients`
  * - `fitted_values`, `residuals`
  * - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`
@@ -845,7 +999,7 @@ export function polynomial_elastic_net_wasm(y_json: string, x_json: string, degr
  *
  * # Returns
  *
- * JSON string of the [`LassoFit`] result, which includes:
+ * JSON string of the LassoFit result, which includes:
  * - `intercept`, `coefficients`
  * - `fitted_values`, `residuals`
  * - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`
@@ -915,7 +1069,7 @@ export function polynomial_regression_wasm(y_json: string, x_json: string, degre
  *
  * # Returns
  *
- * JSON string of the [`RidgeFit`] result, which includes:
+ * JSON string of the RidgeFit result, which includes:
  * - `intercept`, `coefficients`
  * - `fitted_values`, `residuals`
  * - `r_squared`, `adj_r_squared`, `mse`, `rmse`, `mae`
@@ -1103,6 +1257,56 @@ export function ridge_regression(y_json: string, x_vars_json: string, _variable_
 export function serialize_model(model_json: string, model_type: string, name?: string | null): string;
 
 /**
+ * Computes SHAP (SHapley Additive exPlanations) values for Elastic Net regression.
+ *
+ * # Arguments
+ *
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `fit_json` - JSON string of Elastic Net fit result
+ *
+ * # Returns
+ *
+ * JSON string of [`ShapOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const fit = JSON.parse(elastic_net_regression(...));
+ * const result = JSON.parse(shap_values_elastic_net(
+ *     JSON.stringify([[1,2,3], [2,4,6]]),
+ *     JSON.stringify(fit)
+ * ));
+ * console.log(result.mean_abs_shap);
+ * ```
+ */
+export function shap_values_elastic_net(x_json: string, fit_json: string): string;
+
+/**
+ * Computes SHAP (SHapley Additive exPlanations) values for Lasso regression.
+ *
+ * # Arguments
+ *
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `fit_json` - JSON string of Lasso fit result
+ *
+ * # Returns
+ *
+ * JSON string of [`ShapOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const fit = JSON.parse(lasso_regression(...));
+ * const result = JSON.parse(shap_values_lasso(
+ *     JSON.stringify([[1,2,3], [2,4,6]]),
+ *     JSON.stringify(fit)
+ * ));
+ * console.log(result.mean_abs_shap);
+ * ```
+ */
+export function shap_values_lasso(x_json: string, fit_json: string): string;
+
+/**
  * Computes SHAP (SHapley Additive exPlanations) values for linear models.
  *
  * # Arguments
@@ -1128,6 +1332,56 @@ export function serialize_model(model_json: string, model_type: string, name?: s
  * ```
  */
 export function shap_values_linear(x_json: string, coefficients_json: string, variable_names_json: string): string;
+
+/**
+ * Computes SHAP (SHapley Additive exPlanations) values for polynomial regression.
+ *
+ * # Arguments
+ *
+ * * `x_json` - JSON array of predictor values (single variable)
+ * * `fit_json` - JSON string of Polynomial fit result
+ *
+ * # Returns
+ *
+ * JSON string of [`ShapOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const fit = JSON.parse(polynomial_regression_wasm(...));
+ * const result = JSON.parse(shap_values_polynomial(
+ *     JSON.stringify([1, 2, 3, 4, 5]),
+ *     JSON.stringify(fit)
+ * ));
+ * console.log(result.variable_names); // ["X¹", "X²", ...]
+ * ```
+ */
+export function shap_values_polynomial(x_json: string, fit_json: string): string;
+
+/**
+ * Computes SHAP (SHapley Additive exPlanations) values for Ridge regression.
+ *
+ * # Arguments
+ *
+ * * `x_json` - JSON array of predictor arrays (each array is a column)
+ * * `fit_json` - JSON string of Ridge fit result
+ *
+ * # Returns
+ *
+ * JSON string of [`ShapOutput`]
+ *
+ * # Example
+ *
+ * ```javascript
+ * const fit = JSON.parse(ridge_regression(...));
+ * const result = JSON.parse(shap_values_ridge(
+ *     JSON.stringify([[1,2,3], [2,4,6]]),
+ *     JSON.stringify(fit)
+ * ));
+ * console.log(result.mean_abs_shap);
+ * ```
+ */
+export function shap_values_ridge(x_json: string, fit_json: string): string;
 
 /**
  * Performs the Shapiro-Wilk test for normality via WASM.
@@ -1195,6 +1449,48 @@ export function standardized_coefficients(x_json: string, coefficients_json: str
 export function stats_correlation(x_json: string, y_json: string): string;
 
 /**
+ * Computes the five-number summary of a JSON array of f64 values.
+ *
+ * The five-number summary consists of: minimum, Q1 (25th percentile),
+ * median (50th percentile), Q3 (75th percentile), and maximum.
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with the five-number summary (min, q1, median, q3, max),
+ * or error JSON if input is invalid/empty
+ *
+ * # Example
+ *
+ * ```javascript
+ * const result = JSON.parse(stats_five_number_summary("[1, 2, 3, 4, 5, 6, 7, 8, 9]"));
+ * console.log(result.min);    // 1
+ * console.log(result.q1);     // ~3
+ * console.log(result.median); // 5
+ * console.log(result.q3);     // ~7
+ * console.log(result.max);    // 9
+ * console.log(result.iqr);    // ~4 (calculated as q3 - q1)
+ * ```
+ */
+export function stats_five_number_summary(data_json: string): string;
+
+/**
+ * Computes the maximum value of a JSON array of f64 values.
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with the maximum value, or "null" if input is invalid/empty
+ */
+export function stats_max(data_json: string): string;
+
+/**
  * Computes the arithmetic mean of a JSON array of f64 values.
  *
  * # Arguments
@@ -1221,6 +1517,43 @@ export function stats_mean(data_json: string): string;
 export function stats_median(data_json: string): string;
 
 /**
+ * Computes the minimum value of a JSON array of f64 values.
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with the minimum value, or "null" if input is invalid/empty
+ */
+export function stats_min(data_json: string): string;
+
+/**
+ * Computes the mode(s) of a JSON array of f64 values.
+ *
+ * Returns all values that appear most frequently (handles ties).
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with mode result containing modes array, frequency, and unique count,
+ * or "null" if input is invalid/empty
+ *
+ * # Example
+ *
+ * ```javascript
+ * const result = JSON.parse(stats_mode("[1, 2, 2, 3, 4]"));
+ * console.log(result.modes);     // [2]
+ * console.log(result.frequency); // 2
+ * ```
+ */
+export function stats_mode(data_json: string): string;
+
+/**
  * Computes a quantile of a JSON array of f64 values.
  *
  * # Arguments
@@ -1233,6 +1566,19 @@ export function stats_median(data_json: string): string;
  * JSON string with the quantile value, or "null" if input is invalid
  */
 export function stats_quantile(data_json: string, q: number): string;
+
+/**
+ * Computes the range (max - min) of a JSON array of f64 values.
+ *
+ * # Arguments
+ *
+ * * `data_json` - JSON string representing an array of f64 values
+ *
+ * # Returns
+ *
+ * JSON string with the range, or "null" if input is invalid/empty
+ */
+export function stats_range(data_json: string): string;
 
 /**
  * Computes the sample standard deviation of a JSON array of f64 values.
@@ -1467,7 +1813,11 @@ export interface InitOutput {
     readonly ols_prediction_intervals: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly ols_regression: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly parse_csv: (a: number, b: number) => [number, number];
+    readonly permutation_importance_elastic_net: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: bigint, i: number, j: number) => [number, number];
+    readonly permutation_importance_lasso: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: bigint, i: number, j: number) => [number, number];
+    readonly permutation_importance_loess: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: bigint) => [number, number];
     readonly permutation_importance_ols: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: bigint) => [number, number];
+    readonly permutation_importance_ridge: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: bigint, i: number, j: number) => [number, number];
     readonly polynomial_elastic_net_wasm: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
     readonly polynomial_lasso_wasm: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
     readonly polynomial_predict_wasm: (a: number, b: number, c: number, d: number) => [number, number];
@@ -1480,13 +1830,22 @@ export interface InitOutput {
     readonly ridge_prediction_intervals: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
     readonly ridge_regression: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
     readonly serialize_model: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+    readonly shap_values_elastic_net: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly shap_values_lasso: (a: number, b: number, c: number, d: number) => [number, number];
     readonly shap_values_linear: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+    readonly shap_values_polynomial: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly shap_values_ridge: (a: number, b: number, c: number, d: number) => [number, number];
     readonly shapiro_wilk_test: (a: number, b: number, c: number, d: number) => [number, number];
     readonly standardized_coefficients: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly stats_correlation: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly stats_five_number_summary: (a: number, b: number) => [number, number];
+    readonly stats_max: (a: number, b: number) => [number, number];
     readonly stats_mean: (a: number, b: number) => [number, number];
     readonly stats_median: (a: number, b: number) => [number, number];
+    readonly stats_min: (a: number, b: number) => [number, number];
+    readonly stats_mode: (a: number, b: number) => [number, number];
     readonly stats_quantile: (a: number, b: number, c: number) => [number, number];
+    readonly stats_range: (a: number, b: number) => [number, number];
     readonly stats_stddev: (a: number, b: number) => [number, number];
     readonly stats_variance: (a: number, b: number) => [number, number];
     readonly test: () => [number, number];

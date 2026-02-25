@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.1] - 2026-02-22
+
+### Added
+- **Excel XLL Add-in** (`src/xll/`) — Native Excel add-in with 27 worksheet UDFs, zero external dependencies
+  - Pure Rust XLL infrastructure: XLOPER12 types, Excel12v trampoline via runtime `GetProcAddress("MdCallBack12")`, UDF registration, memory management - no SDK necessary
+  - Core: `LINREG.VERSION`, `LINREG.OLS`, `LINREG.WLS`, `LINREG.RIDGE`, `LINREG.LASSO`, `LINREG.ELASTICNET`
+  - Diagnostics: 14 UDFs (Breusch-Pagan, White, Jarque-Bera, Shapiro-Wilk, Anderson-Darling, Harvey-Collier, Rainbow, RESET, Durbin-Watson, Breusch-Godfrey, VIF, Cook's Distance, DFFITS, DFBETAS)
+  - CV/PI: `LINREG.KFOLDOLS`, `LINREG.KFOLDRIDGE`, `LINREG.KFOLDLASSO`, `LINREG.KFOLDELASTICNET`, `LINREG.PREDICTIONINTERVALS`
+  - Advanced: `LINREG.POLYNOMIAL`, `LINREG.LAMBDAPATH`
+  - Per-argument help strings in Function Wizard; `xlAddInManagerInfo12` for Add-in Manager
+  - 164 integration tests including stress tests with memory tracking
+- **FFI Polynomial Regression** (`src/ffi/polynomial.rs`) — C exports for polynomial fitting and prediction with getter functions for degree, centering, R², and coefficients
+- **VBA Example Extensions** — New "Cross Validation" and "Polynomial" sheets with example macros for K-Fold CV (OLS, Ridge, Lasso, Elastic Net), quadratic/cubic polynomial fitting, VIF test, and WLS
+- **CI Examples Job** — New workflow job to validate all Rust examples compile without default features
+- **Example Files** — `polynomial_example.rs` and `feature_importance_example.rs` added to `examples/Rust/`
+- **Feature Importance Tests** — Expanded unit test coverage in `tests/unit/feature_importance_tests.rs`
+
+### Changed
+- **Documentation** — Added module-level docs to `src/python/mod.rs` and `src/python/results/mod.rs` with usage examples; improved function docs in `core.rs` and all FFI modules
+- **FFI Safety Docs** — Added `# Safety` sections to all FFI functions documenting pointer validity, alignment, and concurrency guarantees
+- **CI Coverage** — Updated exclusion regex to properly exclude WASM bindings on both Unix and Windows path separators (`[/\\]wasm[/\\]`); added clarifying comments about WASM/Python exclusion
+- Added `#[expect(...)]` attributes for intentional diagnostic warnings in Python/WASM serialization code
+
+### Fixed
+- Doctest examples in `src/core.rs` now use fully-qualified `linreg_core::Error` type instead of bare `Error`
+- Minor VBA FFI test import and structure adjustments
+
+---
+
 ## [0.8.0] - 2026-02-19
 
 ### Added

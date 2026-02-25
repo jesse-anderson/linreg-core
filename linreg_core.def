@@ -85,6 +85,18 @@ EXPORTS
     LR_GetCVStdRMSE
     LR_GetCVMeanR2
 
+    ; ── Polynomial regression ──────────────────────────────────────────────────
+    LR_PolynomialFit
+    LR_PolynomialPredict
+    LR_GetPolynomialDegree
+    LR_GetPolynomialCenter
+    LR_GetPolynomialCenterValue
+    LR_GetPolynomialRSquared
+    LR_GetPolynomialAdjRSquared
+    LR_GetPolynomialMSE
+    LR_GetPolynomialNumCoefficients
+    LR_GetPolynomialCoefficients
+
     ; ── Prediction intervals ─────────────────────────────────────────────────
     LR_PredictionIntervals
     LR_GetPredicted

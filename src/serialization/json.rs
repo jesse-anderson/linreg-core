@@ -10,8 +10,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Generate an ISO 8601 timestamp from the current system time.
 ///
-/// Returns a string in the format "YYYY-MM-DDTHH:MM:SSZ" using UTC.
-/// This avoids adding a chrono dependency.
+/// This function avoids adding a chrono dependency by implementing the
+/// date conversion algorithm directly.
+///
+/// # Returns
+///
+/// A string in ISO 8601 format "YYYY-MM-DDTHH:MM:SSZ" using UTC.
 ///
 /// # Example
 ///

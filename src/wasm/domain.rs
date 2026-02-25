@@ -13,16 +13,24 @@
 
 #![cfg(feature = "wasm")]
 
-use wasm_bindgen::prelude::*;
-
 use crate::error::{Error, Result};
 
 /// Checks if the current domain is authorized to use this WASM module.
+///
+/// Domain restriction is controlled by the `LINREG_DOMAIN_RESTRICT` environment
+/// variable set at build time. If not set or empty, all domains are allowed.
 ///
 /// # Returns
 ///
 /// - `Ok(())` if domain is authorized or restriction is disabled
 /// - `Err(Error::DomainCheck)` if domain is not in the allowed list
+///
+/// # Errors
+///
+/// Returns `Error::DomainCheck` if:
+/// - The window object cannot be accessed (not in a browser context)
+/// - The hostname cannot be retrieved
+/// - The current hostname is not in the allowed list
 pub fn check_domain() -> Result<()> {
     // Read allowed domains from build-time environment variable
     let allowed_domains = option_env!("LINREG_DOMAIN_RESTRICT");

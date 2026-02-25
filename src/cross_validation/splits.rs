@@ -46,6 +46,22 @@ use crate::error::{Error, Result};
 /// assert_eq!(train.len(), 6);
 /// # Ok::<(), linreg_core::Error>(())
 /// ```
+///
+/// # Arguments
+///
+/// * `n_samples` - Total number of samples to split
+/// * `n_folds` - Number of folds to create (must be >= 2)
+/// * `shuffle` - Whether to shuffle indices before splitting
+/// * `seed` - Optional random seed for reproducibility (ignored if shuffle=false)
+///
+/// # Returns
+///
+/// A vector of `(train_indices, test_indices)` tuples, one per fold.
+///
+/// # Errors
+///
+/// Returns `Error::InvalidInput` if `n_folds < 2`.
+/// Returns `Error::InsufficientData` if `n_samples < n_folds`.
 pub fn create_kfold_splits(
     n_samples: usize,
     n_folds: usize,
@@ -126,6 +142,14 @@ pub fn create_kfold_splits(
 /// fisher_yates_shuffle(&mut indices, 42);
 /// // Indices are now in a deterministic but shuffled order
 /// ```
+///
+/// # Returns
+///
+/// Always returns `()`. The shuffle is performed in-place on `indices`.
+///
+/// # Panics
+///
+/// Never panics. An empty slice is returned unchanged.
 pub fn fisher_yates_shuffle(indices: &mut [usize], seed: u64) {
     if indices.is_empty() {
         return;

@@ -16,6 +16,15 @@ use crate::diagnostics;
 
 // ── Helper: unpack raw pointers into owned vecs ───────────────────────────────
 
+/// Unpack raw FFI pointers into Rust-owned vectors.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 unsafe fn unpack(
     y_ptr: *const f64,
     n: i32,
@@ -27,6 +36,7 @@ unsafe fn unpack(
     }
     let n = n as usize;
     let p = p as usize;
+    // SAFETY: Caller has ensured pointers are valid per safety contract
     let y = slice::from_raw_parts(y_ptr, n).to_vec();
     let x_flat = slice::from_raw_parts(x_ptr, n * p);
     let mut x_vars: Vec<Vec<f64>> = vec![Vec::with_capacity(n); p];
@@ -92,8 +102,19 @@ pub extern "system" fn LR_GetAutocorrelation(handle: usize) -> f64 {
 
 // ── Diagnostic fit functions ──────────────────────────────────────────────────
 
+/// Macro to generate diagnostic test FFI functions.
+/// Each generated function includes a Safety section in its documentation.
 macro_rules! diag_fn {
     ($fn_name:ident, $call:expr, $label:literal) => {
+        /// Diagnostic test.
+        ///
+        /// # Safety
+        ///
+        /// Caller must ensure:
+        /// - `y_ptr` is valid for reading `n` f64 values
+        /// - `x_ptr` is valid for reading `n * p` f64 values
+        /// - Both pointers are properly aligned for f64
+        /// - The memory regions will not be modified by any other thread during this call
         #[no_mangle]
         pub extern "system" fn $fn_name(
             y_ptr: *const f64,
@@ -101,6 +122,7 @@ macro_rules! diag_fn {
             x_ptr: *const f64,
             p: i32,
         ) -> usize {
+            // SAFETY: Caller has ensured pointers are valid per function safety contract
             let (y, x_vars) = match unsafe { unpack(y_ptr, n, x_ptr, p) } {
                 Some(v) => v,
                 None => {
@@ -125,6 +147,14 @@ diag_fn!(LR_ShapiroWilk,     diagnostics::shapiro_wilk_test,     "LR_ShapiroWilk
 diag_fn!(LR_AndersonDarling, diagnostics::anderson_darling_test, "LR_AndersonDarling");
 
 /// Harvey-Collier test for linearity (R method).
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_HarveyCollier(
     y_ptr: *const f64,
@@ -149,6 +179,14 @@ pub extern "system" fn LR_HarveyCollier(
 }
 
 /// Breusch-Pagan White test (R method).
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_White(
     y_ptr: *const f64,
@@ -174,7 +212,17 @@ pub extern "system" fn LR_White(
 
 /// Rainbow test for linearity.
 ///
+/// # Arguments
+///
 /// - `fraction` – fraction of central data used (typically 0.5)
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_Rainbow(
     y_ptr: *const f64,
@@ -208,8 +256,19 @@ pub extern "system" fn LR_Rainbow(
 
 /// RESET test for model specification error.
 ///
+/// # Arguments
+///
 /// - `powers_ptr` – pointer to array of `powers_len` power values (e.g. {2, 3})
 /// - `powers_len` – number of powers
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - `powers_ptr` is valid for reading `powers_len` i32 values
+/// - All pointers are properly aligned
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_Reset(
     y_ptr: *const f64,
@@ -248,6 +307,14 @@ pub extern "system" fn LR_Reset(
 ///
 /// `LR_GetPValue` returns NAN for this handle.
 /// Use `LR_GetAutocorrelation` to read ρ ≈ 1 − DW/2.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_DurbinWatson(
     y_ptr: *const f64,
@@ -281,6 +348,14 @@ pub extern "system" fn LR_DurbinWatson(
 ///
 /// Returns a handle to a `Vector` of n Cook's distance values.
 /// Use `LR_GetVectorLength` and `LR_GetVector` to retrieve values.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_CooksDistance(
     y_ptr: *const f64,
@@ -308,6 +383,14 @@ pub extern "system" fn LR_CooksDistance(
 ///
 /// Returns a handle to a `Vector` of n DFFITS values.
 /// Use `LR_GetVectorLength` and `LR_GetVector` to retrieve values.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_DFFITS(
     y_ptr: *const f64,
@@ -336,6 +419,14 @@ pub extern "system" fn LR_DFFITS(
 /// Requires p >= 2 predictors.  Returns a handle to a `Vector` of p VIF values
 /// (one per predictor, in the same order as the input columns, excluding intercept).
 /// Use `LR_GetVectorLength` and `LR_GetVector` to retrieve values.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_VIF(
     y_ptr: *const f64,
@@ -368,6 +459,14 @@ pub extern "system" fn LR_VIF(
 /// p_total = k + 1 (intercept + k predictors).
 /// Row i, column j = standardised change in coefficient j when obs i is omitted.
 /// Use `LR_GetMatrixRows`, `LR_GetMatrixCols`, and `LR_GetMatrix` to retrieve.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_DFBETAS(
     y_ptr: *const f64,
@@ -399,7 +498,17 @@ pub extern "system" fn LR_DFBETAS(
 
 /// Breusch-Godfrey test for higher-order serial correlation.
 ///
+/// # Arguments
+///
 /// - `lag_order` – maximum lag order to test (>= 1)
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_BreuschGodfrey(
     y_ptr: *const f64,

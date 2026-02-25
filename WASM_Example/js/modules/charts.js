@@ -1115,6 +1115,188 @@ export function updateCorrelationHeatmap() {
 // ============================================================================
 
 /**
+ * Update the Summary Statistics table (Five-Number Summary + Mode)
+ */
+export async function updateSummaryStats() {
+    const container = document.getElementById('summaryStatsContainer');
+    if (!container || !STATE.numericColumns || STATE.numericColumns.length === 0) return;
+
+    const cols = STATE.numericColumns;
+    const Stats = WasmRegression.Stats;
+
+    // Build summary statistics table
+    let html = '<table class="summary-stats-table" style="border-collapse: collapse; width: 100%; font-family: inherit; font-size: 0.8125rem;">';
+
+    // Header row
+    html += '<thead><tr style="background: var(--bg-tertiary);">';
+    html += '<th style="padding: 12px 8px; text-align: left; font-weight: 600; border-bottom: 2px solid var(--border-color);">Variable</th>';
+    html += '<th style="padding: 12px 8px; text-align: center; font-weight: 600; border-bottom: 2px solid var(--border-color);">Count</th>';
+    html += '<th style="padding: 12px 8px; text-align: center; font-weight: 600; border-bottom: 2px solid var(--border-color);">Mean</th>';
+    html += '<th style="padding: 12px 8px; text-align: center; font-weight: 600; border-bottom: 2px solid var(--border-color);">Std Dev</th>';
+    html += '<th style="padding: 12px 8px; text-align: center; font-weight: 600; border-bottom: 2px solid var(--border-color);">Min</th>';
+    html += '<th style="padding: 12px 8px; text-align: center; font-weight: 600; border-bottom: 2px solid var(--border-color);">Q1</th>';
+    html += '<th style="padding: 12px 8px; text-align: center; font-weight: 600; border-bottom: 2px solid var(--border-color);">Median</th>';
+    html += '<th style="padding: 12px 8px; text-align: center; font-weight: 600; border-bottom: 2px solid var(--border-color);">Q3</th>';
+    html += '<th style="padding: 12px 8px; text-align: center; font-weight: 600; border-bottom: 2px solid var(--border-color);">Max</th>';
+    html += '<th style="padding: 12px 8px; text-align: center; font-weight: 600; border-bottom: 2px solid var(--border-color);">Range</th>';
+    html += '<th style="padding: 12px 8px; text-align: center; font-weight: 600; border-bottom: 2px solid var(--border-color);">IQR</th>';
+    html += '<th style="padding: 12px 8px; text-align: center; font-weight: 600; border-bottom: 2px solid var(--border-color);">Mode</th>';
+    html += '</tr></thead><tbody>';
+
+    // Data rows
+    for (const col of cols) {
+        const data = STATE.rawData.map(r => r[col]).filter(v => typeof v === 'number' && !Number.isNaN(v));
+
+        if (data.length === 0) {
+            html += `<tr><td colspan="13" style="padding: 12px 8px; text-align: center; color: var(--text-muted);">No valid data for ${escapeHtml(col)}</td></tr>`;
+            continue;
+        }
+
+        // Calculate statistics using WASM
+        const fiveNum = Stats.fiveNumberSummary(data);
+        const mean = Stats.mean(data);
+        const std = Stats.std(data);
+        const modeResult = Stats.mode(data);
+
+        const formatNum = (n) => Number.isFinite(n) ? n.toFixed(4) : 'N/A';
+        const formatMode = (modes) => {
+            if (!modes || modes.length === 0) return 'N/A';
+            if (modes.length === 1) return modes[0].toFixed(4);
+            if (modes.length <= 3) return modes.map(m => m.toFixed(2)).join(', ');
+            return `${modes.length} modes`;
+        };
+
+        html += `<tr style="border-bottom: 1px solid var(--border-color);">
+            <td style="padding: 12px 8px; font-weight: 500;">${escapeHtml(col)}</td>
+            <td style="padding: 12px 8px; text-align: center;">${data.length}</td>
+            <td style="padding: 12px 8px; text-align: center;">${formatNum(mean)}</td>
+            <td style="padding: 12px 8px; text-align: center;">${formatNum(std)}</td>
+            <td style="padding: 12px 8px; text-align: center; color: var(--accent-secondary);">${formatNum(fiveNum.min)}</td>
+            <td style="padding: 12px 8px; text-align: center;">${formatNum(fiveNum.q1)}</td>
+            <td style="padding: 12px 8px; text-align: center; font-weight: 600;">${formatNum(fiveNum.median)}</td>
+            <td style="padding: 12px 8px; text-align: center;">${formatNum(fiveNum.q3)}</td>
+            <td style="padding: 12px 8px; text-align: center; color: var(--accent-educational);">${formatNum(fiveNum.max)}</td>
+            <td style="padding: 12px 8px; text-align: center;">${formatNum(fiveNum.range)}</td>
+            <td style="padding: 12px 8px; text-align: center;">${formatNum(fiveNum.iqr)}</td>
+            <td style="padding: 12px 8px; text-align: center;">${formatMode(modeResult.modes)}</td>
+        </tr>`;
+    }
+
+    html += '</tbody></table>';
+
+    // Add legend
+    html += '<div style="margin-top: 16px; padding: 12px; background: var(--bg-secondary); border-radius: 6px; font-size: 0.75rem; color: var(--text-secondary);">';
+    html += '<strong>Five-Number Summary:</strong> Min (minimum), Q1 (25th percentile), Median (50th percentile), Q3 (75th percentile), Max (maximum). ';
+    html += '<strong>Range:</strong> Max - Min. <strong>IQR:</strong> Q3 - Q1 (middle 50% spread). ';
+    html += '<strong>Mode:</strong> Most frequent value(s).';
+    html += '</div>';
+
+    // Create boxplot chart
+    const boxplotCanvasId = 'summaryStatsBoxplot';
+    html += `<div style="margin-top: 20px;">
+        <canvas id="${boxplotCanvasId}" style="max-height: 300px;"></canvas>
+    </div>`;
+
+    container.innerHTML = html;
+
+    // Create boxplot chart
+    createBoxplotChart(boxplotCanvasId, cols);
+}
+
+/**
+ * Create a boxplot chart from five-number summary data
+ */
+function createBoxplotChart(canvasId, columns) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !STATE.rawData) return;
+
+    const Stats = WasmRegression.Stats;
+    const colors = getChartColors();
+
+    // Prepare data for boxplot (simplified horizontal bar style)
+    const datasets = columns.map((col, index) => {
+        const data = STATE.rawData.map(r => r[col]).filter(v => typeof v === 'number' && !Number.isNaN(v));
+        const fiveNum = Stats.fiveNumberSummary(data);
+
+        return {
+            label: col.length > 15 ? col.substring(0, 12) + '...' : col,
+            data: [fiveNum.min, fiveNum.q1, fiveNum.median, fiveNum.q3, fiveNum.max],
+            backgroundColor: getPredictorColor(index) + '40', // 25% opacity
+            borderColor: getPredictorColor(index),
+            borderWidth: 2,
+            borderRadius: 4,
+            borderSkipped: false,
+        };
+    });
+
+    const ctx = canvas.getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: datasets.map(d => d.label),
+            datasets: [{
+                label: 'Min',
+                data: datasets.map(d => d.data[0]),
+                backgroundColor: colors.accent_secondary + '60',
+            }, {
+                label: 'Q1',
+                data: datasets.map(d => d.data[1]),
+                backgroundColor: colors.accent + '60',
+            }, {
+                label: 'Median',
+                data: datasets.map(d => d.data[2]),
+                backgroundColor: colors.line + 'aa',
+            }, {
+                label: 'Q3',
+                data: datasets.map(d => d.data[3]),
+                backgroundColor: colors.accent + '60',
+            }, {
+                label: 'Max',
+                data: datasets.map(d => d.data[4]),
+                backgroundColor: colors.accent_educational + '60',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Five-Number Summary by Variable',
+                    color: colors.text,
+                    font: { size: 14, weight: '500' }
+                },
+                legend: {
+                    position: 'top',
+                    labels: { color: colors.text, boxWidth: 12, padding: 8, font: { size: 11 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.raw.toFixed(4)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    ticks: { color: colors.text_secondary, font: { size: 10 } },
+                    grid: { color: colors.border }
+                },
+                y: {
+                    stacked: true,
+                    ticks: { color: colors.text_secondary },
+                    grid: { color: colors.border }
+                }
+            }
+        }
+    });
+}
+
+// ============================================================================
+
+/**
  * Get a color for a predictor line
  */
 function getPredictorColor(index) {

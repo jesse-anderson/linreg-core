@@ -24,6 +24,8 @@ Attribute VB_Name = "LinregCore"
 '   LinReg_Ridge(y, X, lambda [,std])              (p+8)x2 coef + stats table
 '   LinReg_Lasso(y, X, lambda [,std,iter,tol])     (p+9)x2 coef + stats table
 '   LinReg_ElasticNet(y, X, lambda, alpha [,...])  (p+10)x2 coef + stats table
+'   LinReg_Polynomial(y, x, degree [,center])     (d+8)x2 coef + stats table
+'   LinReg_PolynomialPredict_(y,x,xNew,deg [,ctr]) n_new x 1 predictions
 '   LinReg_PredictionIntervals(y,X,newX [,alpha])  (n_new+1)x4 PI table
 '   LinReg_BreuschPagan(y, X)                      1x3: {stat, p-value, df}
 '   LinReg_White(y, X)                             1x3: {stat, p-value, df}
@@ -44,7 +46,7 @@ Attribute VB_Name = "LinregCore"
 '   LinReg_KFoldRidge(y, X, lambda [,std,nF])     1x6: same CV metrics
 '   LinReg_KFoldLasso(y, X, lambda [,std,nF])     1x6: same CV metrics
 '   LinReg_KFoldElasticNet(y,X,lam,alpha [,...])  1x6: same CV metrics
-'   LinReg_Version()                               version string (e.g. "0.8.0")
+'   LinReg_Version()                               version string (e.g. "0.8.1")
 '
 ' ERROR HANDLING
 '   All wrappers return a 1-element array containing an error message string
@@ -313,6 +315,40 @@ Option Explicit
         Private Declare PtrSafe Function LR_GetCVMeanR2 Lib "linreg_core_x64.dll" _
             (ByVal handle As LongPtr) As Double
 
+        ' == Polynomial regression ===============================================
+        Private Declare PtrSafe Function LR_PolynomialFit Lib "linreg_core_x64.dll" _
+            (ByVal y_ptr As LongPtr, ByVal n As Long, _
+             ByVal x_ptr As LongPtr, ByVal degree As Long, _
+             ByVal center As Long) As LongPtr
+
+        Private Declare PtrSafe Function LR_PolynomialPredict Lib "linreg_core_x64.dll" _
+            (ByVal handle As LongPtr, ByVal x_ptr As LongPtr, _
+             ByVal n_new As Long, ByVal out_ptr As LongPtr) As Long
+
+        Private Declare PtrSafe Function LR_GetPolynomialDegree Lib "linreg_core_x64.dll" _
+            (ByVal handle As LongPtr) As Long
+
+        Private Declare PtrSafe Function LR_GetPolynomialCenter Lib "linreg_core_x64.dll" _
+            (ByVal handle As LongPtr) As Long
+
+        Private Declare PtrSafe Function LR_GetPolynomialCenterValue Lib "linreg_core_x64.dll" _
+            (ByVal handle As LongPtr) As Double
+
+        Private Declare PtrSafe Function LR_GetPolynomialRSquared Lib "linreg_core_x64.dll" _
+            (ByVal handle As LongPtr) As Double
+
+        Private Declare PtrSafe Function LR_GetPolynomialAdjRSquared Lib "linreg_core_x64.dll" _
+            (ByVal handle As LongPtr) As Double
+
+        Private Declare PtrSafe Function LR_GetPolynomialMSE Lib "linreg_core_x64.dll" _
+            (ByVal handle As LongPtr) As Double
+
+        Private Declare PtrSafe Function LR_GetPolynomialNumCoefficients Lib "linreg_core_x64.dll" _
+            (ByVal handle As LongPtr) As Long
+
+        Private Declare PtrSafe Function LR_GetPolynomialCoefficients Lib "linreg_core_x64.dll" _
+            (ByVal handle As LongPtr, ByVal out_ptr As LongPtr, ByVal out_len As Long) As Long
+
         ' == Utilities =========================================================
         Private Declare PtrSafe Function LR_Version Lib "linreg_core_x64.dll" _
             (ByVal out_ptr As LongPtr, ByVal out_len As Long) As Long
@@ -573,6 +609,40 @@ Option Explicit
         Private Declare PtrSafe Function LR_GetCVMeanR2 Lib "linreg_core_x86.dll" _
             (ByVal handle As LongPtr) As Double
 
+        ' == Polynomial regression ===============================================
+        Private Declare PtrSafe Function LR_PolynomialFit Lib "linreg_core_x86.dll" _
+            (ByVal y_ptr As LongPtr, ByVal n As Long, _
+             ByVal x_ptr As LongPtr, ByVal degree As Long, _
+             ByVal center As Long) As LongPtr
+
+        Private Declare PtrSafe Function LR_PolynomialPredict Lib "linreg_core_x86.dll" _
+            (ByVal handle As LongPtr, ByVal x_ptr As LongPtr, _
+             ByVal n_new As Long, ByVal out_ptr As LongPtr) As Long
+
+        Private Declare PtrSafe Function LR_GetPolynomialDegree Lib "linreg_core_x86.dll" _
+            (ByVal handle As LongPtr) As Long
+
+        Private Declare PtrSafe Function LR_GetPolynomialCenter Lib "linreg_core_x86.dll" _
+            (ByVal handle As LongPtr) As Long
+
+        Private Declare PtrSafe Function LR_GetPolynomialCenterValue Lib "linreg_core_x86.dll" _
+            (ByVal handle As LongPtr) As Double
+
+        Private Declare PtrSafe Function LR_GetPolynomialRSquared Lib "linreg_core_x86.dll" _
+            (ByVal handle As LongPtr) As Double
+
+        Private Declare PtrSafe Function LR_GetPolynomialAdjRSquared Lib "linreg_core_x86.dll" _
+            (ByVal handle As LongPtr) As Double
+
+        Private Declare PtrSafe Function LR_GetPolynomialMSE Lib "linreg_core_x86.dll" _
+            (ByVal handle As LongPtr) As Double
+
+        Private Declare PtrSafe Function LR_GetPolynomialNumCoefficients Lib "linreg_core_x86.dll" _
+            (ByVal handle As LongPtr) As Long
+
+        Private Declare PtrSafe Function LR_GetPolynomialCoefficients Lib "linreg_core_x86.dll" _
+            (ByVal handle As LongPtr, ByVal out_ptr As LongPtr, ByVal out_len As Long) As Long
+
         ' == Utilities =========================================================
         Private Declare PtrSafe Function LR_Version Lib "linreg_core_x86.dll" _
             (ByVal out_ptr As LongPtr, ByVal out_len As Long) As Long
@@ -824,6 +894,40 @@ Option Explicit
 
     Private Declare Function LR_GetCVMeanR2 Lib "linreg_core_x86.dll" _
         (ByVal handle As Long) As Double
+
+    ' == Polynomial regression ===============================================
+    Private Declare Function LR_PolynomialFit Lib "linreg_core_x86.dll" _
+        (ByVal y_ptr As Long, ByVal n As Long, _
+         ByVal x_ptr As Long, ByVal degree As Long, _
+         ByVal center As Long) As Long
+
+    Private Declare Function LR_PolynomialPredict Lib "linreg_core_x86.dll" _
+        (ByVal handle As Long, ByVal x_ptr As Long, _
+         ByVal n_new As Long, ByVal out_ptr As Long) As Long
+
+    Private Declare Function LR_GetPolynomialDegree Lib "linreg_core_x86.dll" _
+        (ByVal handle As Long) As Long
+
+    Private Declare Function LR_GetPolynomialCenter Lib "linreg_core_x86.dll" _
+        (ByVal handle As Long) As Long
+
+    Private Declare Function LR_GetPolynomialCenterValue Lib "linreg_core_x86.dll" _
+        (ByVal handle As Long) As Double
+
+    Private Declare Function LR_GetPolynomialRSquared Lib "linreg_core_x86.dll" _
+        (ByVal handle As Long) As Double
+
+    Private Declare Function LR_GetPolynomialAdjRSquared Lib "linreg_core_x86.dll" _
+        (ByVal handle As Long) As Double
+
+    Private Declare Function LR_GetPolynomialMSE Lib "linreg_core_x86.dll" _
+        (ByVal handle As Long) As Double
+
+    Private Declare Function LR_GetPolynomialNumCoefficients Lib "linreg_core_x86.dll" _
+        (ByVal handle As Long) As Long
+
+    Private Declare Function LR_GetPolynomialCoefficients Lib "linreg_core_x86.dll" _
+        (ByVal handle As Long, ByVal out_ptr As Long, ByVal out_len As Long) As Long
 
     Private Declare Function LR_Version Lib "linreg_core_x86.dll" _
         (ByVal out_ptr As Long, ByVal out_len As Long) As Long
@@ -1860,10 +1964,167 @@ End Function
 #End If  ' VBA7 (cross-validation section)
 
 ' ==============================================================================
-' SECTION 12 - Utility
+' SECTION 13 - Polynomial regression wrappers
+' ==============================================================================
+' Fit a polynomial regression model y = b0 + b1*x + b2*x^2 + ... + bd*x^d
+'
+' Parameters:
+'   yRange   - n response values (single column or row)
+'   xRange   - n predictor values (single column or row) - ONE variable only
+'   degree   - polynomial degree (1 = linear, 2 = quadratic, etc.)
+'   center   - True to center x before creating powers (recommended for degree >= 3)
+'
+' Returns a (degree+2) x 2 Variant array:
+'   Row 0:       header ["Term", "Coefficient"]
+'   Row 1:       ["Intercept", intercept]
+'   Rows 2..d+1: ["X1", "X2", ..., "Xd"] with coefficients
+'   Row d+2:     blank
+'   Row d+3:     ["R-squared", r_squared]
+'   Row d+4:     ["Adj R-squared", adj_r_squared]
+'   Row d+5:     ["MSE", mse]
+'   Row d+6:     ["Degree", degree]
+'   Row d+7:     ["Centered", True/False]
+'
+' On error returns a 1-element array containing the error message string.
 ' ==============================================================================
 
-' Return the linreg_core library version string (e.g. "0.8.0").
+#If VBA7 Then
+
+Public Function LinReg_Polynomial(yRange As Range, xRange As Range, _
+                                  degree As Long, _
+                                  Optional center As Boolean = False) As Variant
+    Dim y() As Double, x() As Double
+    Dim n As Long
+    Dim h As LongPtr
+
+    n = yRange.Cells.Count
+    If xRange.Cells.Count <> n Then
+        LinReg_Polynomial = Array("Error: y and x must have the same number of observations")
+        Exit Function
+    End If
+
+    y = RangeToDoubleArray(yRange)
+    x = RangeToDoubleArray(xRange)
+
+    h = LR_PolynomialFit(VarPtr(y(0)), CLng(n), VarPtr(x(0)), degree, IIf(center, 1, 0))
+    If h = 0 Then
+        LinReg_Polynomial = Array(GetLastErrorMsg())
+        Exit Function
+    End If
+
+    Dim intercept As Double
+    Dim nCoef As Long
+    Dim deg As Long
+    Dim centered As Long
+
+    ' Get polynomial info
+    deg = LR_GetPolynomialDegree(h)
+    centered = LR_GetPolynomialCenter(h)
+
+    ' Get coefficients
+    nCoef = LR_GetPolynomialNumCoefficients(h)
+    Dim coefs() As Double
+    ReDim coefs(0 To nCoef - 1)
+    LR_GetPolynomialCoefficients h, VarPtr(coefs(0)), nCoef
+
+    Dim r2 As Double, adjr2 As Double, mse As Double
+    r2 = LR_GetPolynomialRSquared(h)
+    adjr2 = LR_GetPolynomialAdjRSquared(h)
+    mse = LR_GetPolynomialMSE(h)
+
+    LR_Free h
+
+    ' Build result table: header + (deg+1) coef rows + blank + 5 stats
+    Dim nRows As Long
+    nRows = deg + 8  ' header + deg+1 coefs + blank + 5 stats
+    Dim result() As Variant
+    ReDim result(0 To nRows - 1, 0 To 1)
+
+    result(0, 0) = "Term"
+    result(0, 1) = "Coefficient"
+    result(1, 0) = "Intercept"
+    result(1, 1) = coefs(0)
+
+    Dim i As Long
+    For i = 1 To deg
+        result(i + 1, 0) = "X" & i
+        result(i + 1, 1) = coefs(i)
+    Next i
+
+    Dim sep As Long
+    sep = deg + 2  ' blank row index
+    ' row sep is already empty
+
+    result(sep + 1, 0) = "R-squared"
+    result(sep + 1, 1) = r2
+    result(sep + 2, 0) = "Adj R-squared"
+    result(sep + 2, 1) = adjr2
+    result(sep + 3, 0) = "MSE"
+    result(sep + 3, 1) = mse
+    result(sep + 4, 0) = "Degree"
+    result(sep + 4, 1) = deg
+    result(sep + 5, 0) = "Centered"
+    result(sep + 5, 1) = IIf(centered = 1, "Yes", "No")
+
+    LinReg_Polynomial = result
+End Function
+
+' Predict using a fitted polynomial model (lower-level, requires handle management).
+' Most users should use LinReg_Polynomial which fits and returns results directly.
+Public Function LinReg_PolynomialPredict_(yRange As Range, xRange As Range, _
+                                         xNewRange As Range, _
+                                         degree As Long, _
+                                         Optional center As Boolean = False) As Variant
+    Dim y() As Double, x() As Double, xNew() As Double
+    Dim n As Long, nNew As Long
+    Dim h As LongPtr
+
+    n = yRange.Cells.Count
+    nNew = xNewRange.Cells.Count
+
+    y = RangeToDoubleArray(yRange)
+    x = RangeToDoubleArray(xRange)
+    xNew = RangeToDoubleArray(xNewRange)
+
+    ' Fit the model
+    h = LR_PolynomialFit(VarPtr(y(0)), CLng(n), VarPtr(x(0)), degree, IIf(center, 1, 0))
+    If h = 0 Then
+        LinReg_PolynomialPredict_ = Array(GetLastErrorMsg())
+        Exit Function
+    End If
+
+    ' Allocate output array
+    Dim preds() As Double
+    ReDim preds(0 To nNew - 1)
+
+    Dim nWritten As Long
+    nWritten = LR_PolynomialPredict(h, VarPtr(xNew(0)), CLng(nNew), VarPtr(preds(0)))
+
+    LR_Free h
+
+    If nWritten <> nNew Then
+        LinReg_PolynomialPredict_ = Array("Error: prediction failed")
+        Exit Function
+    End If
+
+    ' Convert to column array format
+    Dim result() As Variant
+    ReDim result(0 To nNew - 1, 0 To 0)
+    Dim i As Long
+    For i = 0 To nNew - 1
+        result(i, 0) = preds(i)
+    Next i
+
+    LinReg_PolynomialPredict_ = result
+End Function
+
+#End If  ' VBA7 (polynomial section)
+
+' ==============================================================================
+' SECTION 14 - Utility
+' ==============================================================================
+
+' Return the linreg_core library version string (e.g. "0.8.1").
 Public Function LinReg_Version() As String
     Dim buf(0 To 63) As Byte
     Dim written As Long

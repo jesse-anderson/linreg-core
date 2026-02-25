@@ -57,7 +57,7 @@ use crate::linalg::{vec_sub, Matrix};
 /// let result = dffits_test(&y, &[x1])?;
 /// println!("DFFITS: {:?}", result.dffits);
 /// println!("Threshold: {:.4}", result.threshold);
-/// # Ok::<(), linreg_core::error::Error>(())
+/// # Ok::<(), linreg_core::Error>(())
 /// ```
 pub fn dffits_test(y: &[f64], x_vars: &[Vec<f64>]) -> Result<DffitsResult> {
     let n = y.len();

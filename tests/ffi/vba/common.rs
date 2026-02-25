@@ -47,6 +47,12 @@ pub use ffi::cross_validation::{
     LR_KFoldOLS, LR_KFoldRidge, LR_KFoldLasso, LR_KFoldElasticNet,
     LR_GetCVNFolds, LR_GetCVMeanMSE, LR_GetCVStdMSE, LR_GetCVMeanRMSE, LR_GetCVStdRMSE, LR_GetCVMeanR2,
 };
+pub use ffi::polynomial::{
+    LR_PolynomialFit, LR_PolynomialPredict,
+    LR_GetPolynomialDegree, LR_GetPolynomialCenter, LR_GetPolynomialCenterValue,
+    LR_GetPolynomialRSquared, LR_GetPolynomialAdjRSquared, LR_GetPolynomialMSE,
+    LR_GetPolynomialNumCoefficients, LR_GetPolynomialCoefficients,
+};
 pub use ffi::utils::{LR_Version, LR_Init};
 
 // ============================================================================

@@ -19,7 +19,7 @@
 //! ];
 //!
 //! let result = ols_regression(&y, &[x1, x2], &names)?;
-//! # Ok::<(), Error>(())
+//! # Ok::<(), linreg_core::Error>(())
 //! ```
 
 use crate::distributions::{fisher_snedecor_cdf, student_t_cdf, student_t_inverse_cdf};
@@ -179,6 +179,10 @@ pub struct RegressionOutput {
 /// * `t` - The t-statistic value
 /// * `df` - Degrees of freedom
 ///
+/// # Returns
+///
+/// The two-tailed p-value in the range [0, 1].
+///
 /// # Example
 ///
 /// ```
@@ -209,6 +213,10 @@ pub fn two_tailed_p_value(t: f64, df: f64) -> f64 {
 /// * `df` - Degrees of freedom
 /// * `alpha` - Significance level (typically 0.05 for 95% confidence)
 ///
+/// # Returns
+///
+/// The critical t-value for the given significance level.
+///
 /// # Example
 ///
 /// ```
@@ -231,6 +239,10 @@ pub fn t_critical_quantile(df: f64, alpha: f64) -> f64 {
 /// * `f_stat` - The F-statistic value
 /// * `df1` - Numerator degrees of freedom
 /// * `df2` - Denominator degrees of freedom
+///
+/// # Returns
+///
+/// The p-value in the range [0, 1].
 ///
 /// # Example
 ///
@@ -624,7 +636,7 @@ pub fn calculate_vif(x_vars: &[Vec<f64>], names: &[String], n: usize) -> Vec<Vif
 ///
 /// let result = ols_regression(&y, &[x1, x2], &names)?;
 /// println!("R-squared: {}", result.r_squared);
-/// # Ok::<(), Error>(())
+/// # Ok::<(), linreg_core::Error>(())
 /// ```
 #[allow(clippy::needless_range_loop)]
 pub fn ols_regression(

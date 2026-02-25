@@ -64,7 +64,7 @@ use std::collections::HashMap;
 /// let result = dfbetas_test(&y, &[x1])?;
 /// println!("DFBETAS matrix: {:?}", result.dfbetas);
 /// println!("Threshold: {:.4}", result.threshold);
-/// # Ok::<(), linreg_core::error::Error>(())
+/// # Ok::<(), linreg_core::Error>(())
 /// ```
 pub fn dfbetas_test(y: &[f64], x_vars: &[Vec<f64>]) -> Result<DfbetasResult> {
     let n = y.len();

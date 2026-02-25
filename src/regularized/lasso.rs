@@ -165,6 +165,16 @@ pub struct LassoFit {
 /// assert!(fit.n_nonzero <= 1); // At most 1 non-zero coefficient
 /// # Ok::<(), linreg_core::Error>(())
 /// ```
+///
+/// # Errors
+///
+/// Returns `Error::InsufficientData` if `x.rows() <= x.cols()`.
+/// Returns `Error::SingularMatrix` if the design matrix is singular.
+/// Returns `Error::InvalidInput` if `lambda` is negative.
+///
+/// # Panics
+///
+/// Panics if `x.cols()` is 0 (no predictors including intercept).
 pub fn lasso_fit(x: &Matrix, y: &[f64], options: &LassoFitOptions) -> Result<LassoFit> {
     let en_options = ElasticNetOptions {
         lambda: options.lambda,

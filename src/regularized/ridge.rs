@@ -258,6 +258,21 @@ pub fn ridge_fit(x: &Matrix, y: &[f64], options: &RidgeFitOptions) -> Result<Rid
 /// // Predictions should be close to [10.0, 12.0] for the linear relationship y = 2*x
 /// # Ok::<(), linreg_core::Error>(())
 /// ```
+///
+/// # Arguments
+///
+/// * `fit` - Fitted ridge regression model from [`ridge_fit`]
+/// * `x_new` - Design matrix for new observations (n_new × p, including intercept column)
+///
+/// # Returns
+///
+/// Vector of predicted values, one per row in `x_new`.
+///
+/// # Panics
+///
+/// Panics if `x_new.cols()` does not match the number of coefficients in `fit` (including intercept).
+///
+/// [`ridge_fit`]: crate::regularized::ridge_fit
 pub fn predict_ridge(fit: &RidgeFit, x_new: &Matrix) -> Vec<f64> {
     predict(x_new, fit.intercept, &fit.coefficients)
 }

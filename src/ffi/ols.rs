@@ -23,11 +23,20 @@ use crate::core::ols_regression;
 
 /// Copy up to `out_len` values from `src` into the buffer at `out_ptr`.
 /// Returns the number of values written, or -1 on invalid arguments.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `out_ptr` is valid for writing `count` f64 values, where `count = src.len().min(out_len as usize)`
+/// - `out_ptr` is properly aligned for f64 (typically 8-byte aligned)
+/// - The memory region pointed to by `out_ptr` will not be accessed mutably by any other thread during this call
+/// - The lifetime of the referenced data exceeds this function call
 unsafe fn copy_doubles(src: &[f64], out_ptr: *mut f64, out_len: i32) -> i32 {
     if out_ptr.is_null() || out_len < 0 {
         return -1;
     }
     let count = src.len().min(out_len as usize);
+    // SAFETY: Caller has ensured `out_ptr` is valid for `count` writes per safety contract
     let dst = unsafe { slice::from_raw_parts_mut(out_ptr, count) };
     dst.copy_from_slice(&src[..count]);
     count as i32
@@ -47,6 +56,15 @@ unsafe fn copy_doubles(src: &[f64], out_ptr: *mut f64, out_len: i32) -> i32 {
 /// # Returns
 /// An opaque handle >= 1 on success, or 0 on failure.
 /// Retrieve the error message with `LR_GetLastError`.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `y_ptr` is valid for reading `n` f64 values
+/// - `x_ptr` is valid for reading `n * p` f64 values
+/// - Both pointers are properly aligned for f64
+/// - The memory regions will not be modified by any other thread during this call
+/// - The values pointed to are valid f64 representations (not NaN or Inf in ways that would cause undefined behavior)
 #[no_mangle]
 pub extern "system" fn LR_OLS(
     y_ptr: *const f64,
@@ -61,9 +79,11 @@ pub extern "system" fn LR_OLS(
     let n = n as usize;
     let p = p as usize;
 
+    // SAFETY: Caller has ensured `y_ptr` is valid for `n` reads per safety contract
     let y = unsafe { slice::from_raw_parts(y_ptr, n) }.to_vec();
 
     // x_ptr is row-major (n × p).  Split into p column vectors.
+    // SAFETY: Caller has ensured `x_ptr` is valid for `n * p` reads per safety contract
     let x_flat = unsafe { slice::from_raw_parts(x_ptr, n * p) };
     let mut x_vars: Vec<Vec<f64>> = vec![Vec::with_capacity(n); p];
     for row in 0..n {
@@ -307,6 +327,13 @@ pub extern "system" fn LR_GetVectorLength(handle: usize) -> i32 {
 
 /// Copy a `Vector` result into a caller-supplied buffer.
 /// Returns the number of values written, or -1 on error.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `out_ptr` is valid for writing `out_len` f64 values
+/// - `out_ptr` is properly aligned for f64
+/// - The memory region will not be accessed by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_GetVector(
     handle: usize,
@@ -319,6 +346,7 @@ pub extern "system" fn LR_GetVector(
     with(handle, |r| match r {
         FitResult::Vector(v) => {
             let count = v.len().min(out_len as usize);
+            // SAFETY: Caller has ensured `out_ptr` is valid for `count` writes per safety contract
             let dst = unsafe { slice::from_raw_parts_mut(out_ptr, count) };
             dst.copy_from_slice(&v[..count]);
             count as i32
@@ -353,6 +381,13 @@ pub extern "system" fn LR_GetMatrixCols(handle: usize) -> i32 {
 /// Copy a `Matrix` result into a caller-supplied buffer (row-major order).
 /// `out_len` must be >= rows × cols.
 /// Returns the number of values written, or -1 on error.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `out_ptr` is valid for writing `out_len` f64 values
+/// - `out_ptr` is properly aligned for f64
+/// - The memory region will not be accessed by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_GetMatrix(
     handle: usize,
@@ -366,6 +401,7 @@ pub extern "system" fn LR_GetMatrix(
         FitResult::Matrix { data, rows, cols } => {
             let total = rows * cols;
             let count = total.min(out_len as usize);
+            // SAFETY: Caller has ensured `out_ptr` is valid for `count` writes per safety contract
             let dst = unsafe { slice::from_raw_parts_mut(out_ptr, count) };
             dst.copy_from_slice(&data[..count]);
             count as i32
@@ -386,6 +422,13 @@ pub extern "system" fn LR_Free(handle: usize) {
 /// Copy the last error message into a caller-supplied buffer.
 /// Returns the number of bytes written (not including null terminator).
 /// The buffer is always null-terminated if `out_len` > 0.
+///
+/// # Safety
+///
+/// Caller must ensure:
+/// - `out_ptr` is valid for writing `out_len` u8 values
+/// - `out_ptr` is properly aligned for u8
+/// - The memory region will not be accessed by any other thread during this call
 #[no_mangle]
 pub extern "system" fn LR_GetLastError(out_ptr: *mut u8, out_len: i32) -> i32 {
     if out_ptr.is_null() || out_len <= 0 {
@@ -395,6 +438,8 @@ pub extern "system" fn LR_GetLastError(out_ptr: *mut u8, out_len: i32) -> i32 {
     let bytes = msg.as_bytes();
     let cap = (out_len as usize).saturating_sub(1); // leave room for null
     let count = bytes.len().min(cap);
+    // SAFETY: Caller has ensured `out_ptr` is valid for `count + 1` writes per safety contract.
+    // We write `count` bytes plus one null terminator.
     unsafe {
         let dst = slice::from_raw_parts_mut(out_ptr, count + 1);
         dst[..count].copy_from_slice(&bytes[..count]);

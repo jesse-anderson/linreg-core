@@ -1319,6 +1319,20 @@ impl Matrix {
 /// automatically handles multicollinearity by selecting a linearly
 /// independent subset of columns.
 ///
+/// # Arguments
+///
+/// * `y` - Response variable (n observations)
+/// * `x` - Design matrix (n rows × p columns, including intercept column)
+///
+/// # Returns
+///
+/// * `Some(Vec<f64>)` - OLS coefficient estimates (length p), or `None` if the matrix is singular
+///
+/// # Notes
+///
+/// - Coefficients for dropped (collinear) columns are set to `NaN`
+/// - This is a convenience wrapper around `Matrix::qr_linpack` and `Matrix::qr_solve_linpack`
+///
 /// # Example
 ///
 /// ```
